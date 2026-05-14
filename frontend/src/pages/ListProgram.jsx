@@ -1,6 +1,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, SquarePen, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import Modal from "@/components/ui/modal";
+import FormField from "@/components/ui/form-field";
 
 const tableRows = [
   {
@@ -52,6 +56,38 @@ const tableRows = [
 
 function ListProgram() {
   const navigate = useNavigate();
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [activeRow, setActiveRow] = useState(null);
+  const [formState, setFormState] = useState({
+    module: "",
+    time: "",
+    convert: "",
+    createdAt: "",
+    design: false,
+    visible: false,
+  });
+
+  const openEdit = (row) => {
+    setActiveRow(row);
+    setFormState({
+      module: row.module,
+      time: row.time,
+      convert: row.convert,
+      createdAt: row.createdAt,
+      design: row.design,
+      visible: row.visible,
+    });
+    setEditOpen(true);
+  };
+
+  const openDelete = (row) => {
+    setActiveRow(row);
+    setDeleteOpen(true);
+  };
+
+  const closeEdit = () => setEditOpen(false);
+  const closeDelete = () => setDeleteOpen(false);
 
   return (
     <>
@@ -161,10 +197,10 @@ function ListProgram() {
                 </TableCell>
                 <TableCell className="border border-slate-200 px-4 text-center">
                   <div className="flex items-center justify-center gap-2">
-                    <button type="button" className=" px-2 py-1">
+                    <button type="button" onClick={() => openEdit(row)} className="px-2 py-1">
                       <SquarePen className="h-4 w-4 text-sky-500    " />
                     </button>
-                    <button type="button" className="px-2 py-1 text-xs text-rose-700">
+                    <button type="button" onClick={() => openDelete(row)} className="px-2 py-1 text-xs text-rose-700">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -174,6 +210,105 @@ function ListProgram() {
           </TableBody>
         </Table>
       </div>
+
+      <Modal
+        open={editOpen}
+        onClose={closeEdit}
+        title="Sửa thông tin"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button type="button" onClick={closeEdit} className="rounded-md border px-4 py-2 text-sm">
+              Đóng
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                toast.success("Đã lưu chỉnh sửa");
+                closeEdit();
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Lưu
+            </button>
+          </div>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormField
+            label="Module"
+            inputProps={{
+              value: formState.module,
+              onChange: (event) => setFormState((prev) => ({ ...prev, module: event.target.value })),
+            }}
+          />
+          <FormField
+            label="Thời gian"
+            inputProps={{
+              value: formState.time,
+              onChange: (event) => setFormState((prev) => ({ ...prev, time: event.target.value })),
+            }}
+          />
+          <FormField
+            label="Quy đổi"
+            inputProps={{
+              value: formState.convert,
+              onChange: (event) => setFormState((prev) => ({ ...prev, convert: event.target.value })),
+            }}
+          />
+          <FormField
+            label="Ngày tạo"
+            inputProps={{
+              value: formState.createdAt,
+              onChange: (event) => setFormState((prev) => ({ ...prev, createdAt: event.target.value })),
+            }}
+          />
+          <label className="flex font-semibold items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={formState.design}
+              onChange={(event) => setFormState((prev) => ({ ...prev, design: event.target.checked }))}
+            />
+            Design
+          </label>
+          <label className="flex font-semibold items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={formState.visible}
+              onChange={(event) => setFormState((prev) => ({ ...prev, visible: event.target.checked }))}
+            />
+            Hiển thị
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        onClose={closeDelete}
+        title="Xác nhận xóa"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button type="button" onClick={closeDelete} className="rounded-md border px-4 py-2 text-sm">
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                toast.success("Đã xóa");
+                closeDelete();
+              }}
+              className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xóa
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Bạn có chắc muốn xóa mục
+          <span className="font-semibold text-slate-800"> {activeRow?.module}</span>?
+        </p>
+      </Modal>
     </>
   );
 }

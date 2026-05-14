@@ -1,11 +1,17 @@
-import { Router } from "express";
+import { Router } from "express"
 
-const router = Router();
+import User from "../models/User.js"
 
-router.get("/", (req, res) => {
-  res.json({
-    message: "Backend running",
-  });
-});
+const router = Router()
 
-export default router;
+router.get("/", async (req, res) => {
+  const user = await User.create({
+    name: "Huy",
+    email: "huy@gmail.com",
+    password: "123456",
+  })
+
+  res.json(user)
+})
+
+export default router

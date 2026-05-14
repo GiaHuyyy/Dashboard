@@ -1,5 +1,6 @@
 import { RotateCw, Save, SquareArrowRightExit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import FormField from "@/components/ui/form-field";
 
 function ProgramForm() {
   const navigate = useNavigate();
@@ -48,28 +49,14 @@ function ProgramForm() {
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-3 text-md font-semibold text-slate-600">Nội dung</div>
         <div className="grid gap-4 p-5 md:grid-cols-2">
-          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
-            Tên hợp đồng
-            <input
-              className="mt-2 w-full rounded-md font-light border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              defaultValue="VÕ TUẤN ANH"
-            />
-          </label>
-          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
-            Số hợp đồng
-            <input
-              className="mt-2 w-full rounded-md font-light border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              defaultValue="0260223QT"
-            />
-          </label>
-          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
-            Trạng thái
-            <select className="mt-2 w-full font-light rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200">
-              <option>Đã nhận</option>
-              <option>Đang xử lý</option>
-              <option>Hoàn thành</option>
-            </select>
-          </label>
+          <FormField label="Tên hợp đồng" className="md:col-span-2" inputProps={{ defaultValue: "VÕ TUẤN ANH" }} />
+          <FormField label="Số hợp đồng" className="md:col-span-2" inputProps={{ defaultValue: "0260223QT" }} />
+          <FormField
+            label="Trạng thái"
+            className="md:col-span-2"
+            type="select"
+            options={[{ label: "Đã nhận" }, { label: "Đang xử lý" }, { label: "Hoàn thành" }]}
+          />
 
           <div className="md:col-span-2">
             <p className="text-sm font-semibold text-slate-600">Mail nhận</p>
@@ -89,35 +76,31 @@ function ProgramForm() {
             </div>
           </div>
 
-          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
-            Chọn nhân viên kinh doanh
-            <select className="mt-2 w-full font-light rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200">
-              <option>ĐỖ VAN SANG</option>
-              <option>TRẦN LAN</option>
-              <option>NGUYỄN HUY</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
-            Họ tên kinh doanh nhận mail
-            <input
-              className="mt-2 w-full rounded-md font-light border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              defaultValue="ĐỖ VAN SANG"
-            />
-          </label>
-          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
-            Email kinh doanh nhận
-            <input
-              className="mt-2 w-full rounded-md font-light border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              defaultValue="thanhdv.sota@gmail.com"
-            />
-          </label>
-          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
-            Danh sách email cc <span className="text-red-600">(phân cách bằng dấu phẩy)</span>
-            <input
-              className="mt-2 w-full rounded-md font-light border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              placeholder="example@gmail.com, example2@gmail.com"
-            />
-          </label>
+          <FormField
+            label="Chọn nhân viên kinh doanh"
+            className="md:col-span-2"
+            type="select"
+            options={[{ label: "ĐỖ VAN SANG" }, { label: "TRẦN LAN" }, { label: "NGUYỄN HUY" }]}
+          />
+          <FormField
+            label="Họ tên kinh doanh nhận mail"
+            className="md:col-span-2"
+            inputProps={{ defaultValue: "ĐỖ VAN SANG" }}
+          />
+          <FormField
+            label="Email kinh doanh nhận"
+            className="md:col-span-2"
+            inputProps={{ defaultValue: "thanhdv.sota@gmail.com" }}
+          />
+          <FormField
+            label={
+              <>
+                Danh sách email cc <span className="text-red-600">(phân cách bằng dấu phẩy)</span>
+              </>
+            }
+            className="md:col-span-2"
+            inputProps={{ placeholder: "example@gmail.com, example2@gmail.com" }}
+          />
         </div>
       </div>
     </div>
