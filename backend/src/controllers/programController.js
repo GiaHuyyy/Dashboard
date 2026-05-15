@@ -38,6 +38,8 @@ const parseCcEmails = (ccEmails) => {
     .filter(Boolean);
 };
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const formatNumber = (value) => {
   if (!Number.isFinite(value)) return "";
   return Number(value.toFixed(3)).toString();
@@ -70,136 +72,49 @@ const formatDateTime = (value) => {
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 };
 
-export const createProgram = async (req, res) => {
-  const module = normalizeString(req.body.module);
-  const durationValue = normalizeNumber(req.body.durationValue);
-  const durationUnit = normalizeString(req.body.durationUnit);
+const normalizeProgramPayload = (body) => {
+  const module = normalizeString(body.module);
+  const durationValue = normalizeNumber(body.durationValue);
+  const durationUnit = normalizeString(body.durationUnit);
   const time = durationValue !== null ? `${formatNumber(durationValue)} ${durationUnit}` : "";
   const convert = durationValue !== null ? calculateConvertByDuration(durationValue, durationUnit) : "";
-  const design = normalizeBoolean(req.body.design);
-  const visible = normalizeBoolean(req.body.visible);
-  const contractName = normalizeString(req.body.contractName);
-  const contractCode = normalizeString(req.body.contractCode);
-  const status = normalizeString(req.body.status);
-  const mailStatus = normalizeString(req.body.mailStatus);
-  const selectedSalesStaff = normalizeString(req.body.selectedSalesStaff);
-  const salesReceiverName = normalizeString(req.body.salesReceiverName);
-  const salesReceiverEmail = normalizeString(req.body.salesReceiverEmail).toLowerCase();
-  const ccEmails = parseCcEmails(req.body.ccEmails);
+  const design = normalizeBoolean(body.design);
+  const visible = normalizeBoolean(body.visible);
+  const contractName = normalizeString(body.contractName);
+  const contractCode = normalizeString(body.contractCode);
+  const contractImages = Array.isArray(body.contractImages)
+    ? body.contractImages.map((img) => normalizeString(img)).filter(Boolean)
+    : [];
+  const status = normalizeString(body.status);
+  const mailStatus = normalizeString(body.mailStatus);
+  const selectedSalesStaff = normalizeString(body.selectedSalesStaff);
+  const salesReceiverName = normalizeString(body.salesReceiverName);
+  const salesReceiverEmail = normalizeString(body.salesReceiverEmail).toLowerCase();
+  const ccEmails = parseCcEmails(body.ccEmails);
 
-  if (
-    !module ||
-    durationValue === null ||
-    !durationUnit ||
-    !contractName ||
-    !contractCode ||
-    !selectedSalesStaff ||
-    !salesReceiverName ||
-    !salesReceiverEmail
-  ) {
-    return res.status(400).json({
-      message:
-        "module, durationValue, durationUnit, contractName, contractCode, selectedSalesStaff, salesReceiverName, salesReceiverEmail là bắt buộc",
-    });
-  }
-
-  if (!MODULE_OPTIONS.includes(module)) {
-    return res.status(400).json({
-      message: `module không hợp lệ. Giá trị cho phép: ${MODULE_OPTIONS.join(", ")}`,
-    });
-  }
-
-  if (durationValue <= 0) {
-    return res.status(400).json({
-      message: "Thời gian phải là số lớn hơn 0",
-    });
-  }
-
-  if (!DURATION_UNITS.includes(durationUnit)) {
-    return res.status(400).json({
-      message: `durationUnit không hợp lệ. Giá trị cho phép: ${DURATION_UNITS.join(", ")}`,
-    });
-  }
-
-  if (!convert) {
-    return res.status(400).json({
-      message: "Không thể quy đổi thời gian",
-    });
-  }
-
-  if (design === null || visible === null) {
-    return res.status(400).json({ message: "design và visible phải là kiểu boolean" });
-  }
-
-  if (contractName.length < CONTRACT_NAME_MIN_LENGTH) {
-    return res.status(400).json({
-      message: `Tên hợp đồng phải tối thiểu ${CONTRACT_NAME_MIN_LENGTH} ký tự`,
-    });
-  }
-
-  if (contractCode.length < CONTRACT_CODE_MIN_LENGTH) {
-    return res.status(400).json({
-      message: `Số hợp đồng phải tối thiểu ${CONTRACT_CODE_MIN_LENGTH} ký tự`,
-    });
-  }
-
-  if (salesReceiverName.length < SALES_RECEIVER_NAME_MIN_LENGTH) {
-    return res.status(400).json({
-      message: `Họ tên kinh doanh nhận mail phải tối thiểu ${SALES_RECEIVER_NAME_MIN_LENGTH} ký tự`,
-    });
-  }
-
-  if (!NAME_REGEX.test(salesReceiverName)) {
-    return res.status(400).json({
-      message: "Họ tên kinh doanh nhận mail chỉ được chứa chữ và khoảng trắng",
-    });
-  }
-
-  if (!STATUS_OPTIONS.includes(status)) {
-    return res.status(400).json({
-      message: `status không hợp lệ. Giá trị cho phép: ${STATUS_OPTIONS.join(", ")}`,
-    });
-  }
-
-  if (!MAIL_STATUS_OPTIONS.includes(mailStatus)) {
-    return res.status(400).json({
-      message: `mailStatus không hợp lệ. Giá trị cho phép: ${MAIL_STATUS_OPTIONS.join(", ")}`,
-    });
-  }
-
-  if (!EMAIL_REGEX.test(salesReceiverEmail)) {
-    return res.status(400).json({ message: "salesReceiverEmail không đúng định dạng email" });
-  }
-
-  if (!hasValidEmailLocalPart(salesReceiverEmail)) {
-    return res.status(400).json({
-      message: `Phần trước @ của salesReceiverEmail phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
-    });
-  }
-
-  const invalidCcEmail = ccEmails.find((email) => !EMAIL_REGEX.test(email));
-  if (invalidCcEmail) {
-    return res.status(400).json({
-      message: `ccEmails chứa email không hợp lệ: ${invalidCcEmail}`,
-    });
-  }
-
-  const invalidCcLocalPart = ccEmails.find((email) => !hasValidEmailLocalPart(email));
-  if (invalidCcLocalPart) {
-    return res.status(400).json({
-      message: `Phần trước @ của email cc phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
-    });
-  }
-
-  const existingProgram = await Program.findOne({ contractCode });
-  if (existingProgram) {
-    return res.status(409).json({ message: "Số hợp đồng đã tồn tại" });
-  }
-
-  const createdProgram = await Program.create({
-    type: "program",
+  return {
     module,
+    durationValue,
+    durationUnit,
     time,
+    convert,
+    design,
+    visible,
+    contractName,
+    contractCode,
+    contractImages,
+    status,
+    mailStatus,
+    selectedSalesStaff,
+    salesReceiverName,
+    salesReceiverEmail,
+    ccEmails,
+  };
+};
+
+const validateProgramPayload = async (payload, { checkDuplicate = true } = {}) => {
+  const {
+    module,
     durationValue,
     durationUnit,
     convert,
@@ -213,6 +128,145 @@ export const createProgram = async (req, res) => {
     salesReceiverName,
     salesReceiverEmail,
     ccEmails,
+  } = payload;
+
+  if (
+    !module ||
+    durationValue === null ||
+    !durationUnit ||
+    !contractName ||
+    !contractCode ||
+    !selectedSalesStaff ||
+    !salesReceiverName ||
+    !salesReceiverEmail
+  ) {
+    return {
+      status: 400,
+      message:
+        "module, durationValue, durationUnit, contractName, contractCode, selectedSalesStaff, salesReceiverName, salesReceiverEmail là bắt buộc",
+    };
+  }
+
+  if (!MODULE_OPTIONS.includes(module)) {
+    return {
+      status: 400,
+      message: `module không hợp lệ. Giá trị cho phép: ${MODULE_OPTIONS.join(", ")}`,
+    };
+  }
+
+  if (durationValue <= 0) {
+    return { status: 400, message: "Thời gian phải là số lớn hơn 0" };
+  }
+
+  if (!DURATION_UNITS.includes(durationUnit)) {
+    return {
+      status: 400,
+      message: `durationUnit không hợp lệ. Giá trị cho phép: ${DURATION_UNITS.join(", ")}`,
+    };
+  }
+
+  if (!convert) {
+    return { status: 400, message: "Không thể quy đổi thời gian" };
+  }
+
+  if (design === null || visible === null) {
+    return { status: 400, message: "design và visible phải là kiểu boolean" };
+  }
+
+  if (contractName.length < CONTRACT_NAME_MIN_LENGTH) {
+    return { status: 400, message: `Tên hợp đồng phải tối thiểu ${CONTRACT_NAME_MIN_LENGTH} ký tự` };
+  }
+
+  if (contractCode.length < CONTRACT_CODE_MIN_LENGTH) {
+    return { status: 400, message: `Số hợp đồng phải tối thiểu ${CONTRACT_CODE_MIN_LENGTH} ký tự` };
+  }
+
+  if (salesReceiverName.length < SALES_RECEIVER_NAME_MIN_LENGTH) {
+    return {
+      status: 400,
+      message: `Họ tên kinh doanh nhận mail phải tối thiểu ${SALES_RECEIVER_NAME_MIN_LENGTH} ký tự`,
+    };
+  }
+
+  if (!NAME_REGEX.test(salesReceiverName)) {
+    return {
+      status: 400,
+      message: "Họ tên kinh doanh nhận mail chỉ được chứa chữ và khoảng trắng",
+    };
+  }
+
+  if (!STATUS_OPTIONS.includes(status)) {
+    return {
+      status: 400,
+      message: `status không hợp lệ. Giá trị cho phép: ${STATUS_OPTIONS.join(", ")}`,
+    };
+  }
+
+  if (!MAIL_STATUS_OPTIONS.includes(mailStatus)) {
+    return {
+      status: 400,
+      message: `mailStatus không hợp lệ. Giá trị cho phép: ${MAIL_STATUS_OPTIONS.join(", ")}`,
+    };
+  }
+
+  if (!EMAIL_REGEX.test(salesReceiverEmail)) {
+    return { status: 400, message: "salesReceiverEmail không đúng định dạng email" };
+  }
+
+  if (!hasValidEmailLocalPart(salesReceiverEmail)) {
+    return {
+      status: 400,
+      message: `Phần trước @ của salesReceiverEmail phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
+    };
+  }
+
+  const invalidCcEmail = ccEmails.find((email) => !EMAIL_REGEX.test(email));
+  if (invalidCcEmail) {
+    return {
+      status: 400,
+      message: `ccEmails chứa email không hợp lệ: ${invalidCcEmail}`,
+    };
+  }
+
+  const invalidCcLocalPart = ccEmails.find((email) => !hasValidEmailLocalPart(email));
+  if (invalidCcLocalPart) {
+    return {
+      status: 400,
+      message: `Phần trước @ của email cc phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
+    };
+  }
+
+  if (checkDuplicate) {
+    const existingProgram = await Program.findOne({
+      contractCode: { $regex: `^${escapeRegex(contractCode)}$`, $options: "i" },
+    });
+    if (existingProgram) {
+      return { status: 409, message: "Số hợp đồng đã tồn tại" };
+    }
+  }
+
+  return null;
+};
+
+export const validateProgram = async (req, res) => {
+  const payload = normalizeProgramPayload(req.body);
+  const validationError = await validateProgramPayload(payload, { checkDuplicate: true });
+  if (validationError) {
+    return res.status(validationError.status).json({ message: validationError.message });
+  }
+  return res.json({ message: "Dữ liệu hợp lệ" });
+};
+
+export const createProgram = async (req, res) => {
+  const payload = normalizeProgramPayload(req.body);
+  const validationError = await validateProgramPayload(payload, { checkDuplicate: true });
+  if (validationError) {
+    return res.status(validationError.status).json({ message: validationError.message });
+  }
+
+  const createdProgram = await Program.create({
+    type: "program",
+    ...payload,
     createdBy: req.user.sub,
   });
 

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RotateCw, Save, SquareArrowRightExit } from "lucide-react";
-import { useEffect } from "react";
+import { RotateCw, Save, SquareArrowRightExit, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import FormField from "@/components/ui/form-field";
 import { programApi } from "@/lib/api-client";
+import { uploadApi } from "@/lib/upload";
 
 const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 const durationUnitOptions = ["h", "ngày"];
@@ -52,6 +53,7 @@ const programSchema = z.object({
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
   design: z.boolean(),
   visible: z.boolean(),
+  contractImages: z.array(z.any()).optional(),
   contractName: z
     .string()
     .trim()
@@ -107,6 +109,7 @@ const defaultValues = {
   convert: "1",
   design: false,
   visible: true,
+  contractImages: [],
   contractName: "",
   contractCode: "",
   status: statusOptions[0],
@@ -119,6 +122,9 @@ const defaultValues = {
 
 function ProgramForm() {
   const navigate = useNavigate();
+  const [contractImagePreviews, setContractImagePreviews] = useState([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const {
     register,
@@ -142,8 +148,9 @@ function ProgramForm() {
 
   const onSubmit = async (values, mode) => {
     const convertedValue = calculateConvertByDuration(values.durationValue, values.durationUnit);
-    const payload = {
+    const payloadWithoutImages = {
       ...values,
+      contractImages: [],
       time: `${formatNumber(values.durationValue)} ${values.durationUnit}`,
       convert: convertedValue,
       ccEmails: values.ccEmails
@@ -152,6 +159,35 @@ function ProgramForm() {
             .map((item) => item.trim())
             .filter(Boolean)
         : [],
+    };
+
+    try {
+      await programApi.validate(payloadWithoutImages);
+    } catch (error) {
+      toast.error(error?.message || "Lưu dữ liệu không thành công");
+      return;
+    }
+
+    let contractImageUrls = [];
+    if (contractImagePreviews.length > 0) {
+      setIsUploadingImages(true);
+      try {
+        const uploadPromises = contractImagePreviews.map(async (file) => {
+          const response = await uploadApi.uploadToCloudinary(file);
+          return response.url;
+        });
+        contractImageUrls = await Promise.all(uploadPromises);
+      } catch (error) {
+        toast.error(error?.message || "Upload ảnh hợp đồng không thành công");
+        return;
+      } finally {
+        setIsUploadingImages(false);
+      }
+    }
+
+    const payload = {
+      ...payloadWithoutImages,
+      contractImages: contractImageUrls,
     };
 
     try {
@@ -179,6 +215,48 @@ function ProgramForm() {
     toast.error("Vui lòng kiểm tra lại thông tin form");
   };
 
+  const handleContractImageChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = [];
+    const totalImages = contractImagePreviews.length + files.length;
+
+    if (totalImages > 6) {
+      toast.error("Tối đa 6 ảnh hợp đồng");
+      return;
+    }
+
+    for (const file of files) {
+      const validTypes = ["image/jpeg", "image/png", "image/webp"];
+      if (!validTypes.includes(file.type)) {
+        toast.error(`${file.name}: Chỉ chấp nhận JPG, PNG, WebP`);
+        continue;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name}: Kích thước tối đa 5MB`);
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    if (validFiles.length > 0) {
+      setContractImagePreviews((prev) => {
+        const nextFiles = [...prev, ...validFiles];
+        setValue("contractImages", nextFiles, { shouldValidate: true });
+        return nextFiles;
+      });
+    }
+  };
+
+  const removeContractImage = (index) => {
+    setContractImagePreviews((prev) => {
+      const nextFiles = prev.filter((_, i) => i !== index);
+      setValue("contractImages", nextFiles, { shouldValidate: true });
+      return nextFiles;
+    });
+  };
+
   const submitWithMode = (mode) =>
     handleSubmit(
       async (values) => {
@@ -193,7 +271,7 @@ function ProgramForm() {
         <button
           type="button"
           onClick={() => submitWithMode("save")}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingImages}
           className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-sky-400"
         >
           <Save className="h-4 w-4" />
@@ -202,7 +280,7 @@ function ProgramForm() {
         <button
           type="button"
           onClick={() => submitWithMode("save-mail")}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingImages}
           className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-400"
         >
           <Save className="h-4 w-4" />
@@ -211,7 +289,7 @@ function ProgramForm() {
         <button
           type="button"
           onClick={() => submitWithMode("save-stay")}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingImages}
           className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-400"
         >
           <Save className="h-4 w-4" />
@@ -219,8 +297,11 @@ function ProgramForm() {
         </button>
         <button
           type="button"
-          onClick={() => reset(defaultValues)}
-          disabled={isSubmitting}
+          onClick={() => {
+            reset(defaultValues);
+            setContractImagePreviews([]);
+          }}
+          disabled={isSubmitting || isUploadingImages}
           className="inline-flex items-center gap-2 rounded-md bg-slate-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           <RotateCw className="h-4 w-4" />
@@ -229,7 +310,8 @@ function ProgramForm() {
         <button
           type="button"
           onClick={() => navigate("/lap-trinh/danh-sach")}
-          className="inline-flex items-center gap-2 rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white"
+          disabled={isSubmitting || isUploadingImages}
+          className="inline-flex items-center gap-2 rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-400"
         >
           <SquareArrowRightExit className="h-4 w-4" />
           Thoát
@@ -282,6 +364,54 @@ function ProgramForm() {
                 <input type="checkbox" {...register("visible")} />
                 Hiển thị
               </label>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-600">Ảnh hợp đồng</label>
+                <span className="text-xs text-slate-500">
+                  {contractImagePreviews.length}/6 ảnh
+                </span>
+              </div>
+              <div className="flex flex-col gap-3">
+                {contractImagePreviews.length < 6 && (
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-6 transition-colors hover:border-slate-400 disabled:cursor-not-allowed">
+                    <Upload className="h-5 w-5 text-slate-500" />
+                    <span className="text-sm text-slate-600">Chọn ảnh</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleContractImageChange}
+                      disabled={isUploadingImages}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+
+                {contractImagePreviews.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3">
+                    {contractImagePreviews.map((file, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Contract ${index + 1}`}
+                          className="h-24 w-full rounded-lg border border-slate-200 object-cover cursor-pointer transition-opacity hover:opacity-75"
+                          onClick={() => setLightboxIndex(index)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeContractImage(index)}
+                          disabled={isUploadingImages}
+                          className="absolute right-1 top-1 rounded-full bg-rose-600 p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 disabled:cursor-not-allowed"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -358,6 +488,59 @@ function ProgramForm() {
           </div>
         </div>
       </div>
+
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <div className="relative max-h-screen max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={URL.createObjectURL(contractImagePreviews[lightboxIndex])}
+              alt={`Contract ${lightboxIndex + 1}`}
+              className="h-full w-full object-contain rounded-lg"
+            />
+
+            <button
+              type="button"
+              onClick={() => setLightboxIndex(null)}
+              className="absolute right-4 top-4 rounded-full bg-slate-600 p-2 text-white hover:bg-slate-700"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {lightboxIndex > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex(lightboxIndex - 1);
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-slate-600 p-2 text-white hover:bg-slate-700"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            )}
+
+            {lightboxIndex < contractImagePreviews.length - 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex(lightboxIndex + 1);
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-slate-600 p-2 text-white hover:bg-slate-700"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            )}
+
+            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm font-semibold text-white">
+              {lightboxIndex + 1}/{contractImagePreviews.length}
+            </p>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

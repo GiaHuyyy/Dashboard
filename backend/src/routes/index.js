@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import authRoutes from "./auth.js";
 import programRoutes from "./program.js";
+import uploadRoutes from "./upload.js";
 import authenticate from "../middleware/authenticate.js";
 import authorizeRoles from "../middleware/authorizeRoles.js";
 
@@ -13,6 +14,7 @@ router.get("/", (req, res) => {
 
 router.use("/auth", authRoutes);
 router.use("/programs", programRoutes);
+router.use("/upload", uploadRoutes);
 
 router.get("/protected", authenticate, (req, res) => {
   res.json({

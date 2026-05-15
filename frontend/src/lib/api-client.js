@@ -68,6 +68,11 @@ export const programApi = {
     const query = searchParams.toString();
     return request(`/programs${query ? `?${query}` : ""}`);
   },
+  validate: (payload) =>
+    request("/programs/validate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   create: (payload) =>
     request("/programs", {
       method: "POST",

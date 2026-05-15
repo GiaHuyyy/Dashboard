@@ -58,6 +58,10 @@ const programSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    contractImages: {
+      type: [String],
+      default: [],
+    },
     status: {
       type: String,
       enum: ["Đã nhận", "Đang xử lý", "Hoàn thành"],
