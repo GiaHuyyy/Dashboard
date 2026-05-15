@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { authApi } from "@/lib/api-client";
 import { logoutUser } from "@/store/auth-slice";
 
 const navItems = [
@@ -75,6 +76,10 @@ function DashboardLayout() {
     });
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenSections((prev) => ({ ...defaults, ...prev }));
+  }, [location.pathname]);
+
+  useEffect(() => {
+    authApi.me().catch(() => null);
   }, [location.pathname]);
 
   const pageTitle = activeLabel;

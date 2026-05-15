@@ -9,7 +9,7 @@ const router = Router();
 // Auth routes
 router.post("/register", register);
 router.post("/login", login);
-router.post("/logout", authenticate, logout);
+router.post("/logout", logout);
 router.get("/me", authenticate, me);
 
 // Protected routes
