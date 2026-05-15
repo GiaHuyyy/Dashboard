@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { programApi } from "@/lib/api-client";
 import Modal from "@/components/ui/modal";
+import { Button } from "@/components/ui/button-v2";
 
 const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 
@@ -50,21 +51,24 @@ function ListProgram() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <button
-          type="button"
+        <Button
+          icon={Plus}
+          label="Thêm mới"
           onClick={() => navigate("/lap-trinh/them-moi")}
-          className="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
-        >
-          <Plus className="h-4 w-4" />
-          Thêm mới
-        </button>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700"
-        >
-          <Trash2 className="h-4 w-4" />
-          Xóa tất cả
-        </button>
+          variant="primary"
+          size="lg"
+          className="shadow-sm"
+          gap="gap-1"
+        />
+        <Button
+          icon={Trash2}
+          label="Xóa tất cả"
+          onClick={() => {}}
+          variant="danger"
+          size="lg"
+          className="shadow-sm"
+          gap="gap-1"
+        />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -169,12 +173,20 @@ function ListProgram() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button type="button" onClick={() => {}} className="px-2 py-1">
-                        <SquarePen className="h-4 w-4 text-sky-500    " />
-                      </button>
-                      <button type="button" onClick={() => openDelete(row)} className="px-2 py-1 text-xs text-rose-700">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <Button
+                        icon={SquarePen}
+                        onClick={() => {}}
+                        variant="primary-outline"
+                        iconOnly
+                        className="text-sky-500"
+                      />
+                      <Button
+                        icon={Trash2}
+                        onClick={() => openDelete(row)}
+                        variant="danger-outline"
+                        iconOnly
+                        className="text-rose-700"
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
