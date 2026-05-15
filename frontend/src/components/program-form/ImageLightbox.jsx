@@ -3,14 +3,13 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 export function ImageLightbox({ currentIndex, images, onClose, onNext, onPrev }) {
   if (currentIndex === null) return null;
 
+  const currentImage = images[currentIndex];
+  const src = currentImage?.kind === "url" ? currentImage.url : currentImage?.previewUrl;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4" onClick={onClose}>
       <div className="relative max-h-screen max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
-        <img
-          src={URL.createObjectURL(images[currentIndex])}
-          alt={`Contract ${currentIndex + 1}`}
-          className="h-full w-full object-contain rounded-lg"
-        />
+        <img src={src} alt={`Contract ${currentIndex + 1}`} className="h-full w-full object-contain rounded-lg" />
 
         <button
           type="button"

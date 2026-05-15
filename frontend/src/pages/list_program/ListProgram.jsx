@@ -154,7 +154,11 @@ function ListProgram() {
               </TableRow>
             ) : (
               filteredPrograms.map((row, index) => (
-                <TableRow key={row.id} className="text-slate-700">
+                <TableRow
+                  key={row.id}
+                  className="cursor-pointer text-slate-700 hover:bg-slate-50"
+                  onClick={() => navigate(`/lap-trinh/chinh-sua/${row.id}`)}
+                >
                   <TableCell className="border border-slate-200 p-4">
                     <input type="checkbox" />
                   </TableCell>
@@ -175,14 +179,20 @@ function ListProgram() {
                     <div className="flex items-center justify-center gap-2">
                       <Button
                         icon={SquarePen}
-                        onClick={() => {}}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/lap-trinh/chinh-sua/${row.id}`);
+                        }}
                         variant="primary-outline"
                         iconOnly
                         className="text-sky-500"
                       />
                       <Button
                         icon={Trash2}
-                        onClick={() => openDelete(row)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDelete(row);
+                        }}
                         variant="danger-outline"
                         iconOnly
                         className="text-rose-700"

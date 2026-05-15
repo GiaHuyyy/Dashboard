@@ -72,6 +72,11 @@ const formatDateTime = (value) => {
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 };
 
+const toObjectIdString = (value) => {
+  if (!value) return "";
+  return typeof value === "string" ? value : String(value);
+};
+
 const normalizeProgramPayload = (body) => {
   const module = normalizeString(body.module);
   const durationValue = normalizeNumber(body.durationValue);
@@ -112,7 +117,7 @@ const normalizeProgramPayload = (body) => {
   };
 };
 
-const validateProgramPayload = async (payload, { checkDuplicate = true } = {}) => {
+const validateProgramPayload = async (payload, { checkDuplicate = true, excludeProgramId = "" } = {}) => {
   const {
     module,
     durationValue,
@@ -240,7 +245,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true } = {}) =
     const existingProgram = await Program.findOne({
       contractCode: { $regex: `^${escapeRegex(contractCode)}$`, $options: "i" },
     });
-    if (existingProgram) {
+    if (existingProgram && toObjectIdString(existingProgram._id) !== excludeProgramId) {
       return { status: 409, message: "Số hợp đồng đã tồn tại" };
     }
   }
@@ -250,7 +255,11 @@ const validateProgramPayload = async (payload, { checkDuplicate = true } = {}) =
 
 export const validateProgram = async (req, res) => {
   const payload = normalizeProgramPayload(req.body);
-  const validationError = await validateProgramPayload(payload, { checkDuplicate: true });
+  const currentProgramId = normalizeString(req.body.currentProgramId);
+  const validationError = await validateProgramPayload(payload, {
+    checkDuplicate: true,
+    excludeProgramId: currentProgramId,
+  });
   if (validationError) {
     return res.status(validationError.status).json({ message: validationError.message });
   }
@@ -301,5 +310,75 @@ export const listPrograms = async (req, res) => {
       design: item.design,
       visible: item.visible,
     })),
+  });
+};
+
+export const getProgramById = async (req, res) => {
+  const program = await Program.findById(req.params.id).lean();
+  if (!program) {
+    return res.status(404).json({ message: "Không tìm thấy chương trình" });
+  }
+
+  return res.json({
+    program: {
+      id: program._id,
+      module: program.module,
+      time: program.time,
+      durationValue: program.durationValue,
+      durationUnit: program.durationUnit,
+      convert: program.convert,
+      design: program.design,
+      visible: program.visible,
+      contractName: program.contractName,
+      contractCode: program.contractCode,
+      contractImages: Array.isArray(program.contractImages) ? program.contractImages : [],
+      status: program.status,
+      mailStatus: program.mailStatus,
+      selectedSalesStaff: program.selectedSalesStaff,
+      salesReceiverName: program.salesReceiverName,
+      salesReceiverEmail: program.salesReceiverEmail,
+      ccEmails: Array.isArray(program.ccEmails) ? program.ccEmails : [],
+      createdAt: formatDateTime(program.programCreatedAt || program.createdAt),
+    },
+  });
+};
+
+export const updateProgram = async (req, res) => {
+  const existingProgram = await Program.findById(req.params.id);
+  if (!existingProgram) {
+    return res.status(404).json({ message: "Không tìm thấy chương trình" });
+  }
+
+  const payload = normalizeProgramPayload(req.body);
+  const validationError = await validateProgramPayload(payload, {
+    checkDuplicate: true,
+    excludeProgramId: toObjectIdString(existingProgram._id),
+  });
+  if (validationError) {
+    return res.status(validationError.status).json({ message: validationError.message });
+  }
+
+  existingProgram.module = payload.module;
+  existingProgram.durationValue = payload.durationValue;
+  existingProgram.durationUnit = payload.durationUnit;
+  existingProgram.time = payload.time;
+  existingProgram.convert = payload.convert;
+  existingProgram.design = payload.design;
+  existingProgram.visible = payload.visible;
+  existingProgram.contractName = payload.contractName;
+  existingProgram.contractCode = payload.contractCode;
+  existingProgram.contractImages = payload.contractImages;
+  existingProgram.status = payload.status;
+  existingProgram.mailStatus = payload.mailStatus;
+  existingProgram.selectedSalesStaff = payload.selectedSalesStaff;
+  existingProgram.salesReceiverName = payload.salesReceiverName;
+  existingProgram.salesReceiverEmail = payload.salesReceiverEmail;
+  existingProgram.ccEmails = payload.ccEmails;
+
+  await existingProgram.save();
+
+  return res.json({
+    message: "Cập nhật form thành công",
+    program: existingProgram,
   });
 };

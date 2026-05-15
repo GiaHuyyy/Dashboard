@@ -19,6 +19,7 @@ const navItems = [
         label: "Danh sách lập trình",
         path: "/lap-trinh/danh-sach",
         activePaths: ["/lap-trinh/them-moi"],
+        activePathPrefixes: ["/lap-trinh/chinh-sua/"],
       },
       { label: "Danh sách nâng cấp", path: "/lap-trinh/nang-cap" },
       { label: "Quản lý chỉnh sửa", path: "/lap-trinh/chinh-sua" },
@@ -65,7 +66,9 @@ function DashboardLayout() {
   }, [location.pathname]);
 
   const isChildActive = (child) =>
-    child.path === location.pathname || (child.activePaths && child.activePaths.includes(location.pathname));
+    child.path === location.pathname ||
+    (child.activePaths && child.activePaths.includes(location.pathname)) ||
+    (child.activePathPrefixes && child.activePathPrefixes.some((prefix) => location.pathname.startsWith(prefix)));
 
   useEffect(() => {
     const defaults = {};

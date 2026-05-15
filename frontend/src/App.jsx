@@ -110,6 +110,7 @@ function App() {
           <Route path="lap-trinh" element={<Navigate to="/lap-trinh/danh-sach" replace />} />
           <Route path="lap-trinh/danh-sach" element={<ListProgram />} />
           <Route path="lap-trinh/them-moi" element={<ProgramForm />} />
+          <Route path="lap-trinh/chinh-sua/:id" element={<ProgramForm />} />
           <Route path="lap-trinh/nang-cap" element={<Placeholder title="Danh sách nâng cấp" />} />
           <Route path="lap-trinh/chinh-sua" element={<Placeholder title="Quản lý chỉnh sửa" />} />
           <Route path="lap-trinh/quan-ly-diem" element={<Placeholder title="Quản lý điểm" />} />

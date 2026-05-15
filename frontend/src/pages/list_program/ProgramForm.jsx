@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -123,15 +123,20 @@ const defaultValues = {
 
 function ProgramForm() {
   const navigate = useNavigate();
-  const [contractImagePreviews, setContractImagePreviews] = useState([]);
+  const { id: programId } = useParams();
+  const isEditMode = Boolean(programId);
+  const [contractImages, setContractImages] = useState([]);
+  const contractImagesRef = useRef([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [isLoadingProgram, setIsLoadingProgram] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
 
   const {
+    control,
     register,
     handleSubmit,
     reset,
-    watch,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm({
@@ -139,13 +144,80 @@ function ProgramForm() {
     defaultValues,
   });
 
-  const selectedDurationValue = watch("durationValue");
-  const selectedDurationUnit = watch("durationUnit");
+  const selectedDurationValue = useWatch({ control, name: "durationValue" });
+  const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
   }, [selectedDurationUnit, selectedDurationValue, setValue]);
+
+  useEffect(() => {
+    contractImagesRef.current = contractImages;
+  }, [contractImages]);
+
+  useEffect(
+    () => () => {
+      contractImagesRef.current.forEach((item) => {
+        if (item.kind === "file" && item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    const fetchProgramDetail = async () => {
+      setIsLoadingProgram(true);
+      try {
+        const response = await programApi.detail(programId);
+        const program = response?.program;
+        if (!program) {
+          toast.error("Không tìm thấy dữ liệu cần chỉnh sửa");
+          navigate("/lap-trinh/danh-sach");
+          return;
+        }
+
+        const parsedDuration = Number(program.durationValue);
+        const safeDuration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 1;
+        const formValues = {
+          module: program.module || MODULE_OPTIONS[0],
+          durationValue: safeDuration,
+          durationUnit: program.durationUnit || "ngày",
+          convert: program.convert || "1",
+          design: Boolean(program.design),
+          visible: Boolean(program.visible),
+          contractImages: [],
+          contractName: program.contractName || "",
+          contractCode: program.contractCode || "",
+          status: program.status || STATUS_OPTIONS[0],
+          mailStatus: program.mailStatus || MAIL_STATUS_OPTIONS[0],
+          selectedSalesStaff: program.selectedSalesStaff || SALES_STAFF_OPTIONS[0],
+          salesReceiverName: program.salesReceiverName || "",
+          salesReceiverEmail: program.salesReceiverEmail || "",
+          ccEmails: Array.isArray(program.ccEmails) ? program.ccEmails.join(", ") : "",
+        };
+
+        const initialImages = Array.isArray(program.contractImages)
+          ? program.contractImages.map((url) => ({ kind: "url", url }))
+          : [];
+
+        reset(formValues);
+        setContractImages(initialImages);
+        setInitialSnapshot({ values: formValues, images: initialImages });
+      } catch (error) {
+        toast.error(error?.message || "Không thể tải dữ liệu chỉnh sửa");
+        navigate("/lap-trinh/danh-sach");
+      } finally {
+        setIsLoadingProgram(false);
+      }
+    };
+
+    fetchProgramDetail();
+  }, [isEditMode, navigate, programId, reset]);
 
   const onSubmit = async (values, mode) => {
     const convertedValue = calculateConvertByDuration(values.durationValue, values.durationUnit);
@@ -163,21 +235,27 @@ function ProgramForm() {
     };
 
     try {
-      await programApi.validate(payloadWithoutImages);
+      await programApi.validate({
+        ...payloadWithoutImages,
+        currentProgramId: isEditMode ? programId : undefined,
+      });
     } catch (error) {
       toast.error(error?.message || "Lưu dữ liệu không thành công");
       return;
     }
 
-    let contractImageUrls = [];
-    if (contractImagePreviews.length > 0) {
+    let uploadedImageUrls = [];
+    const existingImageUrls = contractImages.filter((item) => item.kind === "url").map((item) => item.url);
+    const newImageFiles = contractImages.filter((item) => item.kind === "file").map((item) => item.file);
+
+    if (newImageFiles.length > 0) {
       setIsUploadingImages(true);
       try {
-        const uploadPromises = contractImagePreviews.map(async (file) => {
+        const uploadPromises = newImageFiles.map(async (file) => {
           const response = await uploadApi.uploadToCloudinary(file);
           return response.url;
         });
-        contractImageUrls = await Promise.all(uploadPromises);
+        uploadedImageUrls = await Promise.all(uploadPromises);
       } catch (error) {
         toast.error(error?.message || "Upload ảnh hợp đồng không thành công");
         return;
@@ -188,27 +266,31 @@ function ProgramForm() {
 
     const payload = {
       ...payloadWithoutImages,
-      contractImages: contractImageUrls,
+      contractImages: [...existingImageUrls, ...uploadedImageUrls],
     };
 
     try {
-      await programApi.create(payload);
+      if (isEditMode) {
+        await programApi.update(programId, payload);
+      } else {
+        await programApi.create(payload);
+      }
     } catch (error) {
       toast.error(error?.message || "Lưu dữ liệu không thành công");
       return;
     }
 
     if (mode === "save-mail") {
-      toast.success("Đã lưu form và đánh dấu gửi mail");
+      toast.success(isEditMode ? "Đã cập nhật form và đánh dấu gửi mail" : "Đã lưu form và đánh dấu gửi mail");
       return;
     }
 
     if (mode === "save-stay") {
-      toast.success("Đã lưu form tại trang");
+      toast.success(isEditMode ? "Đã cập nhật form tại trang" : "Đã lưu form tại trang");
       return;
     }
 
-    toast.success("Lưu thành công");
+    toast.success(isEditMode ? "Cập nhật thành công" : "Lưu thành công");
     navigate("/lap-trinh/danh-sach");
   };
 
@@ -217,18 +299,29 @@ function ProgramForm() {
   };
 
   const handleContractImageChange = (files) => {
-    setContractImagePreviews((prev) => {
-      const nextFiles = [...prev, ...files];
-      setValue("contractImages", nextFiles, { shouldValidate: true });
-      return nextFiles;
+    const normalizedNewFiles = files.map((file) => ({
+      kind: "file",
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    setContractImages((prev) => {
+      const nextItems = [...prev, ...normalizedNewFiles];
+      setValue("contractImages", nextItems, { shouldValidate: true });
+      return nextItems;
     });
   };
 
   const removeContractImage = (index) => {
-    setContractImagePreviews((prev) => {
-      const nextFiles = prev.filter((_, i) => i !== index);
-      setValue("contractImages", nextFiles, { shouldValidate: true });
-      return nextFiles;
+    setContractImages((prev) => {
+      const target = prev[index];
+      if (target?.kind === "file" && target.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+
+      const nextItems = prev.filter((_, i) => i !== index);
+      setValue("contractImages", nextItems, { shouldValidate: true });
+      return nextItems;
     });
   };
 
@@ -240,6 +333,12 @@ function ProgramForm() {
       () => onInvalid(),
     )();
 
+  if (isLoadingProgram) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
+    );
+  }
+
   return (
     <form className="space-y-4">
       <FormActions
@@ -247,11 +346,18 @@ function ProgramForm() {
         onSaveMail={() => submitWithMode("save-mail")}
         onSaveStay={() => submitWithMode("save-stay")}
         onReset={() => {
-          reset(defaultValues);
-          setContractImagePreviews([]);
+          contractImages.forEach((item) => {
+            if (item.kind === "file" && item.previewUrl) {
+              URL.revokeObjectURL(item.previewUrl);
+            }
+          });
+
+          reset(initialSnapshot.values);
+          setContractImages(initialSnapshot.images);
         }}
         isSubmitting={isSubmitting}
         isUploading={isUploadingImages}
+        isEditMode={isEditMode}
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -260,7 +366,7 @@ function ProgramForm() {
           <ProgramInfo
             register={register}
             errors={errors}
-            contractImagePreviews={contractImagePreviews}
+            contractImages={contractImages}
             onFilesSelected={handleContractImageChange}
             onRemoveImage={removeContractImage}
             onImageClick={setLightboxIndex}
@@ -273,7 +379,7 @@ function ProgramForm() {
 
       <ImageLightbox
         currentIndex={lightboxIndex}
-        images={contractImagePreviews}
+        images={contractImages}
         onClose={() => setLightboxIndex(null)}
         onNext={() => setLightboxIndex(lightboxIndex + 1)}
         onPrev={() => setLightboxIndex(lightboxIndex - 1)}

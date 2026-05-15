@@ -78,4 +78,10 @@ export const programApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  detail: (id) => request(`/programs/${id}`),
+  update: (id, payload) =>
+    request(`/programs/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
 };

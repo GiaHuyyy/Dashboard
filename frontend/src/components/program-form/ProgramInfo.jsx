@@ -7,7 +7,7 @@ const durationUnitOptions = ["h", "ngày"];
 export function ProgramInfo({
   register,
   errors,
-  contractImagePreviews,
+  contractImages,
   onFilesSelected,
   onRemoveImage,
   onImageClick,
@@ -60,7 +60,7 @@ export function ProgramInfo({
       </div>
 
       <ImageUpload
-        previews={contractImagePreviews}
+        previews={contractImages}
         onFilesSelected={onFilesSelected}
         onRemoveImage={onRemoveImage}
         onImageClick={onImageClick}

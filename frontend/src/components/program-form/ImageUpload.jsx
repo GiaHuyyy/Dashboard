@@ -2,6 +2,13 @@ import { Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
 export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageClick, isUploading, maxImages = 6 }) {
+  const getImageSrc = (item) => {
+    if (!item) return "";
+    if (item.kind === "url") return item.url;
+    if (item.kind === "file") return item.previewUrl;
+    return "";
+  };
+
   const handleChange = (e) => {
     const files = Array.from(e.target.files || []);
     const validFiles = [];
@@ -58,10 +65,10 @@ export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageC
 
         {previews.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
-            {previews.map((file, index) => (
+            {previews.map((item, index) => (
               <div key={index} className="relative group">
                 <img
-                  src={URL.createObjectURL(file)}
+                  src={getImageSrc(item)}
                   alt={`Contract ${index + 1}`}
                   className="h-24 w-full rounded-lg border border-slate-200 object-cover cursor-pointer transition-opacity hover:opacity-75"
                   onClick={() => onImageClick(index)}
