@@ -19,7 +19,7 @@ function FormField({
   return (
     <label className={cn("text-sm font-semibold text-slate-600", className)}>
       {label}
-      <div className="mt-2">
+      <div className="">
         {type === "select" ? (
           <select className={cn(fieldClass, selectClassName)} {...selectProps}>
             {options.map((option) => (

@@ -14,7 +14,7 @@ export function ProgramInfo({
   isUploading,
 }) {
   return (
-    <div className="space-y-4 rounded-xl border border-slate-100 p-4">
+    <div className="space-y-4 gap-1 flex flex-col rounded-xl border border-slate-100 p-4">
       <p className="text-sm font-semibold text-slate-700">Thông tin lập trình</p>
 
       <FormField
@@ -48,7 +48,7 @@ export function ProgramInfo({
         error={errors.convert?.message}
       />
 
-      <div className="mt-3 grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
           <input type="checkbox" {...register("design")} />
           Design

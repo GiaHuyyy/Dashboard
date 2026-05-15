@@ -107,7 +107,7 @@ function ListProgram() {
     }
   };
 
-  const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả (${selectedIds.length})` : "Xóa tất cả";
+  const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
   const deleteDescription =
     deleteMode === "single"
       ? "Bạn có chắc muốn xóa mục"
@@ -181,6 +181,7 @@ function ListProgram() {
               <TableHead className="w-12 border border-slate-200 px-4">
                 <input
                   type="checkbox"
+                  className="ml-px"
                   checked={isAllFilteredSelected}
                   onChange={(event) => handleToggleAll(event.target.checked)}
                   onClick={(event) => event.stopPropagation()}

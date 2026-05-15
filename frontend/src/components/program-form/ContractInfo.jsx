@@ -6,7 +6,7 @@ const salesStaffOptions = ["ĐỖ VAN SANG", "TRẦN LAN", "NGUYỄN HUY"];
 
 export function ContractInfo({ register, errors }) {
   return (
-    <div className="space-y-4 rounded-xl border border-slate-100 p-4">
+    <div className="space-y-4 gap-1 flex flex-col rounded-xl border border-slate-100 p-4">
       <p className="text-sm font-semibold text-slate-700">Thông tin hợp đồng</p>
 
       <FormField
