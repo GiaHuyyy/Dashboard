@@ -49,8 +49,8 @@ function ProgramForm() {
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-3 text-md font-semibold text-slate-600">Nội dung</div>
         <div className="grid gap-4 p-5 md:grid-cols-2">
-          <FormField label="Tên hợp đồng" className="md:col-span-2" inputProps={{ defaultValue: "VÕ TUẤN ANH" }} />
-          <FormField label="Số hợp đồng" className="md:col-span-2" inputProps={{ defaultValue: "0260223QT" }} />
+          <FormField label="Tên hợp đồng" placeholder="VÕ TUẤN ANH" className="md:col-span-2" inputProps={{ defaultValue: "VÕ TUẤN ANH" }} />
+          <FormField label="Số hợp đồng" placeholder="0260223QT" className="md:col-span-2" inputProps={{ defaultValue: "0260223QT" }} />
           <FormField
             label="Trạng thái"
             className="md:col-span-2"
@@ -84,11 +84,13 @@ function ProgramForm() {
           />
           <FormField
             label="Họ tên kinh doanh nhận mail"
+            placeholder="ĐỖ VAN SANG"
             className="md:col-span-2"
             inputProps={{ defaultValue: "ĐỖ VAN SANG" }}
           />
           <FormField
             label="Email kinh doanh nhận"
+            placeholder="thanhdv.sota@gmail.com"
             className="md:col-span-2"
             inputProps={{ defaultValue: "thanhdv.sota@gmail.com" }}
           />
