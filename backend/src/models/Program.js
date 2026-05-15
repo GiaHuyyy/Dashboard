@@ -12,6 +12,16 @@ const programSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    durationValue: {
+      type: Number,
+      required: true,
+      min: 0.1,
+    },
+    durationUnit: {
+      type: String,
+      required: true,
+      enum: ["h", "ngày"],
+    },
     convert: {
       type: String,
       required: true,

@@ -3,14 +3,14 @@ import Program from "../models/Program.js";
 const MODULE_OPTIONS = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
 const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
-const TIME_TO_CONVERT_MAP = {
-  "0.1": "0",
-  "1 ngày": "1",
-  "1.2 ngày": "1.2",
-  "1.5 ngày": "1.5",
-  "2 h": "0.25",
-};
+const DURATION_UNITS = ["h", "ngày"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_REGEX = /^[\p{L}\s]+$/u;
+const CONTRACT_NAME_MIN_LENGTH = 4;
+const CONTRACT_CODE_MIN_LENGTH = 6;
+const SALES_RECEIVER_NAME_MIN_LENGTH = 4;
+const EMAIL_LOCAL_MIN_LENGTH = 6;
+const EMAIL_LOCAL_HAS_LETTER_REGEX = /[A-Za-zÀ-ỹ]/u;
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -22,6 +22,11 @@ const normalizeBoolean = (value) => {
   return null;
 };
 
+const normalizeNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const parseCcEmails = (ccEmails) => {
   if (!ccEmails) return [];
   if (Array.isArray(ccEmails)) {
@@ -31,6 +36,25 @@ const parseCcEmails = (ccEmails) => {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+};
+
+const formatNumber = (value) => {
+  if (!Number.isFinite(value)) return "";
+  return Number(value.toFixed(3)).toString();
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  if (durationUnit === "ngày") return formatNumber(durationValue);
+  if (durationUnit === "h") return formatNumber(durationValue / 8);
+  return "";
+};
+
+const hasValidEmailLocalPart = (email) => {
+  const localPart = email.split("@")[0] || "";
+  if (localPart.length < EMAIL_LOCAL_MIN_LENGTH) {
+    return false;
+  }
+  return EMAIL_LOCAL_HAS_LETTER_REGEX.test(localPart);
 };
 
 const formatDateTime = (value) => {
@@ -48,8 +72,10 @@ const formatDateTime = (value) => {
 
 export const createProgram = async (req, res) => {
   const module = normalizeString(req.body.module);
-  const time = normalizeString(req.body.time);
-  const convert = TIME_TO_CONVERT_MAP[time] || "";
+  const durationValue = normalizeNumber(req.body.durationValue);
+  const durationUnit = normalizeString(req.body.durationUnit);
+  const time = durationValue !== null ? `${formatNumber(durationValue)} ${durationUnit}` : "";
+  const convert = durationValue !== null ? calculateConvertByDuration(durationValue, durationUnit) : "";
   const design = normalizeBoolean(req.body.design);
   const visible = normalizeBoolean(req.body.visible);
   const contractName = normalizeString(req.body.contractName);
@@ -63,7 +89,8 @@ export const createProgram = async (req, res) => {
 
   if (
     !module ||
-    !time ||
+    durationValue === null ||
+    !durationUnit ||
     !contractName ||
     !contractCode ||
     !selectedSalesStaff ||
@@ -72,7 +99,7 @@ export const createProgram = async (req, res) => {
   ) {
     return res.status(400).json({
       message:
-        "module, time, contractName, contractCode, selectedSalesStaff, salesReceiverName, salesReceiverEmail là bắt buộc",
+        "module, durationValue, durationUnit, contractName, contractCode, selectedSalesStaff, salesReceiverName, salesReceiverEmail là bắt buộc",
     });
   }
 
@@ -82,14 +109,50 @@ export const createProgram = async (req, res) => {
     });
   }
 
+  if (durationValue <= 0) {
+    return res.status(400).json({
+      message: "Thời gian phải là số lớn hơn 0",
+    });
+  }
+
+  if (!DURATION_UNITS.includes(durationUnit)) {
+    return res.status(400).json({
+      message: `durationUnit không hợp lệ. Giá trị cho phép: ${DURATION_UNITS.join(", ")}`,
+    });
+  }
+
   if (!convert) {
     return res.status(400).json({
-      message: `time không hợp lệ. Giá trị cho phép: ${Object.keys(TIME_TO_CONVERT_MAP).join(", ")}`,
+      message: "Không thể quy đổi thời gian",
     });
   }
 
   if (design === null || visible === null) {
     return res.status(400).json({ message: "design và visible phải là kiểu boolean" });
+  }
+
+  if (contractName.length < CONTRACT_NAME_MIN_LENGTH) {
+    return res.status(400).json({
+      message: `Tên hợp đồng phải tối thiểu ${CONTRACT_NAME_MIN_LENGTH} ký tự`,
+    });
+  }
+
+  if (contractCode.length < CONTRACT_CODE_MIN_LENGTH) {
+    return res.status(400).json({
+      message: `Số hợp đồng phải tối thiểu ${CONTRACT_CODE_MIN_LENGTH} ký tự`,
+    });
+  }
+
+  if (salesReceiverName.length < SALES_RECEIVER_NAME_MIN_LENGTH) {
+    return res.status(400).json({
+      message: `Họ tên kinh doanh nhận mail phải tối thiểu ${SALES_RECEIVER_NAME_MIN_LENGTH} ký tự`,
+    });
+  }
+
+  if (!NAME_REGEX.test(salesReceiverName)) {
+    return res.status(400).json({
+      message: "Họ tên kinh doanh nhận mail chỉ được chứa chữ và khoảng trắng",
+    });
   }
 
   if (!STATUS_OPTIONS.includes(status)) {
@@ -108,10 +171,23 @@ export const createProgram = async (req, res) => {
     return res.status(400).json({ message: "salesReceiverEmail không đúng định dạng email" });
   }
 
+  if (!hasValidEmailLocalPart(salesReceiverEmail)) {
+    return res.status(400).json({
+      message: `Phần trước @ của salesReceiverEmail phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
+    });
+  }
+
   const invalidCcEmail = ccEmails.find((email) => !EMAIL_REGEX.test(email));
   if (invalidCcEmail) {
     return res.status(400).json({
       message: `ccEmails chứa email không hợp lệ: ${invalidCcEmail}`,
+    });
+  }
+
+  const invalidCcLocalPart = ccEmails.find((email) => !hasValidEmailLocalPart(email));
+  if (invalidCcLocalPart) {
+    return res.status(400).json({
+      message: `Phần trước @ của email cc phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
     });
   }
 
@@ -124,6 +200,8 @@ export const createProgram = async (req, res) => {
     type: "program",
     module,
     time,
+    durationValue,
+    durationUnit,
     convert,
     design,
     visible,

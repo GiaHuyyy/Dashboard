@@ -6,36 +6,79 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import FormField from "@/components/ui/form-field";
 import { programApi } from "@/lib/api-client";
 
 const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
-const timeToConvertMap = {
-  "0.1": "0",
-  "1 ngày": "1",
-  "1.2 ngày": "1.2",
-  "1.5 ngày": "1.5",
-  "2 h": "0.25",
-};
-const timeOptions = Object.keys(timeToConvertMap);
+const durationUnitOptions = ["h", "ngày"];
 const statusOptions = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
 const mailStatusOptions = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
 const salesStaffOptions = ["ĐỖ VAN SANG", "TRẦN LAN", "NGUYỄN HUY"];
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const nameRegex = /^[\p{L}\s]+$/u;
+const CONTRACT_NAME_MIN_LENGTH = 4;
+const CONTRACT_CODE_MIN_LENGTH = 6;
+const SALES_RECEIVER_NAME_MIN_LENGTH = 4;
+const EMAIL_LOCAL_MIN_LENGTH = 6;
+const EMAIL_LOCAL_HAS_LETTER_REGEX = /[A-Za-zÀ-ỹ]/u;
+
+const hasValidEmailLocalPart = (email) => {
+  const localPart = (email || "").split("@")[0] || "";
+  if (localPart.length < EMAIL_LOCAL_MIN_LENGTH) {
+    return false;
+  }
+  return EMAIL_LOCAL_HAS_LETTER_REGEX.test(localPart);
+};
+
+const formatNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return Number(parsed.toFixed(3)).toString();
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  const numeric = Number(durationValue);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  if (durationUnit === "ngày") return formatNumber(numeric);
+  if (durationUnit === "h") return formatNumber(numeric / 8);
+  return "";
+};
 
 const programSchema = z.object({
   module: z.enum(moduleOptions, { message: "Vui lòng chọn module hợp lệ" }),
-  time: z.enum(timeOptions, { message: "Vui lòng chọn thời gian hợp lệ" }),
+  durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
+  durationUnit: z.enum(durationUnitOptions, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
   design: z.boolean(),
   visible: z.boolean(),
-  contractName: z.string().trim().min(1, "Vui lòng nhập tên hợp đồng"),
-  contractCode: z.string().trim().min(1, "Vui lòng nhập số hợp đồng"),
+  contractName: z
+    .string()
+    .trim()
+    .min(CONTRACT_NAME_MIN_LENGTH, `Tên hợp đồng tối thiểu ${CONTRACT_NAME_MIN_LENGTH} ký tự`),
+  contractCode: z
+    .string()
+    .trim()
+    .min(CONTRACT_CODE_MIN_LENGTH, `Số hợp đồng tối thiểu ${CONTRACT_CODE_MIN_LENGTH} ký tự`),
   status: z.enum(statusOptions, { message: "Vui lòng chọn trạng thái hợp lệ" }),
   mailStatus: z.enum(mailStatusOptions, { message: "Vui lòng chọn mail nhận hợp lệ" }),
   selectedSalesStaff: z.string().trim().min(1, "Vui lòng chọn nhân viên kinh doanh"),
-  salesReceiverName: z.string().trim().min(1, "Vui lòng nhập họ tên kinh doanh nhận mail"),
-  salesReceiverEmail: z.string().trim().email("Email kinh doanh nhận không hợp lệ"),
+  salesReceiverName: z
+    .string()
+    .trim()
+    .min(
+      SALES_RECEIVER_NAME_MIN_LENGTH,
+      `Họ tên kinh doanh nhận mail tối thiểu ${SALES_RECEIVER_NAME_MIN_LENGTH} ký tự`,
+    )
+    .refine((value) => nameRegex.test(value), "Họ tên kinh doanh nhận mail chỉ được chứa chữ và khoảng trắng"),
+  salesReceiverEmail: z
+    .string()
+    .trim()
+    .email("Email kinh doanh nhận không hợp lệ")
+    .refine(
+      (value) => hasValidEmailLocalPart(value),
+      `Email kinh doanh nhận: phần trước @ tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
+    ),
   ccEmails: z
     .string()
     .optional()
@@ -46,13 +89,22 @@ const programSchema = z.object({
         .map((item) => item.trim())
         .filter(Boolean)
         .every((email) => emailRegex.test(email));
-    }, "Danh sách email cc không hợp lệ"),
+    }, "Danh sách email cc không hợp lệ")
+    .refine((value) => {
+      if (!value?.trim()) return true;
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .every((email) => hasValidEmailLocalPart(email));
+    }, `Email cc: phần trước @ tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`),
 });
 
 const defaultValues = {
   module: moduleOptions[0],
-  time: timeOptions[0],
-  convert: timeToConvertMap[timeOptions[0]],
+  durationValue: 1,
+  durationUnit: "ngày",
+  convert: "1",
   design: false,
   visible: true,
   contractName: "",
@@ -80,16 +132,20 @@ function ProgramForm() {
     defaultValues,
   });
 
-  const selectedTime = watch("time");
+  const selectedDurationValue = watch("durationValue");
+  const selectedDurationUnit = watch("durationUnit");
 
   useEffect(() => {
-    const convertedValue = timeToConvertMap[selectedTime] || "";
+    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
-  }, [selectedTime, setValue]);
+  }, [selectedDurationUnit, selectedDurationValue, setValue]);
 
   const onSubmit = async (values, mode) => {
+    const convertedValue = calculateConvertByDuration(values.durationValue, values.durationUnit);
     const payload = {
       ...values,
+      time: `${formatNumber(values.durationValue)} ${values.durationUnit}`,
+      convert: convertedValue,
       ccEmails: values.ccEmails
         ? values.ccEmails
             .split(",")
@@ -186,47 +242,36 @@ function ProgramForm() {
           <div className="space-y-4 rounded-xl border border-slate-100 p-4">
             <p className="text-sm font-semibold text-slate-700">Thông tin lập trình</p>
 
-            <label className="text-sm font-semibold text-slate-600">
-              Module
-              <select
-                {...register("module")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              >
-                {moduleOptions.map((moduleItem) => (
-                  <option key={moduleItem} value={moduleItem}>
-                    {moduleItem}
-                  </option>
-                ))}
-              </select>
-              {errors.module && <p className="mt-1 text-xs text-rose-600">{errors.module.message}</p>}
-            </label>
+            <FormField
+              label="Module"
+              type="select"
+              options={moduleOptions.map((item) => ({ label: item, value: item }))}
+              selectProps={register("module")}
+              error={errors.module?.message}
+            />
 
-            <label className="text-sm font-semibold text-slate-600">
-              Thời gian
-              <select
-                {...register("time")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              >
-                {timeOptions.map((timeItem) => (
-                  <option key={timeItem} value={timeItem}>
-                    {timeItem}
-                  </option>
-                ))}
-              </select>
-              {errors.time && <p className="mt-1 text-xs text-rose-600">{errors.time.message}</p>}
-            </label>
-
-            <label className="text-sm font-semibold text-slate-600">
-              Quy đổi
-              <input
-                type="text"
-                {...register("convert")}
-                readOnly
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="1.2"
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                label="Thời gian"
+                type="number"
+                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", placeholder: "Nhập số" }}
+                error={errors.durationValue?.message}
               />
-              {errors.convert && <p className="mt-1 text-xs text-rose-600">{errors.convert.message}</p>}
-            </label>
+              <FormField
+                label="Đơn vị"
+                type="select"
+                options={durationUnitOptions.map((item) => ({ label: item, value: item }))}
+                selectProps={register("durationUnit")}
+                error={errors.durationUnit?.message}
+              />
+            </div>
+
+            <FormField
+              label="Quy đổi"
+              type="text"
+              inputProps={{ ...register("convert"), readOnly: true, placeholder: "Tự động" }}
+              error={errors.convert?.message}
+            />
 
             <div className="mt-3 grid grid-cols-2 gap-4">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -243,42 +288,27 @@ function ProgramForm() {
           <div className="space-y-4 rounded-xl border border-slate-100 p-4">
             <p className="text-sm font-semibold text-slate-700">Thông tin hợp đồng</p>
 
-            <label className="text-sm font-semibold text-slate-600">
-              Tên hợp đồng
-              <input
-                type="text"
-                {...register("contractName")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="VÕ TUẤN ANH"
-              />
-              {errors.contractName && <p className="mt-1 text-xs text-rose-600">{errors.contractName.message}</p>}
-            </label>
+            <FormField
+              label="Tên hợp đồng"
+              type="text"
+              inputProps={{ ...register("contractName"), placeholder: "VÕ TUẤN ANH" }}
+              error={errors.contractName?.message}
+            />
 
-            <label className="text-sm font-semibold text-slate-600">
-              Số hợp đồng
-              <input
-                type="text"
-                {...register("contractCode")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="0260223QT"
-              />
-              {errors.contractCode && <p className="mt-1 text-xs text-rose-600">{errors.contractCode.message}</p>}
-            </label>
+            <FormField
+              label="Số hợp đồng"
+              type="text"
+              inputProps={{ ...register("contractCode"), placeholder: "0260223QT" }}
+              error={errors.contractCode?.message}
+            />
 
-            <label className="text-sm font-semibold text-slate-600">
-              Trạng thái
-              <select
-                {...register("status")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              >
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-              {errors.status && <p className="mt-1 text-xs text-rose-600">{errors.status.message}</p>}
-            </label>
+            <FormField
+              label="Trạng thái"
+              type="select"
+              options={statusOptions.map((item) => ({ label: item, value: item }))}
+              selectProps={register("status")}
+              error={errors.status?.message}
+            />
 
             <div>
               <p className="text-sm font-semibold text-slate-600">Mail nhận</p>
@@ -293,59 +323,38 @@ function ProgramForm() {
               {errors.mailStatus && <p className="mt-1 text-xs text-rose-600">{errors.mailStatus.message}</p>}
             </div>
 
-            <label className="text-sm font-semibold text-slate-600">
-              Chọn nhân viên kinh doanh
-              <select
-                {...register("selectedSalesStaff")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              >
-                {salesStaffOptions.map((staff) => (
-                  <option key={staff} value={staff}>
-                    {staff}
-                  </option>
-                ))}
-              </select>
-              {errors.selectedSalesStaff && (
-                <p className="mt-1 text-xs text-rose-600">{errors.selectedSalesStaff.message}</p>
-              )}
-            </label>
+            <FormField
+              label="Chọn nhân viên kinh doanh"
+              type="select"
+              options={salesStaffOptions.map((item) => ({ label: item, value: item }))}
+              selectProps={register("selectedSalesStaff")}
+              error={errors.selectedSalesStaff?.message}
+            />
 
-            <label className="text-sm font-semibold text-slate-600">
-              Họ tên kinh doanh nhận mail
-              <input
-                type="text"
-                {...register("salesReceiverName")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="ĐỖ VAN SANG"
-              />
-              {errors.salesReceiverName && (
-                <p className="mt-1 text-xs text-rose-600">{errors.salesReceiverName.message}</p>
-              )}
-            </label>
+            <FormField
+              label="Họ tên kinh doanh nhận mail"
+              type="text"
+              inputProps={{ ...register("salesReceiverName"), placeholder: "ĐỖ VAN SANG" }}
+              error={errors.salesReceiverName?.message}
+            />
 
-            <label className="text-sm font-semibold text-slate-600">
-              Email kinh doanh nhận
-              <input
-                type="text"
-                {...register("salesReceiverEmail")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="thanhdv.sota@gmail.com"
-              />
-              {errors.salesReceiverEmail && (
-                <p className="mt-1 text-xs text-rose-600">{errors.salesReceiverEmail.message}</p>
-              )}
-            </label>
+            <FormField
+              label="Email kinh doanh nhận"
+              type="text"
+              inputProps={{ ...register("salesReceiverEmail"), placeholder: "thanhdv.sota@gmail.com" }}
+              error={errors.salesReceiverEmail?.message}
+            />
 
-            <label className="text-sm font-semibold text-slate-600">
-              Danh sách email cc <span className="text-red-600">(phân cách bằng dấu phẩy)</span>
-              <input
-                type="text"
-                {...register("ccEmails")}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="example@gmail.com, example2@gmail.com"
-              />
-              {errors.ccEmails && <p className="mt-1 text-xs text-rose-600">{errors.ccEmails.message}</p>}
-            </label>
+            <FormField
+              label={
+                <>
+                  Danh sách email cc <span className="text-red-600">(phân cách bằng dấu phẩy)</span>
+                </>
+              }
+              type="text"
+              inputProps={{ ...register("ccEmails"), placeholder: "example@gmail.com, example2@gmail.com" }}
+              error={errors.ccEmails?.message}
+            />
           </div>
         </div>
       </div>
