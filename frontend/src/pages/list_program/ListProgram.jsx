@@ -109,26 +109,28 @@ function ListProgram() {
               <TableHead className="w-12 border border-slate-200 px-4">
                 <input type="checkbox" />
               </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">STT</TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                STT
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Module
               </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Thời gian
               </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Quy đổi
               </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Ngày tạo
               </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Design
               </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Hiển thị
               </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Thao tác
               </TableHead>
             </TableRow>
@@ -136,42 +138,44 @@ function ListProgram() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="border border-slate-200 px-4 py-8 text-slate-500">
+                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : filteredPrograms.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="border border-slate-200 px-4 py-8 text-slate-500">
+                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
             ) : (
               filteredPrograms.map((row, index) => (
                 <TableRow key={row.id} className="text-slate-700">
-                  <TableCell className="border border-slate-200 px-4">
-                  <input type="checkbox" />
+                  <TableCell className="border border-slate-200 p-4">
+                    <input type="checkbox" />
                   </TableCell>
-                  <TableCell className="border border-slate-200 px-4">{index + 1}</TableCell>
-                  <TableCell className="border border-slate-200 px-4 text-slate-500">{row.module}</TableCell>
-                  <TableCell className="border border-slate-200 px-4 text-slate-500">{row.time}</TableCell>
-                  <TableCell className="border border-slate-200 px-4 text-slate-500">{row.convert}</TableCell>
-                  <TableCell className="border border-slate-200 px-4 text-slate-500">{row.createdAt}</TableCell>
-                  <TableCell className="border border-slate-200 px-4 text-center">
+                  <TableCell className="border border-slate-200 p-4">
+                    <span className="border px-3 py-1.5">{index + 1}</span>
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.module}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.time}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.convert}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.createdAt}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-center">
                     <input type="checkbox" checked={row.design} readOnly />
                   </TableCell>
-                  <TableCell className="border border-slate-200 px-4 text-center">
+                  <TableCell className="border border-slate-200 p-4 text-center">
                     <input type="checkbox" checked={row.visible} readOnly />
                   </TableCell>
-                  <TableCell className="border border-slate-200 px-4 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <button type="button" onClick={() => {}} className="px-2 py-1">
-                      <SquarePen className="h-4 w-4 text-sky-500    " />
-                    </button>
-                    <button type="button" onClick={() => openDelete(row)} className="px-2 py-1 text-xs text-rose-700">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  <TableCell className="border border-slate-200 p-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button type="button" onClick={() => {}} className="px-2 py-1">
+                        <SquarePen className="h-4 w-4 text-sky-500    " />
+                      </button>
+                      <button type="button" onClick={() => openDelete(row)} className="px-2 py-1 text-xs text-rose-700">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

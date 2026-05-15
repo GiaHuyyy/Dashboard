@@ -1,20 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RotateCw, Save, SquareArrowRightExit, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import FormField from "@/components/ui/form-field";
+import { FormActions } from "@/components/program-form/FormActions";
+import { ProgramInfo } from "@/components/program-form/ProgramInfo";
+import { ContractInfo } from "@/components/program-form/ContractInfo";
+import { ImageLightbox } from "@/components/program-form/ImageLightbox";
 import { programApi } from "@/lib/api-client";
 import { uploadApi } from "@/lib/upload";
-
-const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
-const durationUnitOptions = ["h", "ngày"];
-const statusOptions = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
-const mailStatusOptions = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
-const salesStaffOptions = ["ĐỖ VAN SANG", "TRẦN LAN", "NGUYỄN HUY"];
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const nameRegex = /^[\p{L}\s]+$/u;
@@ -23,6 +19,11 @@ const CONTRACT_CODE_MIN_LENGTH = 6;
 const SALES_RECEIVER_NAME_MIN_LENGTH = 4;
 const EMAIL_LOCAL_MIN_LENGTH = 6;
 const EMAIL_LOCAL_HAS_LETTER_REGEX = /[A-Za-zÀ-ỹ]/u;
+const MODULE_OPTIONS = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
+const DURATION_UNIT_OPTIONS = ["h", "ngày"];
+const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
+const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
+const SALES_STAFF_OPTIONS = ["ĐỖ VAN SANG", "TRẦN LAN", "NGUYỄN HUY"];
 
 const hasValidEmailLocalPart = (email) => {
   const localPart = (email || "").split("@")[0] || "";
@@ -47,9 +48,9 @@ const calculateConvertByDuration = (durationValue, durationUnit) => {
 };
 
 const programSchema = z.object({
-  module: z.enum(moduleOptions, { message: "Vui lòng chọn module hợp lệ" }),
+  module: z.enum(MODULE_OPTIONS, { message: "Vui lòng chọn module hợp lệ" }),
   durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
-  durationUnit: z.enum(durationUnitOptions, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
+  durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
   design: z.boolean(),
   visible: z.boolean(),
@@ -62,8 +63,8 @@ const programSchema = z.object({
     .string()
     .trim()
     .min(CONTRACT_CODE_MIN_LENGTH, `Số hợp đồng tối thiểu ${CONTRACT_CODE_MIN_LENGTH} ký tự`),
-  status: z.enum(statusOptions, { message: "Vui lòng chọn trạng thái hợp lệ" }),
-  mailStatus: z.enum(mailStatusOptions, { message: "Vui lòng chọn mail nhận hợp lệ" }),
+  status: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+  mailStatus: z.enum(MAIL_STATUS_OPTIONS, { message: "Vui lòng chọn mail nhận hợp lệ" }),
   selectedSalesStaff: z.string().trim().min(1, "Vui lòng chọn nhân viên kinh doanh"),
   salesReceiverName: z
     .string()
@@ -103,7 +104,7 @@ const programSchema = z.object({
 });
 
 const defaultValues = {
-  module: moduleOptions[0],
+  module: MODULE_OPTIONS[0],
   durationValue: 1,
   durationUnit: "ngày",
   convert: "1",
@@ -112,9 +113,9 @@ const defaultValues = {
   contractImages: [],
   contractName: "",
   contractCode: "",
-  status: statusOptions[0],
-  mailStatus: mailStatusOptions[0],
-  selectedSalesStaff: salesStaffOptions[0],
+  status: STATUS_OPTIONS[0],
+  mailStatus: MAIL_STATUS_OPTIONS[0],
+  selectedSalesStaff: SALES_STAFF_OPTIONS[0],
   salesReceiverName: "",
   salesReceiverEmail: "",
   ccEmails: "",
@@ -215,38 +216,12 @@ function ProgramForm() {
     toast.error("Vui lòng kiểm tra lại thông tin form");
   };
 
-  const handleContractImageChange = (e) => {
-    const files = Array.from(e.target.files || []);
-    const validFiles = [];
-    const totalImages = contractImagePreviews.length + files.length;
-
-    if (totalImages > 6) {
-      toast.error("Tối đa 6 ảnh hợp đồng");
-      return;
-    }
-
-    for (const file of files) {
-      const validTypes = ["image/jpeg", "image/png", "image/webp"];
-      if (!validTypes.includes(file.type)) {
-        toast.error(`${file.name}: Chỉ chấp nhận JPG, PNG, WebP`);
-        continue;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name}: Kích thước tối đa 5MB`);
-        continue;
-      }
-
-      validFiles.push(file);
-    }
-
-    if (validFiles.length > 0) {
-      setContractImagePreviews((prev) => {
-        const nextFiles = [...prev, ...validFiles];
-        setValue("contractImages", nextFiles, { shouldValidate: true });
-        return nextFiles;
-      });
-    }
+  const handleContractImageChange = (files) => {
+    setContractImagePreviews((prev) => {
+      const nextFiles = [...prev, ...files];
+      setValue("contractImages", nextFiles, { shouldValidate: true });
+      return nextFiles;
+    });
   };
 
   const removeContractImage = (index) => {
@@ -267,280 +242,42 @@ function ProgramForm() {
 
   return (
     <form className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <button
-          type="button"
-          onClick={() => submitWithMode("save")}
-          disabled={isSubmitting || isUploadingImages}
-          className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-sky-400"
-        >
-          <Save className="h-4 w-4" />
-          Lưu
-        </button>
-        <button
-          type="button"
-          onClick={() => submitWithMode("save-mail")}
-          disabled={isSubmitting || isUploadingImages}
-          className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-400"
-        >
-          <Save className="h-4 w-4" />
-          Lưu gửi mail
-        </button>
-        <button
-          type="button"
-          onClick={() => submitWithMode("save-stay")}
-          disabled={isSubmitting || isUploadingImages}
-          className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-400"
-        >
-          <Save className="h-4 w-4" />
-          Lưu tại trang
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            reset(defaultValues);
-            setContractImagePreviews([]);
-          }}
-          disabled={isSubmitting || isUploadingImages}
-          className="inline-flex items-center gap-2 rounded-md bg-slate-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
-          <RotateCw className="h-4 w-4" />
-          Làm lại
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("/lap-trinh/danh-sach")}
-          disabled={isSubmitting || isUploadingImages}
-          className="inline-flex items-center gap-2 rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-400"
-        >
-          <SquareArrowRightExit className="h-4 w-4" />
-          Thoát
-        </button>
-      </div>
+      <FormActions
+        onSave={() => submitWithMode("save")}
+        onSaveMail={() => submitWithMode("save-mail")}
+        onSaveStay={() => submitWithMode("save-stay")}
+        onReset={() => {
+          reset(defaultValues);
+          setContractImagePreviews([]);
+        }}
+        isSubmitting={isSubmitting}
+        isUploading={isUploadingImages}
+      />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-3 text-md font-semibold text-slate-600">Nội dung</div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
-          <div className="space-y-4 rounded-xl border border-slate-100 p-4">
-            <p className="text-sm font-semibold text-slate-700">Thông tin lập trình</p>
+          <ProgramInfo
+            register={register}
+            errors={errors}
+            contractImagePreviews={contractImagePreviews}
+            onFilesSelected={handleContractImageChange}
+            onRemoveImage={removeContractImage}
+            onImageClick={setLightboxIndex}
+            isUploading={isUploadingImages}
+          />
 
-            <FormField
-              label="Module"
-              type="select"
-              options={moduleOptions.map((item) => ({ label: item, value: item }))}
-              selectProps={register("module")}
-              error={errors.module?.message}
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                label="Thời gian"
-                type="number"
-                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", placeholder: "Nhập số" }}
-                error={errors.durationValue?.message}
-              />
-              <FormField
-                label="Đơn vị"
-                type="select"
-                options={durationUnitOptions.map((item) => ({ label: item, value: item }))}
-                selectProps={register("durationUnit")}
-                error={errors.durationUnit?.message}
-              />
-            </div>
-
-            <FormField
-              label="Quy đổi"
-              type="text"
-              inputProps={{ ...register("convert"), readOnly: true, placeholder: "Tự động" }}
-              error={errors.convert?.message}
-            />
-
-            <div className="mt-3 grid grid-cols-2 gap-4">
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <input type="checkbox" {...register("design")} />
-                Design
-              </label>
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <input type="checkbox" {...register("visible")} />
-                Hiển thị
-              </label>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-600">Ảnh hợp đồng</label>
-                <span className="text-xs text-slate-500">
-                  {contractImagePreviews.length}/6 ảnh
-                </span>
-              </div>
-              <div className="flex flex-col gap-3">
-                {contractImagePreviews.length < 6 && (
-                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-6 transition-colors hover:border-slate-400 disabled:cursor-not-allowed">
-                    <Upload className="h-5 w-5 text-slate-500" />
-                    <span className="text-sm text-slate-600">Chọn ảnh</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleContractImageChange}
-                      disabled={isUploadingImages}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-
-                {contractImagePreviews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3">
-                    {contractImagePreviews.map((file, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt={`Contract ${index + 1}`}
-                          className="h-24 w-full rounded-lg border border-slate-200 object-cover cursor-pointer transition-opacity hover:opacity-75"
-                          onClick={() => setLightboxIndex(index)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeContractImage(index)}
-                          disabled={isUploadingImages}
-                          className="absolute right-1 top-1 rounded-full bg-rose-600 p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 disabled:cursor-not-allowed"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4 rounded-xl border border-slate-100 p-4">
-            <p className="text-sm font-semibold text-slate-700">Thông tin hợp đồng</p>
-
-            <FormField
-              label="Tên hợp đồng"
-              type="text"
-              inputProps={{ ...register("contractName"), placeholder: "VÕ TUẤN ANH" }}
-              error={errors.contractName?.message}
-            />
-
-            <FormField
-              label="Số hợp đồng"
-              type="text"
-              inputProps={{ ...register("contractCode"), placeholder: "0260223QT" }}
-              error={errors.contractCode?.message}
-            />
-
-            <FormField
-              label="Trạng thái"
-              type="select"
-              options={statusOptions.map((item) => ({ label: item, value: item }))}
-              selectProps={register("status")}
-              error={errors.status?.message}
-            />
-
-            <div>
-              <p className="text-sm font-semibold text-slate-600">Mail nhận</p>
-              <div className="mt-2 flex flex-wrap gap-6 text-sm text-slate-600">
-                {mailStatusOptions.map((option) => (
-                  <label key={option} className="flex items-center gap-2">
-                    <input type="radio" value={option} {...register("mailStatus")} />
-                    {option}
-                  </label>
-                ))}
-              </div>
-              {errors.mailStatus && <p className="mt-1 text-xs text-rose-600">{errors.mailStatus.message}</p>}
-            </div>
-
-            <FormField
-              label="Chọn nhân viên kinh doanh"
-              type="select"
-              options={salesStaffOptions.map((item) => ({ label: item, value: item }))}
-              selectProps={register("selectedSalesStaff")}
-              error={errors.selectedSalesStaff?.message}
-            />
-
-            <FormField
-              label="Họ tên kinh doanh nhận mail"
-              type="text"
-              inputProps={{ ...register("salesReceiverName"), placeholder: "ĐỖ VAN SANG" }}
-              error={errors.salesReceiverName?.message}
-            />
-
-            <FormField
-              label="Email kinh doanh nhận"
-              type="text"
-              inputProps={{ ...register("salesReceiverEmail"), placeholder: "thanhdv.sota@gmail.com" }}
-              error={errors.salesReceiverEmail?.message}
-            />
-
-            <FormField
-              label={
-                <>
-                  Danh sách email cc <span className="text-red-600">(phân cách bằng dấu phẩy)</span>
-                </>
-              }
-              type="text"
-              inputProps={{ ...register("ccEmails"), placeholder: "example@gmail.com, example2@gmail.com" }}
-              error={errors.ccEmails?.message}
-            />
-          </div>
+          <ContractInfo register={register} errors={errors} />
         </div>
       </div>
 
-      {lightboxIndex !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
-          onClick={() => setLightboxIndex(null)}
-        >
-          <div className="relative max-h-screen max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={URL.createObjectURL(contractImagePreviews[lightboxIndex])}
-              alt={`Contract ${lightboxIndex + 1}`}
-              className="h-full w-full object-contain rounded-lg"
-            />
-
-            <button
-              type="button"
-              onClick={() => setLightboxIndex(null)}
-              className="absolute right-4 top-4 rounded-full bg-slate-600 p-2 text-white hover:bg-slate-700"
-            >
-              <X className="h-6 w-6" />
-            </button>
-
-            {lightboxIndex > 0 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex(lightboxIndex - 1);
-                }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-slate-600 p-2 text-white hover:bg-slate-700"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </button>
-            )}
-
-            {lightboxIndex < contractImagePreviews.length - 1 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex(lightboxIndex + 1);
-                }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-slate-600 p-2 text-white hover:bg-slate-700"
-              >
-                <ChevronRight className="h-6 w-6" />
-              </button>
-            )}
-
-            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm font-semibold text-white">
-              {lightboxIndex + 1}/{contractImagePreviews.length}
-            </p>
-          </div>
-        </div>
-      )}
+      <ImageLightbox
+        currentIndex={lightboxIndex}
+        images={contractImagePreviews}
+        onClose={() => setLightboxIndex(null)}
+        onNext={() => setLightboxIndex(lightboxIndex + 1)}
+        onPrev={() => setLightboxIndex(lightboxIndex - 1)}
+      />
     </form>
   );
 }
