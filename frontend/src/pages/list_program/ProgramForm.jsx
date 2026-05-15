@@ -1,37 +1,142 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { RotateCw, Save, SquareArrowRightExit } from "lucide-react";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import FormField from "@/components/ui/form-field";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { programApi } from "@/lib/api-client";
+
+const statusOptions = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
+const mailStatusOptions = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
+const salesStaffOptions = ["ĐỖ VAN SANG", "TRẦN LAN", "NGUYỄN HUY"];
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const programSchema = z.object({
+  contractName: z.string().trim().min(1, "Vui lòng nhập tên hợp đồng"),
+  contractCode: z.string().trim().min(1, "Vui lòng nhập số hợp đồng"),
+  status: z.enum(statusOptions, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+  mailStatus: z.enum(mailStatusOptions, { message: "Vui lòng chọn mail nhận hợp lệ" }),
+  selectedSalesStaff: z.string().trim().min(1, "Vui lòng chọn nhân viên kinh doanh"),
+  salesReceiverName: z.string().trim().min(1, "Vui lòng nhập họ tên kinh doanh nhận mail"),
+  salesReceiverEmail: z.string().trim().email("Email kinh doanh nhận không hợp lệ"),
+  ccEmails: z
+    .string()
+    .optional()
+    .refine((value) => {
+      if (!value?.trim()) return true;
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .every((email) => emailRegex.test(email));
+    }, "Danh sách email cc không hợp lệ"),
+});
+
+const defaultValues = {
+  contractName: "",
+  contractCode: "",
+  status: statusOptions[0],
+  mailStatus: mailStatusOptions[0],
+  selectedSalesStaff: salesStaffOptions[0],
+  salesReceiverName: "",
+  salesReceiverEmail: "",
+  ccEmails: "",
+};
 
 function ProgramForm() {
   const navigate = useNavigate();
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(programSchema),
+    defaultValues,
+  });
+
+  const onSubmit = async (values, mode) => {
+    const payload = {
+      ...values,
+      ccEmails: values.ccEmails
+        ? values.ccEmails
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [],
+    };
+
+    try {
+      await programApi.create(payload);
+    } catch (error) {
+      toast.error(error?.message || "Lưu dữ liệu không thành công");
+      return;
+    }
+
+    if (mode === "save-mail") {
+      toast.success("Đã lưu form và đánh dấu gửi mail");
+      return;
+    }
+
+    if (mode === "save-stay") {
+      toast.success("Đã lưu form tại trang");
+      return;
+    }
+
+    toast.success("Lưu thành công");
+    navigate("/lap-trinh/danh-sach");
+  };
+
+  const onInvalid = () => {
+    toast.error("Vui lòng kiểm tra lại thông tin form");
+  };
+
+  const submitWithMode = (mode) =>
+    handleSubmit(
+      async (values) => {
+        await onSubmit(values, mode);
+      },
+      () => onInvalid(),
+    )();
+
   return (
-    <div className="space-y-4">
+    <form className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white"
+          onClick={() => submitWithMode("save")}
+          disabled={isSubmitting}
+          className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-sky-400"
         >
           <Save className="h-4 w-4" />
           Lưu
         </button>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white"
+          onClick={() => submitWithMode("save-mail")}
+          disabled={isSubmitting}
+          className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-blue-400"
         >
           <Save className="h-4 w-4" />
           Lưu gửi mail
         </button>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
+          onClick={() => submitWithMode("save-stay")}
+          disabled={isSubmitting}
+          className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-400"
         >
           <Save className="h-4 w-4" />
           Lưu tại trang
         </button>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-md bg-slate-600 px-3 py-2 text-sm font-semibold text-white"
+          onClick={() => reset(defaultValues)}
+          disabled={isSubmitting}
+          className="inline-flex items-center gap-2 rounded-md bg-slate-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           <RotateCw className="h-4 w-4" />
           Làm lại
@@ -49,63 +154,112 @@ function ProgramForm() {
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-3 text-md font-semibold text-slate-600">Nội dung</div>
         <div className="grid gap-4 p-5 md:grid-cols-2">
-          <FormField label="Tên hợp đồng" placeholder="VÕ TUẤN ANH" className="md:col-span-2" inputProps={{ defaultValue: "VÕ TUẤN ANH" }} />
-          <FormField label="Số hợp đồng" placeholder="0260223QT" className="md:col-span-2" inputProps={{ defaultValue: "0260223QT" }} />
-          <FormField
-            label="Trạng thái"
-            className="md:col-span-2"
-            type="select"
-            options={[{ label: "Đã nhận" }, { label: "Đang xử lý" }, { label: "Hoàn thành" }]}
-          />
+          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
+            Tên hợp đồng
+            <input
+              type="text"
+              {...register("contractName")}
+              className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              placeholder="VÕ TUẤN ANH"
+            />
+            {errors.contractName && <p className="mt-1 text-xs text-rose-600">{errors.contractName.message}</p>}
+          </label>
+
+          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
+            Số hợp đồng
+            <input
+              type="text"
+              {...register("contractCode")}
+              className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              placeholder="0260223QT"
+            />
+            {errors.contractCode && <p className="mt-1 text-xs text-rose-600">{errors.contractCode.message}</p>}
+          </label>
+
+          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
+            Trạng thái
+            <select
+              {...register("status")}
+              className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+            {errors.status && <p className="mt-1 text-xs text-rose-600">{errors.status.message}</p>}
+          </label>
 
           <div className="md:col-span-2">
             <p className="text-sm font-semibold text-slate-600">Mail nhận</p>
             <div className="mt-2 flex flex-wrap gap-6 text-sm text-slate-600">
-              <label className="flex items-center gap-2">
-                <input type="radio" name="mail-status" defaultChecked />
-                Mail nhận
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="radio" name="mail-status" />
-                Mail dự kiến
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="radio" name="mail-status" />
-                Mail hoàn thành
-              </label>
+              {mailStatusOptions.map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input type="radio" value={option} {...register("mailStatus")} />
+                  {option}
+                </label>
+              ))}
             </div>
+            {errors.mailStatus && <p className="mt-1 text-xs text-rose-600">{errors.mailStatus.message}</p>}
           </div>
 
-          <FormField
-            label="Chọn nhân viên kinh doanh"
-            className="md:col-span-2"
-            type="select"
-            options={[{ label: "ĐỖ VAN SANG" }, { label: "TRẦN LAN" }, { label: "NGUYỄN HUY" }]}
-          />
-          <FormField
-            label="Họ tên kinh doanh nhận mail"
-            placeholder="ĐỖ VAN SANG"
-            className="md:col-span-2"
-            inputProps={{ defaultValue: "ĐỖ VAN SANG" }}
-          />
-          <FormField
-            label="Email kinh doanh nhận"
-            placeholder="thanhdv.sota@gmail.com"
-            className="md:col-span-2"
-            inputProps={{ defaultValue: "thanhdv.sota@gmail.com" }}
-          />
-          <FormField
-            label={
-              <>
-                Danh sách email cc <span className="text-red-600">(phân cách bằng dấu phẩy)</span>
-              </>
-            }
-            className="md:col-span-2"
-            inputProps={{ placeholder: "example@gmail.com, example2@gmail.com" }}
-          />
+          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
+            Chọn nhân viên kinh doanh
+            <select
+              {...register("selectedSalesStaff")}
+              className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+            >
+              {salesStaffOptions.map((staff) => (
+                <option key={staff} value={staff}>
+                  {staff}
+                </option>
+              ))}
+            </select>
+            {errors.selectedSalesStaff && (
+              <p className="mt-1 text-xs text-rose-600">{errors.selectedSalesStaff.message}</p>
+            )}
+          </label>
+
+          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
+            Họ tên kinh doanh nhận mail
+            <input
+              type="text"
+              {...register("salesReceiverName")}
+              className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              placeholder="ĐỖ VAN SANG"
+            />
+            {errors.salesReceiverName && (
+              <p className="mt-1 text-xs text-rose-600">{errors.salesReceiverName.message}</p>
+            )}
+          </label>
+
+          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
+            Email kinh doanh nhận
+            <input
+              type="text"
+              {...register("salesReceiverEmail")}
+              className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              placeholder="thanhdv.sota@gmail.com"
+            />
+            {errors.salesReceiverEmail && (
+              <p className="mt-1 text-xs text-rose-600">{errors.salesReceiverEmail.message}</p>
+            )}
+          </label>
+
+          <label className="text-sm font-semibold text-slate-600 md:col-span-2">
+            Danh sách email cc <span className="text-red-600">(phân cách bằng dấu phẩy)</span>
+            <input
+              type="text"
+              {...register("ccEmails")}
+              className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-light focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              placeholder="example@gmail.com, example2@gmail.com"
+            />
+            {errors.ccEmails && <p className="mt-1 text-xs text-rose-600">{errors.ccEmails.message}</p>}
+          </label>
         </div>
       </div>
-    </div>
+    </form>
   );
 }
 

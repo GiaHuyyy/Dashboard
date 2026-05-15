@@ -58,3 +58,11 @@ export const authApi = {
     }),
   me: () => request("/auth/me"),
 };
+
+export const programApi = {
+  create: (payload) =>
+    request("/programs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+};
