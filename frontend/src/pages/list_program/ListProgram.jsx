@@ -1,93 +1,41 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, SquarePen, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import Modal from "@/components/ui/modal";
-import FormField from "@/components/ui/form-field";
 
-const tableRows = [
-  {
-    id: 0,
-    module: "Không tính điểm",
-    time: "0.1",
-    convert: "0",
-    createdAt: "24/09/2024 20:41:47",
-    design: false,
-    visible: true,
-  },
-  {
-    id: 1,
-    module: "Cơ bản",
-    time: "1 ngày",
-    convert: "1",
-    createdAt: "09/06/2024 14:27:35",
-    design: false,
-    visible: true,
-  },
-  {
-    id: 2,
-    module: "Cơ bản + Responsive",
-    time: "1.2 ngày",
-    convert: "1.2",
-    createdAt: "09/06/2024 14:29:33",
-    design: false,
-    visible: true,
-  },
-  {
-    id: 3,
-    module: "Cơ bản + Mobile",
-    time: "1.5 ngày",
-    convert: "1.5",
-    createdAt: "28/06/2024 15:50:51",
-    design: false,
-    visible: true,
-  },
-  {
-    id: 4,
-    module: "Giỏ hàng cơ bản",
-    time: "2 h",
-    convert: "0.25",
-    createdAt: "09/06/2024 14:35:20",
-    design: false,
-    visible: true,
-  },
-];
+import { programApi } from "@/lib/api-client";
+
+const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 
 function ListProgram() {
   const navigate = useNavigate();
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [activeRow, setActiveRow] = useState(null);
-  const [formState, setFormState] = useState({
-    module: "",
-    time: "",
-    convert: "",
-    createdAt: "",
-    design: false,
-    visible: false,
-  });
+  const [selectedModule, setSelectedModule] = useState("all");
+  const [searchText, setSearchText] = useState("");
+  const [programs, setPrograms] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const openEdit = (row) => {
-    setActiveRow(row);
-    setFormState({
-      module: row.module,
-      time: row.time,
-      convert: row.convert,
-      createdAt: row.createdAt,
-      design: row.design,
-      visible: row.visible,
-    });
-    setEditOpen(true);
-  };
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      setIsLoading(true);
+      try {
+        const response = await programApi.list(selectedModule);
+        setPrograms(response.programs || []);
+      } catch (error) {
+        toast.error(error?.message || "Không thể tải danh sách lập trình");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const openDelete = (row) => {
-    setActiveRow(row);
-    setDeleteOpen(true);
-  };
+    fetchPrograms();
+  }, [selectedModule]);
 
-  const closeEdit = () => setEditOpen(false);
-  const closeDelete = () => setDeleteOpen(false);
+  const filteredPrograms = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase();
+    if (!keyword) return programs;
+    return programs.filter((item) => item.module.toLowerCase().includes(keyword));
+  }, [programs, searchText]);
 
   return (
     <>
@@ -100,37 +48,33 @@ function ListProgram() {
           <Plus className="h-4 w-4" />
           Thêm mới
         </button>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700"
-        >
-          <Trash2 className="h-4 w-4" />
-          Xóa tất cả
-        </button>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-          defaultValue=""
+          value={selectedModule}
+          onChange={(event) => setSelectedModule(event.target.value)}
         >
-          <option value="" disabled>
-            Chọn loại điểm
-          </option>
-          <option>Cơ bản</option>
-          <option>Responsive</option>
-          <option>Mobile</option>
+          <option value="all">Chọn loại điểm</option>
+          {moduleOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
         </select>
       </div>
 
       <div className="mt-6 rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between border-t-3 rounded-2xl border-t-sky-500 gap-3 border-slate-200 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
           <h2 className="text-base font-semibold text-gray-500">Danh sách</h2>
           <div className="flex items-center">
             <input
               type="text"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
               placeholder="Search"
-              className="w-44 h-9 border border-slate-200 px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              className="h-9 w-44 border border-slate-200 px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
             />
             <button
               type="button"
@@ -145,12 +89,7 @@ function ListProgram() {
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
-              <TableHead className="w-12 border border-slate-200 px-4">
-                <input type="checkbox" />
-              </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
-                STT
-              </TableHead>
+              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">STT</TableHead>
               <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
                 Module
               </TableHead>
@@ -169,146 +108,41 @@ function ListProgram() {
               <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
                 Hiển thị
               </TableHead>
-              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
-                Thao tác
-              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tableRows.map((row) => (
-              <TableRow key={row.id} className="text-slate-700">
-                <TableCell className="border border-slate-200 px-4">
-                  <input type="checkbox" />
-                </TableCell>
-                <TableCell className="border border-slate-200 px-4">
-                  <span className="inline-flex h-8 w-8 items-center justify-center border border-slate-200 bg-white text-sm font-semibold">
-                    {row.id}
-                  </span>
-                </TableCell>
-                <TableCell className="border border-slate-200 px-4  text-slate-500">{row.module}</TableCell>
-                <TableCell className="border border-slate-200 text-slate-500 px-4">{row.time}</TableCell>
-                <TableCell className="border border-slate-200 text-slate-500 px-4">{row.convert}</TableCell>
-                <TableCell className="border border-slate-200  px-4 text-slate-500">{row.createdAt}</TableCell>
-                <TableCell className="border border-slate-200 px-4 text-center">
-                  <input type="checkbox" defaultChecked={row.design} />
-                </TableCell>
-                <TableCell className="border border-slate-200 px-4 text-center">
-                  <input type="checkbox" defaultChecked={row.visible} />
-                </TableCell>
-                <TableCell className="border border-slate-200 px-4 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <button type="button" onClick={() => openEdit(row)} className="px-2 py-1">
-                      <SquarePen className="h-4 w-4 text-sky-500    " />
-                    </button>
-                    <button type="button" onClick={() => openDelete(row)} className="px-2 py-1 text-xs text-rose-700">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="border border-slate-200 px-4 py-8 text-slate-500">
+                  Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
-            ))}
+            ) : filteredPrograms.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="border border-slate-200 px-4 py-8 text-slate-500">
+                  Chưa có dữ liệu
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredPrograms.map((row, index) => (
+                <TableRow key={row.id} className="text-slate-700">
+                  <TableCell className="border border-slate-200 px-4">{index + 1}</TableCell>
+                  <TableCell className="border border-slate-200 px-4 text-slate-500">{row.module}</TableCell>
+                  <TableCell className="border border-slate-200 px-4 text-slate-500">{row.time}</TableCell>
+                  <TableCell className="border border-slate-200 px-4 text-slate-500">{row.convert}</TableCell>
+                  <TableCell className="border border-slate-200 px-4 text-slate-500">{row.createdAt}</TableCell>
+                  <TableCell className="border border-slate-200 px-4 text-center">
+                    <input type="checkbox" checked={row.design} readOnly />
+                  </TableCell>
+                  <TableCell className="border border-slate-200 px-4 text-center">
+                    <input type="checkbox" checked={row.visible} readOnly />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
-
-      <Modal
-        open={editOpen}
-        onClose={closeEdit}
-        title="Sửa thông tin"
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={closeEdit} className="rounded-md border px-4 py-2 text-sm">
-              Đóng
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                toast.success("Đã lưu chỉnh sửa");
-                closeEdit();
-              }}
-              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
-            >
-              Lưu
-            </button>
-          </div>
-        }
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormField
-            label="Module"
-            inputProps={{
-              value: formState.module,
-              onChange: (event) => setFormState((prev) => ({ ...prev, module: event.target.value })),
-            }}
-          />
-          <FormField
-            label="Thời gian"
-            inputProps={{
-              value: formState.time,
-              onChange: (event) => setFormState((prev) => ({ ...prev, time: event.target.value })),
-            }}
-          />
-          <FormField
-            label="Quy đổi"
-            inputProps={{
-              value: formState.convert,
-              onChange: (event) => setFormState((prev) => ({ ...prev, convert: event.target.value })),
-            }}
-          />
-          <FormField
-            label="Ngày tạo"
-            inputProps={{
-              value: formState.createdAt,
-              onChange: (event) => setFormState((prev) => ({ ...prev, createdAt: event.target.value })),
-            }}
-          />
-          <label className="flex font-semibold items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={formState.design}
-              onChange={(event) => setFormState((prev) => ({ ...prev, design: event.target.checked }))}
-            />
-            Design
-          </label>
-          <label className="flex font-semibold items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={formState.visible}
-              onChange={(event) => setFormState((prev) => ({ ...prev, visible: event.target.checked }))}
-            />
-            Hiển thị
-          </label>
-        </div>
-      </Modal>
-
-      <Modal
-        open={deleteOpen}
-        onClose={closeDelete}
-        title="Xác nhận xóa"
-        size="sm"
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={closeDelete} className="rounded-md border px-4 py-2 text-sm">
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                toast.success("Đã xóa");
-                closeDelete();
-              }}
-              className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
-            >
-              Xóa
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm text-slate-600">
-          Bạn có chắc muốn xóa mục
-          <span className="font-semibold text-slate-800"> {activeRow?.module}</span>?
-        </p>
-      </Modal>
     </>
   );
 }

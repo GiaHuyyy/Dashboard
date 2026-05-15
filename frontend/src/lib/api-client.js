@@ -60,6 +60,14 @@ export const authApi = {
 };
 
 export const programApi = {
+  list: (module) => {
+    const searchParams = new URLSearchParams();
+    if (module && module !== "all") {
+      searchParams.set("module", module);
+    }
+    const query = searchParams.toString();
+    return request(`/programs${query ? `?${query}` : ""}`);
+  },
   create: (payload) =>
     request("/programs", {
       method: "POST",

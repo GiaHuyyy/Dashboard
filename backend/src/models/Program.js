@@ -2,6 +2,41 @@ import mongoose from "mongoose";
 
 const programSchema = new mongoose.Schema(
   {
+    module: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    time: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    convert: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    type: {
+      type: String,
+      required: true,
+      default: "program",
+      trim: true,
+    },
+    programCreatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    design: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    visible: {
+      type: Boolean,
+      required: true,
+      default: true,
+    },
     contractName: {
       type: String,
       required: true,
