@@ -1,17 +1,29 @@
-import { Router } from "express"
+import { Router } from "express";
 
-import User from "../models/User.js"
+import authRoutes from "./auth.js";
+import authenticate from "../middleware/authenticate.js";
+import authorizeRoles from "../middleware/authorizeRoles.js";
 
-const router = Router()
+const router = Router();
 
-router.get("/", async (req, res) => {
-  const user = await User.create({
-    name: "Huy",
-    email: "huy@gmail.com",
-    password: "123456",
-  })
+router.get("/", (req, res) => {
+  res.json({ message: "Dashboard API is running" });
+});
 
-  res.json(user)
-})
+router.use("/auth", authRoutes);
 
-export default router
+router.get("/protected", authenticate, (req, res) => {
+  res.json({
+    message: "You are authenticated",
+    user: req.user,
+  });
+});
+
+router.get("/admin", authenticate, authorizeRoles("admin"), (req, res) => {
+  res.json({
+    message: "Admin access granted",
+    role: req.user.role,
+  });
+});
+
+export default router;

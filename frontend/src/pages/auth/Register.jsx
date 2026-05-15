@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 function Register() {
   const navigate = useNavigate();
-  const [formState, setFormState] = useState({ name: "", email: "", password: "" });
+  const [formState, setFormState] = useState({ name: "", userName: "", password: "" });
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -31,18 +31,18 @@ function Register() {
                 value={formState.name}
                 onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
                 className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="Vo Tuan Anh"
+                placeholder="Nguyen Van A"
                 required
               />
             </label>
             <label className="block text-sm font-semibold text-slate-600">
-              Email
+              UserName
               <input
-                type="email"
-                value={formState.email}
-                onChange={(event) => setFormState((prev) => ({ ...prev, email: event.target.value }))}
+                type="userName"
+                value={formState.userName}
+                onChange={(event) => setFormState((prev) => ({ ...prev, userName: event.target.value }))}
                 className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                placeholder="email@example.com"
+                placeholder="user"
                 required
               />
             </label>

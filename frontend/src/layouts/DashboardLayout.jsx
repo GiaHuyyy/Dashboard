@@ -188,10 +188,11 @@ function DashboardLayout() {
                     1
                   </span>
                 </button>
+                {/* Logout */}
                 <button
                   type="button"
                   className="relative flex h-8 w-8 items-center justify-center rounded-xl hover:bg-slate-100"
-                  aria-label="Tài khoản"
+                  aria-label="Đăng xuất"
                 >
                   <SquareArrowRightExit className="h-4 w-4 text-slate-500" />
                 </button>

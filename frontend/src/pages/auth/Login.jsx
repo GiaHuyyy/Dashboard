@@ -3,18 +3,18 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const DEMO_USER = {
-  email: "admin@example.com",
+  userName: "admin1",
   password: "123456",
 };
 
 function Login() {
   const navigate = useNavigate();
-  const [formState, setFormState] = useState({ email: DEMO_USER.email, password: DEMO_USER.password });
+  const [formState, setFormState] = useState({ userName: DEMO_USER.userName, password: DEMO_USER.password });
   const [error, setError] = useState("");
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const isValid = formState.email.trim() === DEMO_USER.email && formState.password === DEMO_USER.password;
+    const isValid = formState.userName.trim() === DEMO_USER.userName && formState.password === DEMO_USER.password;
 
     if (!isValid) {
       setError("Sai tài khoản hoặc mật khẩu.");
@@ -43,11 +43,11 @@ function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <label className="block text-sm font-semibold text-slate-600">
-              Email
+              UserName
               <input
-                type="email"
-                value={formState.email}
-                onChange={(event) => setFormState((prev) => ({ ...prev, email: event.target.value }))}
+                type="userName"
+                value={formState.userName}
+                onChange={(event) => setFormState((prev) => ({ ...prev, userName: event.target.value }))}
                 className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
                 placeholder="admin@example.com"
                 required
