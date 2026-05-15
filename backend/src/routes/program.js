@@ -2,6 +2,8 @@ import { Router } from "express";
 
 import {
   createProgram,
+  deleteProgram,
+  deletePrograms,
   getProgramById,
   listPrograms,
   updateProgram,
@@ -13,8 +15,10 @@ const router = Router();
 
 router.get("/", authenticate, listPrograms);
 router.post("/validate", authenticate, validateProgram);
+router.delete("/", authenticate, deletePrograms);
 router.get("/:id", authenticate, getProgramById);
 router.put("/:id", authenticate, updateProgram);
+router.delete("/:id", authenticate, deleteProgram);
 router.post("/", authenticate, createProgram);
 
 export default router;

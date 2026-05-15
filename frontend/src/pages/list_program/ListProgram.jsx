@@ -1,6 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, SquarePen, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -18,22 +18,29 @@ function ListProgram() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeRow, setActiveRow] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [deleteMode, setDeleteMode] = useState("single");
+
+  const fetchPrograms = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await programApi.list(selectedModule);
+      const nextPrograms = response.programs || [];
+      setPrograms(nextPrograms);
+      setSelectedIds((prev) => prev.filter((id) => nextPrograms.some((item) => item.id === id)));
+    } catch (error) {
+      toast.error(error?.message || "Không thể tải danh sách lập trình");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedModule]);
 
   useEffect(() => {
-    const fetchPrograms = async () => {
-      setIsLoading(true);
-      try {
-        const response = await programApi.list(selectedModule);
-        setPrograms(response.programs || []);
-      } catch (error) {
-        toast.error(error?.message || "Không thể tải danh sách lập trình");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPrograms();
-  }, [selectedModule]);
+    const timer = window.setTimeout(() => {
+      void fetchPrograms();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchPrograms]);
 
   const filteredPrograms = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -42,11 +49,71 @@ function ListProgram() {
   }, [programs, searchText]);
 
   const openDelete = (row) => {
+    setDeleteMode("single");
     setActiveRow(row);
     setDeleteOpen(true);
   };
 
-  const closeDelete = () => setDeleteOpen(false);
+  const openDeleteMany = () => {
+    setDeleteMode(selectedIds.length > 0 ? "selected" : "all");
+    setActiveRow(null);
+    setDeleteOpen(true);
+  };
+
+  const closeDelete = () => {
+    setDeleteOpen(false);
+    setActiveRow(null);
+  };
+
+  const handleRowCheckboxChange = (id, checked) => {
+    setSelectedIds((prev) => {
+      if (checked) {
+        if (prev.includes(id)) return prev;
+        return [...prev, id];
+      }
+      return prev.filter((item) => item !== id);
+    });
+  };
+
+  const filteredIds = filteredPrograms.map((item) => item.id);
+  const isAllFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id));
+
+  const handleToggleAll = (checked) => {
+    if (checked) {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+      return;
+    }
+    setSelectedIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      if (deleteMode === "single" && activeRow?.id) {
+        await programApi.remove(activeRow.id);
+        toast.success("Đã xóa chương trình");
+      } else if (deleteMode === "selected" && selectedIds.length > 0) {
+        const response = await programApi.removeMany(selectedIds);
+        toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} chương trình`);
+      } else {
+        const response = await programApi.removeMany([]);
+        toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) chương trình`);
+      }
+
+      setSelectedIds([]);
+      closeDelete();
+      await fetchPrograms();
+    } catch (error) {
+      toast.error(error?.message || "Xóa dữ liệu không thành công");
+    }
+  };
+
+  const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả (${selectedIds.length})` : "Xóa tất cả";
+  const deleteDescription =
+    deleteMode === "single"
+      ? "Bạn có chắc muốn xóa mục"
+      : deleteMode === "selected"
+        ? `Bạn có chắc muốn xóa ${selectedIds.length} mục đã chọn?`
+        : "Bạn có chắc muốn xóa toàn bộ danh sách chương trình?";
 
   return (
     <>
@@ -62,12 +129,13 @@ function ListProgram() {
         />
         <Button
           icon={Trash2}
-          label="Xóa tất cả"
-          onClick={() => {}}
+          label={deleteManyLabel}
+          onClick={openDeleteMany}
           variant="danger"
           size="lg"
           className="shadow-sm"
           gap="gap-1"
+          disabled={programs.length === 0}
         />
       </div>
 
@@ -111,7 +179,12 @@ function ListProgram() {
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
               <TableHead className="w-12 border border-slate-200 px-4">
-                <input type="checkbox" />
+                <input
+                  type="checkbox"
+                  checked={isAllFilteredSelected}
+                  onChange={(event) => handleToggleAll(event.target.checked)}
+                  onClick={(event) => event.stopPropagation()}
+                />
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 STT
@@ -160,7 +233,12 @@ function ListProgram() {
                   onClick={() => navigate(`/lap-trinh/chinh-sua/${row.id}`)}
                 >
                   <TableCell className="border border-slate-200 p-4">
-                    <input type="checkbox" />
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(row.id)}
+                      onChange={(event) => handleRowCheckboxChange(row.id, event.target.checked)}
+                      onClick={(event) => event.stopPropagation()}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
@@ -170,10 +248,15 @@ function ListProgram() {
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.convert}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.createdAt}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
-                    <input type="checkbox" checked={row.design} readOnly />
+                    <input type="checkbox" checked={row.design} readOnly onClick={(event) => event.stopPropagation()} />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
-                    <input type="checkbox" checked={row.visible} readOnly />
+                    <input
+                      type="checkbox"
+                      checked={row.visible}
+                      readOnly
+                      onClick={(event) => event.stopPropagation()}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
@@ -218,10 +301,7 @@ function ListProgram() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                toast.success("Đã xóa");
-                closeDelete();
-              }}
+              onClick={handleConfirmDelete}
               className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Xóa
@@ -229,10 +309,14 @@ function ListProgram() {
           </div>
         }
       >
-        <p className="text-sm text-slate-600">
-          Bạn có chắc muốn xóa mục
-          <span className="font-semibold text-slate-800"> {activeRow?.module}</span>?
-        </p>
+        {deleteMode === "single" ? (
+          <p className="text-sm text-slate-600">
+            {deleteDescription}
+            <span className="font-semibold text-slate-800"> {activeRow?.module}</span>?
+          </p>
+        ) : (
+          <p className="text-sm text-slate-600">{deleteDescription}</p>
+        )}
       </Modal>
     </>
   );

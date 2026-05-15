@@ -382,3 +382,26 @@ export const updateProgram = async (req, res) => {
     program: existingProgram,
   });
 };
+
+export const deleteProgram = async (req, res) => {
+  const deletedProgram = await Program.findByIdAndDelete(req.params.id);
+  if (!deletedProgram) {
+    return res.status(404).json({ message: "Không tìm thấy chương trình" });
+  }
+
+  return res.json({ message: "Đã xóa chương trình" });
+};
+
+export const deletePrograms = async (req, res) => {
+  const ids = Array.isArray(req.body?.ids)
+    ? req.body.ids.map((item) => normalizeString(String(item))).filter(Boolean)
+    : [];
+
+  const filters = ids.length > 0 ? { _id: { $in: ids } } : { $or: [{ type: "program" }, { type: { $exists: false } }] };
+  const result = await Program.deleteMany(filters);
+
+  return res.json({
+    message: ids.length > 0 ? "Đã xóa các chương trình đã chọn" : "Đã xóa toàn bộ chương trình",
+    deletedCount: result.deletedCount || 0,
+  });
+};

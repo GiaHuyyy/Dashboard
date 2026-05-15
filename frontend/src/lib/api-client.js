@@ -84,4 +84,13 @@ export const programApi = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
+  remove: (id) =>
+    request(`/programs/${id}`, {
+      method: "DELETE",
+    }),
+  removeMany: (ids) =>
+    request("/programs", {
+      method: "DELETE",
+      body: JSON.stringify({ ids }),
+    }),
 };
