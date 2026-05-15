@@ -1,6 +1,10 @@
 import { Bell, ChevronLeft, Cloud, FileText, Menu, SquareArrowRightExit } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { logoutUser } from "@/store/auth-slice";
 
 const navItems = [
   { label: "Quản lý hệ thống", path: "/he-thong", icon: FileText },
@@ -37,8 +41,10 @@ const navItems = [
 const linkBase = "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition";
 
 function DashboardLayout() {
+  const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
   const [openSections, setOpenSections] = useState({});
 
   const activeLabel = useMemo(() => {
@@ -74,6 +80,16 @@ function DashboardLayout() {
   const pageTitle = activeLabel;
   const toggleSection = (path) => {
     setOpenSections((prev) => ({ ...prev, [path]: !prev[path] }));
+  };
+
+  const handleLogout = async () => {
+    try {
+      await dispatch(logoutUser()).unwrap();
+      toast.success("Đăng xuất thành công");
+      navigate("/login", { replace: true });
+    } catch (error) {
+      toast.error(error || "Đăng xuất thất bại");
+    }
   };
 
   return (
@@ -177,6 +193,10 @@ function DashboardLayout() {
             </div>
 
             <div className="flex items-center gap-4">
+              <div className="hidden text-right md:block">
+                <p className="text-sm font-semibold text-slate-700">{user?.name || "Người dùng"}</p>
+                <p className="text-xs text-slate-500">{user?.userName || ""}</p>
+              </div>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -191,6 +211,7 @@ function DashboardLayout() {
                 {/* Logout */}
                 <button
                   type="button"
+                  onClick={handleLogout}
                   className="relative flex h-8 w-8 items-center justify-center rounded-xl hover:bg-slate-100"
                   aria-label="Đăng xuất"
                 >

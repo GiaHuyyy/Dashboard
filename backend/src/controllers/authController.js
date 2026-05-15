@@ -3,6 +3,20 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 const BCRYPT_HASH_REGEX = /^\$2[aby]\$\d{2}\$/;
+const COOKIE_NAME = process.env.JWT_COOKIE_NAME || "access_token";
+
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  maxAge: 24 * 60 * 60 * 1000,
+});
+
+const getClearCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+});
 
 const createToken = (user) => {
   return jwt.sign(
@@ -24,36 +38,36 @@ const sanitizeUser = (user) => ({
 });
 
 export const register = async (req, res) => {
-  const { name, userName, password, role = "user" } = req.body;
+  const { name, userName, password } = req.body;
+
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: "JWT_SECRET chưa được cấu hình" });
+  }
 
   if (!name || !userName || !password) {
     return res.status(400).json({
-      message: "name, userName and password are required",
+      message: "name, userName và password là bắt buộc",
     });
   }
 
   const existingUser = await User.findOne({ userName });
   if (existingUser) {
-    return res.status(409).json({ message: "userName already exists" });
+    return res.status(409).json({ message: "userName đã tồn tại" });
   }
 
   const user = await User.create({
     name,
     userName,
     password,
-    role,
+    role: "user",
   });
-
-  if (!process.env.JWT_SECRET) {
-    return res.status(500).json({ message: "JWT_SECRET is not configured" });
-  }
 
   const token = createToken(user);
 
+  res.cookie(COOKIE_NAME, token, getCookieOptions());
+
   return res.status(201).json({
-    message: "Register successful",
-    token,
-    tokenType: "Bearer",
+    message: "Đăng ký thành công",
     user: sanitizeUser(user),
   });
 };
@@ -61,24 +75,24 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   const { userName, password } = req.body;
 
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: "JWT_SECRET chưa được cấu hình" });
+  }
+
   if (!userName || !password) {
     return res.status(400).json({
-      message: "userName and password are required",
+      message: "userName và password là bắt buộc",
     });
   }
 
   const user = await User.findOne({ userName });
   if (!user) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
-
-  if (!process.env.JWT_SECRET) {
-    return res.status(500).json({ message: "JWT_SECRET is not configured" });
+    return res.status(401).json({ message: "Thông tin đăng nhập không hợp lệ" });
   }
 
   const isValidPassword = await user.comparePassword(password);
   if (!isValidPassword) {
-    return res.status(401).json({ message: "Invalid credentials" });
+    return res.status(401).json({ message: "Thông tin đăng nhập không hợp lệ" });
   }
 
   // Upgrade existing plain-text passwords to bcrypt hash after a successful login.
@@ -89,9 +103,10 @@ export const login = async (req, res) => {
 
   const token = createToken(user);
 
+  res.cookie(COOKIE_NAME, token, getCookieOptions());
+
   return res.json({
-    token,
-    tokenType: "Bearer",
+    message: "Đăng nhập thành công",
     user: sanitizeUser(user),
   });
 };
@@ -99,13 +114,11 @@ export const login = async (req, res) => {
 export const me = async (req, res) => {
   const user = await User.findById(req.user.sub).select("-password");
   if (!user) {
-    return res.status(404).json({ message: "User not found" });
+    return res.status(404).json({ message: "Người dùng không tồn tại" });
   }
 
   return res.json(user);
 };
 
 export const logout = async (req, res) =>
-  res.json({
-    message: "Logout successful. Please remove token on client side.",
-  });
+  res.clearCookie(COOKIE_NAME, getClearCookieOptions()).json({ message: "Đăng xuất thành công" });
