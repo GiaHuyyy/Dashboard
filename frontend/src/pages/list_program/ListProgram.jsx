@@ -1,10 +1,11 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, SquarePen, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { programApi } from "@/lib/api-client";
+import Modal from "@/components/ui/modal";
 
 const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 
@@ -14,6 +15,8 @@ function ListProgram() {
   const [searchText, setSearchText] = useState("");
   const [programs, setPrograms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [activeRow, setActiveRow] = useState(null);
 
   useEffect(() => {
     const fetchPrograms = async () => {
@@ -37,6 +40,13 @@ function ListProgram() {
     return programs.filter((item) => item.module.toLowerCase().includes(keyword));
   }, [programs, searchText]);
 
+  const openDelete = (row) => {
+    setActiveRow(row);
+    setDeleteOpen(true);
+  };
+
+  const closeDelete = () => setDeleteOpen(false);
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -47,6 +57,13 @@ function ListProgram() {
         >
           <Plus className="h-4 w-4" />
           Thêm mới
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700"
+        >
+          <Trash2 className="h-4 w-4" />
+          Xóa tất cả
         </button>
       </div>
 
@@ -89,6 +106,9 @@ function ListProgram() {
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
+              <TableHead className="w-12 border border-slate-200 px-4">
+                <input type="checkbox" />
+              </TableHead>
               <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">STT</TableHead>
               <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
                 Module
@@ -108,6 +128,9 @@ function ListProgram() {
               <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
                 Hiển thị
               </TableHead>
+              <TableHead className="border border-slate-200 px-4 text-center font-semibold text-slate-500">
+                Thao tác
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -126,6 +149,9 @@ function ListProgram() {
             ) : (
               filteredPrograms.map((row, index) => (
                 <TableRow key={row.id} className="text-slate-700">
+                  <TableCell className="border border-slate-200 px-4">
+                  <input type="checkbox" />
+                  </TableCell>
                   <TableCell className="border border-slate-200 px-4">{index + 1}</TableCell>
                   <TableCell className="border border-slate-200 px-4 text-slate-500">{row.module}</TableCell>
                   <TableCell className="border border-slate-200 px-4 text-slate-500">{row.time}</TableCell>
@@ -137,12 +163,51 @@ function ListProgram() {
                   <TableCell className="border border-slate-200 px-4 text-center">
                     <input type="checkbox" checked={row.visible} readOnly />
                   </TableCell>
+                  <TableCell className="border border-slate-200 px-4 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <button type="button" onClick={() => {}} className="px-2 py-1">
+                      <SquarePen className="h-4 w-4 text-sky-500    " />
+                    </button>
+                    <button type="button" onClick={() => openDelete(row)} className="px-2 py-1 text-xs text-rose-700">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      <Modal
+        open={deleteOpen}
+        onClose={closeDelete}
+        title="Xác nhận xóa"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button type="button" onClick={closeDelete} className="rounded-md border px-4 py-2 text-sm">
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                toast.success("Đã xóa");
+                closeDelete();
+              }}
+              className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xóa
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Bạn có chắc muốn xóa mục
+          <span className="font-semibold text-slate-800"> {activeRow?.module}</span>?
+        </p>
+      </Modal>
     </>
   );
 }
