@@ -6,13 +6,13 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
-import FormField from "@/components/ui/form-field";
-import { correctionApi, programApi } from "@/lib/api-client";
 import {
   CORRECTION_PRIORITY_OPTIONS,
   CORRECTION_STAFF_OPTIONS,
   CORRECTION_STATUS_OPTIONS,
 } from "@/constants/program-correction";
+import { correctionApi, programApi } from "@/lib/api-client";
+import FormField from "@/components/ui/form-field";
 
 const schema = z.object({
   programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
@@ -46,14 +46,12 @@ const defaultValues = {
 
 const toDateTimeLocal = (value) => {
   if (!value) return "";
-  if (value.includes("T")) return value.slice(0, 16);
-  const [datePart, timePart = "00:00"] = value.split(" ");
-  const [day, month, year] = datePart.split("/");
-  if (!day || !month || !year) return "";
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${timePart.slice(0, 5)}`;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 16);
 };
 
-const mapRowToForm = (row) => ({
+const mapCorrectionToForm = (row) => ({
   programId: row.programId || "",
   issueContent: row.issueContent || "",
   priority: row.priority || CORRECTION_PRIORITY_OPTIONS[1],
@@ -73,7 +71,8 @@ function ProgramCorrectionForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [programReferences, setProgramReferences] = useState([]);
-  const [isLoadingReferences, setIsLoadingReferences] = useState(true);
+  const [assignedCorrections, setAssignedCorrections] = useState([]);
+  const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
 
@@ -87,31 +86,61 @@ function ProgramCorrectionForm() {
     resolver: zodResolver(schema),
     defaultValues,
   });
+
   const selectedProgramId = useWatch({ control, name: "programId" });
+  const assignedProgramIds = useMemo(
+    () => new Set(assignedCorrections.map((item) => item.programId).filter(Boolean)),
+    [assignedCorrections],
+  );
+  const assignedCorrectionByProgramId = useMemo(
+    () =>
+      assignedCorrections.reduce((acc, item) => {
+        if (item.programId) acc[item.programId] = item;
+        return acc;
+      }, {}),
+    [assignedCorrections],
+  );
+
+  const selectablePrograms = useMemo(() => {
+    if (isEditMode) {
+      return programReferences.filter((item) => assignedProgramIds.has(item.id));
+    }
+    return programReferences;
+  }, [assignedProgramIds, isEditMode, programReferences]);
+
   const selectedProgram = useMemo(
     () => programReferences.find((item) => item.id === selectedProgramId),
     [programReferences, selectedProgramId],
   );
 
   useEffect(() => {
-    const fetchProgramReferences = async () => {
-      setIsLoadingReferences(true);
+    const fetchSources = async () => {
+      setIsLoadingSources(true);
       try {
-        const response = await programApi.references();
-        const programs = Array.isArray(response?.programs) ? response.programs : [];
+        const [programResponse, correctionResponse] = await Promise.all([
+          programApi.references(),
+          correctionApi.list({ limit: 500, page: 1 }),
+        ]);
+        const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
+        const corrections = Array.isArray(correctionResponse?.corrections) ? correctionResponse.corrections : [];
+
         setProgramReferences(programs);
-        if (!isEditMode && programs.length > 0) {
-          const nextDefaults = { ...defaultValues, programId: programs[0].id };
+        setAssignedCorrections(corrections);
+
+        if (!isEditMode) {
+          const firstAvailable = programs.find((item) => !corrections.some((correction) => correction.programId === item.id));
+          const nextDefaults = { ...defaultValues, programId: firstAvailable?.id || "" };
           reset(nextDefaults);
           setInitialSnapshot(nextDefaults);
         }
       } catch (error) {
-        toast.error(error?.message || "Không thể tải danh sách Phiếu gốc/Số HĐ");
+        toast.error(error?.message || "Không thể tải dữ liệu nguồn");
       } finally {
-        setIsLoadingReferences(false);
+        setIsLoadingSources(false);
       }
     };
-    void fetchProgramReferences();
+
+    void fetchSources();
   }, [isEditMode, reset]);
 
   useEffect(() => {
@@ -126,7 +155,7 @@ function ProgramCorrectionForm() {
           navigate("/lap-trinh/chinh-sua");
           return;
         }
-        const formValues = mapRowToForm(correction);
+        const formValues = mapCorrectionToForm(correction);
         reset(formValues);
         setInitialSnapshot(formValues);
       } catch (error) {
@@ -138,6 +167,15 @@ function ProgramCorrectionForm() {
     };
     void fetchDetail();
   }, [id, isEditMode, navigate, reset]);
+
+  const programRegister = register("programId");
+
+  const handleProgramChange = (nextProgramId) => {
+    if (!isEditMode) return;
+    const targetCorrection = assignedCorrectionByProgramId[nextProgramId];
+    if (!targetCorrection || !targetCorrection.id || targetCorrection.id === id) return;
+    navigate(`/lap-trinh/quan-ly-chinh-sua/${targetCorrection.id}`);
+  };
 
   const onSubmit = async (values, mode) => {
     const payload = {
@@ -163,6 +201,9 @@ function ProgramCorrectionForm() {
       } else {
         const response = await correctionApi.create(payload);
         savedCorrection = response?.correction || null;
+        if (savedCorrection) {
+          setAssignedCorrections((prev) => [savedCorrection, ...prev]);
+        }
       }
     } catch (error) {
       toast.error(error?.message || "Không thể lưu yêu cầu chỉnh sửa");
@@ -190,7 +231,7 @@ function ProgramCorrectionForm() {
       () => toast.error("Vui lòng kiểm tra lại thông tin form"),
     )();
 
-  if (isLoadingReferences || isLoadingDetail) {
+  if (isLoadingSources || isLoadingDetail) {
     return <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>;
   }
 
@@ -211,27 +252,46 @@ function ProgramCorrectionForm() {
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Nội dung chỉnh sửa
-        </div>
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Nội dung chỉnh sửa</div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
 
-            <FormField
-              label="Phiếu gốc / Số HĐ"
-              type="select"
-              options={
-                programReferences.length === 0
-                  ? [{ label: "Không có dữ liệu", value: "" }]
-                  : programReferences.map((item) => ({
-                      label: `${item.contractCode} - ${item.contractName || ""}`.trim(),
-                      value: item.id,
-                    }))
-              }
-              selectProps={{ ...register("programId"), disabled: programReferences.length === 0 }}
-              error={errors.programId?.message}
-            />
+            <label className="text-sm font-semibold text-slate-600">
+              Phiếu gốc / Số HĐ
+              <select
+                {...programRegister}
+                value={selectedProgramId || ""}
+                onChange={(event) => {
+                  programRegister.onChange(event);
+                  handleProgramChange(event.target.value);
+                }}
+                className={`w-full rounded-md border px-3 py-2 text-sm font-light focus:outline-none ${
+                  errors.programId
+                    ? "border-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
+                    : "border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                }`}
+                disabled={selectablePrograms.length === 0}
+              >
+                {selectablePrograms.length === 0 ? (
+                  <option value="">Không có dữ liệu</option>
+                ) : (
+                  selectablePrograms.map((item) => {
+                    const isAssigned = assignedProgramIds.has(item.id);
+                    const isDisabled = !isEditMode && isAssigned;
+                    const label = !isEditMode && isAssigned
+                      ? `${item.contractCode} - ${item.contractName || ""} (Đã phân công)`
+                      : `${item.contractCode} - ${item.contractName || ""}`;
+                    return (
+                      <option key={item.id} value={item.id} disabled={isDisabled}>
+                        {label.trim()}
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+              {errors.programId ? <p className="mt-1 text-xs text-rose-600">{errors.programId.message}</p> : null}
+            </label>
 
             <FormField
               label="Module"

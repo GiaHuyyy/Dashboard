@@ -1,5 +1,5 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -7,8 +7,8 @@ import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
 import { CORRECTION_STAFF_OPTIONS, CORRECTION_STATUS_OPTIONS } from "@/constants/program-correction";
 import { correctionApi } from "@/lib/api-client";
-import Modal from "@/components/ui/modal";
 import { Button } from "@/components/ui/button-v2";
+import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const PRIORITY_COLORS = {
@@ -42,7 +42,8 @@ function ProgramEditManagement() {
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [selectedYear, setSelectedYear] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
-  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
 
   const fetchCorrections = useCallback(async () => {
@@ -55,7 +56,9 @@ function ProgramEditManagement() {
         search: searchText.trim(),
         limit: 200,
       });
-      setRows(Array.isArray(response?.corrections) ? response.corrections : []);
+      const nextRows = Array.isArray(response?.corrections) ? response.corrections : [];
+      setRows(nextRows);
+      setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
     } catch (error) {
       toast.error(error?.message || "Không thể tải danh sách chỉnh sửa");
     } finally {
@@ -68,6 +71,11 @@ function ProgramEditManagement() {
     void fetchCorrections();
   }, [fetchCorrections]);
 
+  const displayedRows = rows;
+  const displayedIds = displayedRows.map((item) => item.id);
+  const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
+  const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
+
   const openCreateForm = () => {
     navigate("/lap-trinh/quan-ly-chinh-sua/them-moi");
   };
@@ -75,9 +83,6 @@ function ProgramEditManagement() {
   const openEditForm = (row) => {
     navigate(`/lap-trinh/quan-ly-chinh-sua/${row.id}`);
   };
-
-  const deleteManyLabel = "Xóa tất cả";
-  const displayedRows = useMemo(() => rows, [rows]);
 
   const handleInlineUpdate = async (rowId, patch) => {
     const target = rows.find((item) => item.id === rowId);
@@ -108,32 +113,65 @@ function ProgramEditManagement() {
     }
   };
 
-  const handleDeleteRow = async (rowId) => {
+  const handleDeleteOne = async (rowId) => {
     try {
       await correctionApi.remove(rowId);
       setRows((prev) => prev.filter((item) => item.id !== rowId));
+      setSelectedIds((prev) => prev.filter((item) => item !== rowId));
       toast.success("Đã xóa yêu cầu chỉnh sửa");
     } catch (error) {
       toast.error(error?.message || "Xóa dữ liệu không thành công");
     }
   };
 
-  const handleDeleteAll = async () => {
+  const handleDeleteMany = async () => {
     try {
-      const response = await correctionApi.removeMany([]);
-      setRows([]);
-      setDeleteAllOpen(false);
-      toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) yêu cầu chỉnh sửa`);
+      if (selectedIds.length > 0) {
+        const response = await correctionApi.removeMany(selectedIds);
+        setRows((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
+        setSelectedIds([]);
+        toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} yêu cầu chỉnh sửa`);
+      } else {
+        const response = await correctionApi.removeMany([]);
+        setRows([]);
+        toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) yêu cầu chỉnh sửa`);
+      }
     } catch (error) {
       toast.error(error?.message || "Xóa dữ liệu không thành công");
+    } finally {
+      setDeleteOpen(false);
+      setDeleteRow(null);
     }
+  };
+
+  const handleToggleAll = (checked) => {
+    if (checked) {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
+      return;
+    }
+    setSelectedIds((prev) => prev.filter((id) => !displayedIds.includes(id)));
+  };
+
+  const handleToggleRow = (id, checked) => {
+    setSelectedIds((prev) => {
+      if (checked) {
+        if (prev.includes(id)) return prev;
+        return [...prev, id];
+      }
+      return prev.filter((item) => item !== id);
+    });
+  };
+
+  const openDeleteMany = () => {
+    setDeleteRow(null);
+    setDeleteOpen(true);
   };
 
   return (
     <>
       <ManagementActions
         onAdd={openCreateForm}
-        onDeleteAll={() => setDeleteAllOpen(true)}
+        onDeleteAll={openDeleteMany}
         deleteDisabled={rows.length === 0}
         deleteLabel={deleteManyLabel}
       />
@@ -180,14 +218,22 @@ function ProgramEditManagement() {
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
+              <TableHead className="w-12 border border-slate-200 px-4">
+                <input
+                  type="checkbox"
+                  className="ml-px"
+                  checked={isAllFilteredSelected}
+                  onChange={(event) => handleToggleAll(event.target.checked)}
+                  onClick={(event) => event.stopPropagation()}
+                />
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Số HĐ</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Module</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mức độ</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái</TableHead>
+              <TableHead className="border border-slate-200 p-4 px-6 text-center font-semibold text-slate-500">Trạng thái</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Người giao</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Chuyển lập trình
-              </TableHead>
+              <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">Chuyển lập trình</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày giao</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày nhận</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày dự kiến</TableHead>
@@ -201,23 +247,34 @@ function ProgramEditManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
             ) : (
-              displayedRows.map((row) => (
+              displayedRows.map((row, index) => (
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
                   onClick={() => openEditForm(row)}
                 >
+                  <TableCell className="border border-slate-200 p-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(row.id)}
+                      onChange={(event) => handleToggleRow(row.id, event.target.checked)}
+                      onClick={(event) => event.stopPropagation()}
+                    />
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4">
+                    <span className="border px-3 py-1.5">{index + 1}</span>
+                  </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.module}</TableCell>
                   <TableCell className={`border border-slate-200 p-4 font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}>
@@ -278,6 +335,7 @@ function ProgramEditManagement() {
                         onClick={(event) => {
                           event.stopPropagation();
                           setDeleteRow(row);
+                          setDeleteOpen(true);
                         }}
                         variant="danger-outline"
                         iconOnly
@@ -293,41 +351,35 @@ function ProgramEditManagement() {
       </ManagementTableCard>
 
       <Modal
-        open={deleteAllOpen}
-        onClose={() => setDeleteAllOpen(false)}
+        open={deleteOpen}
+        onClose={() => {
+          setDeleteOpen(false);
+          setDeleteRow(null);
+        }}
         title="Xác nhận xóa"
         size="sm"
         footer={
           <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setDeleteAllOpen(false)} className="rounded-md border px-4 py-2 text-sm">
-              Hủy
-            </button>
-            <button type="button" onClick={() => void handleDeleteAll()} className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white">
-              Xóa
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm text-slate-600">Bạn có chắc muốn xóa toàn bộ danh sách chỉnh sửa?</p>
-      </Modal>
-
-      <Modal
-        open={Boolean(deleteRow)}
-        onClose={() => setDeleteRow(null)}
-        title="Xác nhận xóa"
-        size="sm"
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setDeleteRow(null)} className="rounded-md border px-4 py-2 text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteOpen(false);
+                setDeleteRow(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
               Hủy
             </button>
             <button
               type="button"
               onClick={() => {
                 if (deleteRow?.id) {
-                  void handleDeleteRow(deleteRow.id);
+                  void handleDeleteOne(deleteRow.id);
+                  setDeleteOpen(false);
+                  setDeleteRow(null);
+                  return;
                 }
-                setDeleteRow(null);
+                void handleDeleteMany();
               }}
               className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
             >
@@ -336,10 +388,16 @@ function ProgramEditManagement() {
           </div>
         }
       >
-        <p className="text-sm text-slate-600">
-          Bạn có chắc muốn xóa mục
-          <span className="font-semibold text-slate-800"> {deleteRow?.contractCode}</span>?
-        </p>
+        {deleteRow ? (
+          <p className="text-sm text-slate-600">
+            Bạn có chắc muốn xóa mục
+            <span className="font-semibold text-slate-800"> {deleteRow.contractCode}</span>?
+          </p>
+        ) : selectedIds.length > 0 ? (
+          <p className="text-sm text-slate-600">Bạn có chắc muốn xóa {selectedIds.length} mục đã chọn?</p>
+        ) : (
+          <p className="text-sm text-slate-600">Bạn có chắc muốn xóa toàn bộ danh sách chỉnh sửa?</p>
+        )}
       </Modal>
     </>
   );

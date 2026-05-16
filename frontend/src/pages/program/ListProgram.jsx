@@ -140,7 +140,7 @@ function ListProgram() {
         </select>
       </div>
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText}>
+      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm module">
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>

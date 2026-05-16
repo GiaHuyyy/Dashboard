@@ -62,7 +62,7 @@ const normalizePayload = (body = {}) => ({
   note: normalizeString(body.note),
 });
 
-const validatePayload = async (payload) => {
+const validatePayload = async (payload, { excludeCorrectionId = "" } = {}) => {
   if (!payload.programId) {
     return { status: 400, message: "programId là bắt buộc" };
   }
@@ -79,6 +79,18 @@ const validatePayload = async (payload) => {
     .lean();
   if (!targetProgram) {
     return { status: 404, message: "Không tìm thấy phiếu gốc hợp lệ" };
+  }
+
+  const duplicateFilters = {
+    programId: payload.programId,
+    isDeleted: false,
+  };
+  if (excludeCorrectionId && mongoose.isValidObjectId(excludeCorrectionId)) {
+    duplicateFilters._id = { $ne: excludeCorrectionId };
+  }
+  const existingAssignment = await ProgramCorrection.findOne(duplicateFilters).select("_id").lean();
+  if (existingAssignment) {
+    return { status: 409, message: "Hợp đồng này đã được phân công chỉnh sửa" };
   }
 
   if (!payload.issueContent) {
@@ -253,7 +265,9 @@ export const updateProgramCorrection = async (req, res) => {
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
 
-  const validationResult = await validatePayload(mergedPayload);
+  const validationResult = await validatePayload(mergedPayload, {
+    excludeCorrectionId: String(existing._id),
+  });
   if (validationResult.status) {
     return res.status(validationResult.status).json({ message: validationResult.message });
   }
