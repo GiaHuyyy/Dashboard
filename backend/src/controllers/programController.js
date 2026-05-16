@@ -329,6 +329,25 @@ export const listPrograms = async (req, res) => {
   });
 };
 
+export const listProgramReferences = async (req, res) => {
+  const programs = await Program.find({
+    isDeleted: false,
+    $or: [{ type: "program" }, { type: { $exists: false } }],
+  })
+    .sort({ programCreatedAt: -1, createdAt: -1 })
+    .select("contractCode module contractName")
+    .lean();
+
+  return res.json({
+    programs: programs.map((item) => ({
+      id: item._id,
+      contractCode: item.contractCode,
+      contractName: item.contractName,
+      module: item.module,
+    })),
+  });
+};
+
 export const getProgramById = async (req, res) => {
   const program = await Program.findById(req.params.id).lean();
   if (!program || program.isDeleted) {

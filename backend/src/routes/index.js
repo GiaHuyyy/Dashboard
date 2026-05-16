@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import authRoutes from "./auth.js";
+import programCorrectionRoutes from "./program-correction.js";
 import programRoutes from "./program.js";
 import uploadRoutes from "./upload.js";
 import authenticate from "../middleware/authenticate.js";
@@ -14,6 +15,7 @@ router.get("/", (req, res) => {
 
 router.use("/auth", authRoutes);
 router.use("/programs", programRoutes);
+router.use("/program-corrections", programCorrectionRoutes);
 router.use("/upload", uploadRoutes);
 
 router.get("/protected", authenticate, (req, res) => {

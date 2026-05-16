@@ -1,8 +1,5 @@
 import FormField from "@/components/ui/form-field";
-
-const statusOptions = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
-const mailStatusOptions = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
-const salesStaffOptions = ["ĐỖ VAN SANG", "TRẦN LAN", "NGUYỄN HUY"];
+import { MAIL_STATUS_OPTIONS, SALES_STAFF_OPTIONS, STATUS_OPTIONS } from "@/constants/program";
 
 export function ContractInfo({ register, errors }) {
   return (
@@ -26,7 +23,7 @@ export function ContractInfo({ register, errors }) {
       <FormField
         label="Trạng thái"
         type="select"
-        options={statusOptions.map((item) => ({ label: item, value: item }))}
+        options={STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
         selectProps={register("status")}
         error={errors.status?.message}
       />
@@ -34,7 +31,7 @@ export function ContractInfo({ register, errors }) {
       <div>
         <p className="text-sm font-semibold text-slate-600">Mail nhận</p>
         <div className="mt-2 flex flex-wrap gap-6 text-sm text-slate-600">
-          {mailStatusOptions.map((option) => (
+          {MAIL_STATUS_OPTIONS.map((option) => (
             <label key={option} className="flex items-center gap-2">
               <input type="radio" value={option} {...register("mailStatus")} />
               {option}
@@ -47,7 +44,7 @@ export function ContractInfo({ register, errors }) {
       <FormField
         label="Chọn nhân viên kinh doanh"
         type="select"
-        options={salesStaffOptions.map((item) => ({ label: item, value: item }))}
+        options={SALES_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
         selectProps={register("selectedSalesStaff")}
         error={errors.selectedSalesStaff?.message}
       />

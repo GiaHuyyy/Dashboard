@@ -1,8 +1,6 @@
 import FormField from "@/components/ui/form-field";
+import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS } from "@/constants/program";
 import { ImageUpload } from "./ImageUpload";
-
-const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
-const durationUnitOptions = ["h", "ngày"];
 
 export function ProgramInfo({
   register,
@@ -20,7 +18,7 @@ export function ProgramInfo({
       <FormField
         label="Module"
         type="select"
-        options={moduleOptions.map((item) => ({ label: item, value: item }))}
+        options={MODULE_OPTIONS.map((item) => ({ label: item, value: item }))}
         selectProps={register("module")}
         error={errors.module?.message}
       />
@@ -35,7 +33,7 @@ export function ProgramInfo({
         <FormField
           label="Đơn vị"
           type="select"
-          options={durationUnitOptions.map((item) => ({ label: item, value: item }))}
+          options={DURATION_UNIT_OPTIONS.map((item) => ({ label: item, value: item }))}
           selectProps={register("durationUnit")}
           error={errors.durationUnit?.message}
         />

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -9,6 +9,13 @@ import { FormActions } from "@/components/program-form/FormActions";
 import { ProgramInfo } from "@/components/program-form/ProgramInfo";
 import { ContractInfo } from "@/components/program-form/ContractInfo";
 import { ImageLightbox } from "@/components/program-form/ImageLightbox";
+import {
+  DURATION_UNIT_OPTIONS,
+  MAIL_STATUS_OPTIONS,
+  MODULE_OPTIONS,
+  SALES_STAFF_OPTIONS,
+  STATUS_OPTIONS,
+} from "@/constants/program";
 import { programApi } from "@/lib/api-client";
 import { uploadApi } from "@/lib/upload";
 
@@ -19,12 +26,6 @@ const CONTRACT_CODE_MIN_LENGTH = 6;
 const SALES_RECEIVER_NAME_MIN_LENGTH = 4;
 const EMAIL_LOCAL_MIN_LENGTH = 6;
 const EMAIL_LOCAL_HAS_LETTER_REGEX = /[A-Za-zÀ-ỹ]/u;
-const MODULE_OPTIONS = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
-const DURATION_UNIT_OPTIONS = ["h", "ngày"];
-const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
-const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
-const SALES_STAFF_OPTIONS = ["ĐỖ VAN SANG", "TRẦN LAN", "NGUYỄN HUY"];
-
 const hasValidEmailLocalPart = (email) => {
   const localPart = (email || "").split("@")[0] || "";
   if (localPart.length < EMAIL_LOCAL_MIN_LENGTH) {
@@ -123,7 +124,9 @@ const defaultValues = {
 
 function ProgramForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id: programId } = useParams();
+  const returnPath = location.state?.sourcePath || "/lap-trinh/danh-sach";
   const isEditMode = Boolean(programId);
   const [contractImages, setContractImages] = useState([]);
   const contractImagesRef = useRef([]);
@@ -168,7 +171,7 @@ function ProgramForm() {
   );
 
   useEffect(() => {
-    if (!isEditMode) return;
+    if (!programId) return;
 
     const fetchProgramDetail = async () => {
       setIsLoadingProgram(true);
@@ -177,7 +180,7 @@ function ProgramForm() {
         const program = response?.program;
         if (!program) {
           toast.error("Không tìm thấy dữ liệu cần chỉnh sửa");
-          navigate("/lap-trinh/danh-sach");
+          navigate(returnPath);
           return;
         }
 
@@ -210,14 +213,14 @@ function ProgramForm() {
         setInitialSnapshot({ values: formValues, images: initialImages });
       } catch (error) {
         toast.error(error?.message || "Không thể tải dữ liệu chỉnh sửa");
-        navigate("/lap-trinh/danh-sach");
+        navigate(returnPath);
       } finally {
         setIsLoadingProgram(false);
       }
     };
 
     fetchProgramDetail();
-  }, [isEditMode, navigate, programId, reset]);
+  }, [navigate, programId, reset, returnPath]);
 
   const onSubmit = async (values, mode) => {
     const shouldSendMail = mode === "save-mail";
@@ -286,7 +289,7 @@ function ProgramForm() {
     if (mode === "save-mail") {
       toast.success(response?.message || (isEditMode ? "Đã cập nhật form và gửi mail" : "Đã lưu form và gửi mail"));
       if (!isEditMode) {
-        navigate("/lap-trinh/danh-sach");
+        navigate(returnPath);
         return;
       }
       return;
@@ -298,7 +301,7 @@ function ProgramForm() {
     }
 
     toast.success(response?.message || (isEditMode ? "Cập nhật thành công" : "Lưu thành công"));
-    navigate("/lap-trinh/danh-sach");
+    navigate(returnPath);
   };
 
   const onInvalid = () => {
@@ -365,6 +368,7 @@ function ProgramForm() {
         isSubmitting={isSubmitting}
         isUploading={isUploadingImages}
         isEditMode={isEditMode}
+        exitPath={returnPath}
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">

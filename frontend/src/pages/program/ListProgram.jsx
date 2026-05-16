@@ -1,14 +1,15 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, SquarePen, Trash2 } from "lucide-react";
+import { SquarePen, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { programApi } from "@/lib/api-client";
+import { MODULE_OPTIONS } from "@/constants/program";
+import { ManagementActions } from "@/components/program/ManagementActions";
+import { ManagementTableCard } from "@/components/program/ManagementTableCard";
 import Modal from "@/components/ui/modal";
 import { Button } from "@/components/ui/button-v2";
-
-const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 
 function ListProgram() {
   const navigate = useNavigate();
@@ -117,27 +118,12 @@ function ListProgram() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <Button
-          icon={Plus}
-          label="Thêm mới"
-          onClick={() => navigate("/lap-trinh/them-moi")}
-          variant="primary"
-          size="lg"
-          className="shadow-sm"
-          gap="gap-1"
-        />
-        <Button
-          icon={Trash2}
-          label={deleteManyLabel}
-          onClick={openDeleteMany}
-          variant="danger"
-          size="lg"
-          className="shadow-sm"
-          gap="gap-1"
-          disabled={programs.length === 0}
-        />
-      </div>
+      <ManagementActions
+        onAdd={() => navigate("/lap-trinh/them-moi")}
+        onDeleteAll={openDeleteMany}
+        deleteLabel={deleteManyLabel}
+        deleteDisabled={programs.length === 0}
+      />
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <select
@@ -146,7 +132,7 @@ function ListProgram() {
           onChange={(event) => setSelectedModule(event.target.value)}
         >
           <option value="all">Chọn loại điểm</option>
-          {moduleOptions.map((option) => (
+          {MODULE_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
@@ -154,27 +140,7 @@ function ListProgram() {
         </select>
       </div>
 
-      <div className="mt-6 rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-          <h2 className="text-base font-semibold text-gray-500">Danh sách</h2>
-          <div className="flex items-center">
-            <input
-              type="text"
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search"
-              className="h-9 w-44 border border-slate-200 px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-            />
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center border border-slate-200 text-slate-500"
-              aria-label="Tim kiem"
-            >
-              <Search className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
+      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText}>
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
@@ -288,7 +254,7 @@ function ListProgram() {
             )}
           </TableBody>
         </Table>
-      </div>
+      </ManagementTableCard>
 
       <Modal
         open={deleteOpen}

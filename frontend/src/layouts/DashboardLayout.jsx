@@ -22,7 +22,11 @@ const navItems = [
         activePathPrefixes: ["/lap-trinh/chinh-sua/"],
       },
       { label: "Danh sách nâng cấp", path: "/lap-trinh/nang-cap" },
-      { label: "Quản lý chỉnh sửa", path: "/lap-trinh/chinh-sua" },
+      {
+        label: "Quản lý chỉnh sửa",
+        path: "/lap-trinh/chinh-sua",
+        activePathPrefixes: ["/lap-trinh/quan-ly-chinh-sua/"],
+      },
       { label: "Quản lý điểm", path: "/lap-trinh/quan-ly-diem" },
     ],
   },

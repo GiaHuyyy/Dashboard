@@ -7,7 +7,9 @@ import { SESSION_EXPIRED_EVENT } from "@/lib/api-client";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Home from "./pages/home/Home";
 import Placeholder from "./pages/Placeholder";
+import ProgramCorrectionForm from "./pages/program/ProgramCorrectionForm";
 import ListProgram from "./pages/program/ListProgram";
+import ProgramEditManagement from "./pages/program/ProgramEditManagement";
 import ProgramForm from "./pages/program/ProgramForm";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -112,7 +114,9 @@ function App() {
           <Route path="lap-trinh/them-moi" element={<ProgramForm />} />
           <Route path="lap-trinh/chinh-sua/:id" element={<ProgramForm />} />
           <Route path="lap-trinh/nang-cap" element={<Placeholder title="Danh sách nâng cấp" />} />
-          <Route path="lap-trinh/chinh-sua" element={<Placeholder title="Quản lý chỉnh sửa" />} />
+          <Route path="lap-trinh/chinh-sua" element={<ProgramEditManagement />} />
+          <Route path="lap-trinh/quan-ly-chinh-sua/them-moi" element={<ProgramCorrectionForm />} />
+          <Route path="lap-trinh/quan-ly-chinh-sua/:id" element={<ProgramCorrectionForm />} />
           <Route path="lap-trinh/quan-ly-diem" element={<Placeholder title="Quản lý điểm" />} />
           <Route path="design" element={<Navigate to="/design/danh-sach" replace />} />
           <Route path="design/danh-sach" element={<Placeholder title="Danh sách design" />} />
