@@ -289,6 +289,7 @@ export const listPrograms = async (req, res) => {
   const selectedModule = normalizeString(req.query.module);
 
   const filters = {
+    isDeleted: false,
     $or: [{ type: "program" }, { type: { $exists: false } }],
   };
   if (selectedModule && selectedModule !== "all") {
@@ -315,7 +316,7 @@ export const listPrograms = async (req, res) => {
 
 export const getProgramById = async (req, res) => {
   const program = await Program.findById(req.params.id).lean();
-  if (!program) {
+  if (!program || program.isDeleted) {
     return res.status(404).json({ message: "Không tìm thấy chương trình" });
   }
 
@@ -345,7 +346,7 @@ export const getProgramById = async (req, res) => {
 
 export const updateProgram = async (req, res) => {
   const existingProgram = await Program.findById(req.params.id);
-  if (!existingProgram) {
+  if (!existingProgram || existingProgram.isDeleted) {
     return res.status(404).json({ message: "Không tìm thấy chương trình" });
   }
 
@@ -384,10 +385,13 @@ export const updateProgram = async (req, res) => {
 };
 
 export const deleteProgram = async (req, res) => {
-  const deletedProgram = await Program.findByIdAndDelete(req.params.id);
-  if (!deletedProgram) {
+  const program = await Program.findById(req.params.id);
+  if (!program || program.isDeleted) {
     return res.status(404).json({ message: "Không tìm thấy chương trình" });
   }
+
+  program.isDeleted = true;
+  await program.save();
 
   return res.json({ message: "Đã xóa chương trình" });
 };
@@ -397,11 +401,14 @@ export const deletePrograms = async (req, res) => {
     ? req.body.ids.map((item) => normalizeString(String(item))).filter(Boolean)
     : [];
 
-  const filters = ids.length > 0 ? { _id: { $in: ids } } : { $or: [{ type: "program" }, { type: { $exists: false } }] };
-  const result = await Program.deleteMany(filters);
+  const filters =
+    ids.length > 0
+      ? { _id: { $in: ids }, isDeleted: false }
+      : { isDeleted: false, $or: [{ type: "program" }, { type: { $exists: false } }] };
+  const result = await Program.updateMany(filters, { isDeleted: true });
 
   return res.json({
     message: ids.length > 0 ? "Đã xóa các chương trình đã chọn" : "Đã xóa toàn bộ chương trình",
-    deletedCount: result.deletedCount || 0,
+    deletedCount: result.modifiedCount || 0,
   });
 };

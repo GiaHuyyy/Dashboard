@@ -92,6 +92,11 @@ const programSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

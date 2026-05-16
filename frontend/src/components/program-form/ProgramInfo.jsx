@@ -2,7 +2,7 @@ import FormField from "@/components/ui/form-field";
 import { ImageUpload } from "./ImageUpload";
 
 const moduleOptions = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
-const durationUnitOptions = ["h (giờ)", "ngày"];
+const durationUnitOptions = ["h", "ngày"];
 
 export function ProgramInfo({
   register,
