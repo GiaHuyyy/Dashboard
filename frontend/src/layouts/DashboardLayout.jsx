@@ -48,6 +48,11 @@ function DashboardLayout() {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const [openSections, setOpenSections] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   const activeLabel = useMemo(() => {
     for (const item of navItems) {
@@ -103,92 +108,94 @@ function DashboardLayout() {
   return (
     <div className="relative h-screen overflow-hidden bg-gray-100 text-slate-900">
       <div className="relative flex h-screen">
-        <aside className="hidden h-screen w-72 shrink-0 border-r border-slate-800/60 bg-slate-900 text-slate-100 lg:flex lg:flex-col">
-          <NavLink to={"/home"} className="flex items-center gap-3 border-b border-slate-800 px-6 py-5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg font-semibold">
-              A
-            </div>
-            <div>
-              <p className="text-sm uppercase tracking-widest-[0.1em] text-white-400">Dashboard</p>
-            </div>
-          </NavLink>
+        {sidebarOpen && (
+          <aside
+            className={`h-screen w-72 shrink-0 border-r border-slate-800/60 bg-slate-900 text-slate-100 lg:flex lg:flex-col`}
+          >
+            <NavLink to={"/home"} className="flex items-center gap-3 border-b border-slate-800 px-6 py-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg font-semibold">
+                A
+              </div>
+              <div>
+                <p className="text-sm uppercase tracking-widest-[0.1em] text-white-400">Dashboard</p>
+              </div>
+            </NavLink>
 
-          <nav className="flex-1 overflow-y-auto px-4 py-5">
-            <ul className="space-y-2">
-              {navItems.map((item) => (
-                <li key={item.path}>
-                  <NavLink
-                    to={item.children ? item.children[0].path : item.path}
-                    onClick={(event) => {
-                      if (item.children) {
-                        event.preventDefault();
-                        toggleSection(item.path);
-                        navigate(item.children[0].path);
+            <nav className="flex-1 overflow-y-auto px-4 py-5">
+              <ul className="space-y-2">
+                {navItems.map((item) => (
+                  <li key={item.path}>
+                    <NavLink
+                      to={item.children ? item.children[0].path : item.path}
+                      onClick={(event) => {
+                        if (item.children) {
+                          event.preventDefault();
+                          toggleSection(item.path);
+                          navigate(item.children[0].path);
+                        }
+                      }}
+                      className={({ isActive }) =>
+                        [
+                          linkBase,
+                          isActive || location.pathname.startsWith(item.path)
+                            ? "bg-white/15 text-white"
+                            : "text-gray-400 hover:bg-white/10",
+                        ].join(" ")
                       }
-                    }}
-                    className={({ isActive }) =>
-                      [
-                        linkBase,
-                        isActive || location.pathname.startsWith(item.path)
-                          ? "bg-white/15 text-white"
-                          : "text-gray-400 hover:bg-white/10",
-                      ].join(" ")
-                    }
-                  >
-                    <item.icon className={`h-4 w-4 text-gray-300 ${openSections[item.path] ? "text-white" : ""}`} />
-                    {item.label}
-                    <span className="ml-auto">
-                      {item.children && (
-                        <ChevronLeft
-                          className={`h-4 w-4 text-gray-500 transition ${openSections[item.path] ? "-rotate-90 text-white" : ""}`}
-                        />
-                      )}
-                    </span>
-                  </NavLink>
-                  {item.children && openSections[item.path] && (
-                    <ul className="mt-2 space-y-1 pl-6">
-                      {item.children.map((child) => (
-                        <li key={child.path}>
-                          <NavLink
-                            to={child.path}
-                            className={() =>
-                              [
-                                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition",
-                                isChildActive(child) ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10",
-                              ].join(" ")
-                            }
-                          >
-                            <span
-                              className={`relative flex h-3 w-3 items-center justify-center rounded-full border ${
-                                isChildActive(child) ? "border-white" : "border-slate-500"
-                              }`}
+                    >
+                      <item.icon className={`h-4 w-4 text-gray-300 ${openSections[item.path] ? "text-white" : ""}`} />
+                      {item.label}
+                      <span className="ml-auto">
+                        {item.children && (
+                          <ChevronLeft
+                            className={`h-4 w-4 text-gray-500 transition ${openSections[item.path] ? "-rotate-90 text-white" : ""}`}
+                          />
+                        )}
+                      </span>
+                    </NavLink>
+                    {item.children && openSections[item.path] && (
+                      <ul className="mt-2 space-y-1 pl-6">
+                        {item.children.map((child) => (
+                          <li key={child.path}>
+                            <NavLink
+                              to={child.path}
+                              className={() =>
+                                [
+                                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition",
+                                  isChildActive(child) ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10",
+                                ].join(" ")
+                              }
                             >
-                              {isChildActive(child) && <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
-                            </span>
-                            {child.label}
-                          </NavLink>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </aside>
+                              <span
+                                className={`relative flex h-3 w-3 items-center justify-center rounded-full border ${
+                                  isChildActive(child) ? "border-white" : "border-slate-500"
+                                }`}
+                              >
+                                {isChildActive(child) && <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
+                              </span>
+                              {child.label}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </aside>
+        )}
 
         <main className="flex h-screen min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 py-4 backdrop-blur">
             <div className="flex items-center gap-4">
-              <button
-                type="button"
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white lg:hidden"
-                aria-label="Mo menu"
-              >
-                <span className="text-lg">=</span>
-              </button>
               <div className="flex items-center gap-3 px-3 py-1.5">
-                <Menu className="h-4 w-4" />
+                <button
+                  onClick={toggleSidebar}
+                  className="flex items-center justify-center rounded-md hover:bg-slate-100 p-1"
+                >
+                  <Menu className="h-4 w-4" />
+                </button>
                 <p className="ml-4 text-sm font-semibold text-slate-900">{pageTitle}</p>
                 <div>
                   <p className="text-xs text-slate-800">Ho Chi Minh City</p>
@@ -216,7 +223,6 @@ function DashboardLayout() {
                     1
                   </span>
                 </button>
-                {/* Logout */}
                 <button
                   type="button"
                   onClick={handleLogout}
