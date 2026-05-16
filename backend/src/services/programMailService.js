@@ -18,6 +18,34 @@ const getMailConfig = () => {
 
 const buildHtml = ({ program, actionLabel }) => {
   const ccEmails = Array.isArray(program.ccEmails) ? program.ccEmails.join(", ") : "";
+  const images = Array.isArray(program.contractImages) ? program.contractImages : [];
+
+  const renderImagesHtml = () => {
+    const normalized = images
+      .map((img) => {
+        if (!img) return null;
+        if (typeof img === "string") return img;
+        if (typeof img === "object") return img.url || img.path || img.src || null;
+        return null;
+      })
+      .filter(Boolean);
+
+    if (normalized.length === 0) return "";
+
+    const itemsHtml = normalized
+      .map(
+        (url) =>
+          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin:6px;"><img src="${url}" alt="Contract image" style="max-width:240px;max-height:160px;border:1px solid #e2e8f0;border-radius:6px;object-fit:cover;" /></a>`,
+      )
+      .join("");
+
+    return `
+      <div style="margin-top:18px;">
+        <h3 style="margin:8px 0 6px;color:#0f172a;">Ảnh hợp đồng</h3>
+        <div style="display:flex;flex-wrap:wrap;">${itemsHtml}</div>
+      </div>
+    `;
+  };
 
   return `
     <div style="font-family: Arial, sans-serif; font-size: 14px; color: #334155; line-height: 1.6;">
@@ -38,6 +66,7 @@ const buildHtml = ({ program, actionLabel }) => {
         <tr><td style="padding: 6px 0;"><strong>Email KD nhận mail</strong></td><td style="padding: 6px 0;">${program.salesReceiverEmail || ""}</td></tr>
         <tr><td style="padding: 6px 0;"><strong>Email cc</strong></td><td style="padding: 6px 0;">${ccEmails || "Không có"}</td></tr>
       </table>
+      ${renderImagesHtml()}
     </div>
   `;
 };

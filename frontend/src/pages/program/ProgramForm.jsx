@@ -285,6 +285,10 @@ function ProgramForm() {
 
     if (mode === "save-mail") {
       toast.success(response?.message || (isEditMode ? "Đã cập nhật form và gửi mail" : "Đã lưu form và gửi mail"));
+      if (!isEditMode) {
+        navigate("/lap-trinh/danh-sach");
+        return;
+      }
       return;
     }
 
