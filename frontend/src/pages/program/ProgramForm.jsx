@@ -220,12 +220,14 @@ function ProgramForm() {
   }, [isEditMode, navigate, programId, reset]);
 
   const onSubmit = async (values, mode) => {
+    const shouldSendMail = mode === "save-mail";
     const convertedValue = calculateConvertByDuration(values.durationValue, values.durationUnit);
     const payloadWithoutImages = {
       ...values,
       contractImages: [],
       time: `${formatNumber(values.durationValue)} ${values.durationUnit}`,
       convert: convertedValue,
+      sendMail: shouldSendMail,
       ccEmails: values.ccEmails
         ? values.ccEmails
             .split(",")
@@ -269,11 +271,12 @@ function ProgramForm() {
       contractImages: [...existingImageUrls, ...uploadedImageUrls],
     };
 
+    let response;
     try {
       if (isEditMode) {
-        await programApi.update(programId, payload);
+        response = await programApi.update(programId, payload);
       } else {
-        await programApi.create(payload);
+        response = await programApi.create(payload);
       }
     } catch (error) {
       toast.error(error?.message || "Lưu dữ liệu không thành công");
@@ -281,16 +284,16 @@ function ProgramForm() {
     }
 
     if (mode === "save-mail") {
-      toast.success(isEditMode ? "Đã cập nhật form và đánh dấu gửi mail" : "Đã lưu form và đánh dấu gửi mail");
+      toast.success(response?.message || (isEditMode ? "Đã cập nhật form và gửi mail" : "Đã lưu form và gửi mail"));
       return;
     }
 
     if (mode === "save-stay") {
-      toast.success(isEditMode ? "Đã cập nhật form tại trang" : "Đã lưu form tại trang");
+      toast.success(response?.message || (isEditMode ? "Đã cập nhật form tại trang" : "Đã lưu form tại trang"));
       return;
     }
 
-    toast.success(isEditMode ? "Cập nhật thành công" : "Lưu thành công");
+    toast.success(response?.message || (isEditMode ? "Cập nhật thành công" : "Lưu thành công"));
     navigate("/lap-trinh/danh-sach");
   };
 

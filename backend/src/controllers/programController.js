@@ -1,4 +1,5 @@
 import Program from "../models/Program.js";
+import { sendProgramMail } from "../services/programMailService.js";
 
 const MODULE_OPTIONS = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
@@ -267,6 +268,7 @@ export const validateProgram = async (req, res) => {
 };
 
 export const createProgram = async (req, res) => {
+  const shouldSendMail = normalizeBoolean(req.body.sendMail) === true;
   const payload = normalizeProgramPayload(req.body);
   const validationError = await validateProgramPayload(payload, { checkDuplicate: true });
   if (validationError) {
@@ -279,8 +281,21 @@ export const createProgram = async (req, res) => {
     createdBy: req.user.sub,
   });
 
+  if (shouldSendMail) {
+    try {
+      await sendProgramMail({
+        program: payload,
+        actionLabel: "Lưu gửi mail",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: `Đã lưu form nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
+      });
+    }
+  }
+
   return res.status(201).json({
-    message: "Lưu form thành công",
+    message: shouldSendMail ? "Lưu form và gửi mail thành công" : "Lưu form thành công",
     program: createdProgram,
   });
 };
@@ -345,6 +360,7 @@ export const getProgramById = async (req, res) => {
 };
 
 export const updateProgram = async (req, res) => {
+  const shouldSendMail = normalizeBoolean(req.body.sendMail) === true;
   const existingProgram = await Program.findById(req.params.id);
   if (!existingProgram || existingProgram.isDeleted) {
     return res.status(404).json({ message: "Không tìm thấy chương trình" });
@@ -378,8 +394,21 @@ export const updateProgram = async (req, res) => {
 
   await existingProgram.save();
 
+  if (shouldSendMail) {
+    try {
+      await sendProgramMail({
+        program: payload,
+        actionLabel: "Cập nhật gửi mail",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: `Đã cập nhật form nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
+      });
+    }
+  }
+
   return res.json({
-    message: "Cập nhật form thành công",
+    message: shouldSendMail ? "Cập nhật form và gửi mail thành công" : "Cập nhật form thành công",
     program: existingProgram,
   });
 };
