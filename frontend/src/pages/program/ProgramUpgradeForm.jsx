@@ -9,6 +9,7 @@ import { FormActions } from "@/components/program-form/FormActions";
 import { UPGRADE_PRIORITY_OPTIONS, UPGRADE_STAFF_OPTIONS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
 import { programApi, upgradeApi } from "@/lib/api-client";
 import FormField from "@/components/ui/form-field";
+import Modal from "@/components/ui/modal";
 
 const schema = z.object({
   programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
@@ -54,6 +55,8 @@ function ProgramUpgradeForm() {
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(null);
 
   const {
     control,
@@ -118,7 +121,7 @@ function ProgramUpgradeForm() {
     void fetchDetail();
   }, [id, isEditMode, navigate, reset]);
 
-  const onSubmit = async (values, mode) => {
+  const persistUpgrade = async (values, mode) => {
     const payload = {
       programId: values.programId,
       upgradeItem: values.upgradeItem,
@@ -160,6 +163,19 @@ function ProgramUpgradeForm() {
     navigate("/lap-trinh/nang-cap");
   };
 
+  const onSubmit = async (values, mode) => {
+    if (isEditMode && initialSnapshot.status === "Hoàn thành") {
+      toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
+      return;
+    }
+    if (isEditMode && values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
+      setPendingSubmit({ values, mode });
+      setCompleteConfirmOpen(true);
+      return;
+    }
+    await persistUpgrade(values, mode);
+  };
+
   const submitWithMode = (mode) =>
     handleSubmit(
       (values) => onSubmit(values, mode),
@@ -173,20 +189,21 @@ function ProgramUpgradeForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
-        onSave={() => submitWithMode("save")}
-        onSaveStay={() => submitWithMode("save-stay")}
-        onSaveMail={() => null}
-        onReset={() => reset(isEditMode ? initialSnapshot : defaultValues)}
-        isSubmitting={isSubmitting}
-        isUploading={false}
-        isEditMode={isEditMode}
-        exitPath="/lap-trinh/nang-cap"
-        showSaveMail={false}
-        saveLabel={isEditMode ? "Cập nhật" : "Lưu"}
-        saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
-      />
+    <>
+      <form className="space-y-4">
+        <FormActions
+          onSave={() => submitWithMode("save")}
+          onSaveStay={() => submitWithMode("save-stay")}
+          onSaveMail={() => null}
+          onReset={() => reset(isEditMode ? initialSnapshot : defaultValues)}
+          isSubmitting={isSubmitting}
+          isUploading={false}
+          isEditMode={isEditMode}
+          exitPath="/lap-trinh/nang-cap"
+          showSaveMail={false}
+          saveLabel={isEditMode ? "Cập nhật" : "Lưu"}
+          saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
+        />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
@@ -283,8 +300,52 @@ function ProgramUpgradeForm() {
             </label>
           </div>
         </div>
-      </div>
-    </form>
+        </div>
+      </form>
+
+      <Modal
+        open={completeConfirmOpen}
+        onClose={() => {
+          setCompleteConfirmOpen(false);
+          setPendingSubmit(null);
+        }}
+        title="Xác nhận hoàn thành"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCompleteConfirmOpen(false);
+                setPendingSubmit(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const current = pendingSubmit;
+                setCompleteConfirmOpen(false);
+                setPendingSubmit(null);
+                if (current) {
+                  void persistUpgrade(current.values, current.mode);
+                }
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xác nhận
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Bạn đang chuyển trạng thái sang
+          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
+        </p>
+      </Modal>
+    </>
   );
 }
 

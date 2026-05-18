@@ -33,6 +33,8 @@ function ProgramUpgradeManagement() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState(null);
 
   const fetchUpgrades = useCallback(async () => {
     setIsLoading(true);
@@ -85,6 +87,10 @@ function ProgramUpgradeManagement() {
   const handleInlineUpdate = async (rowId, patch) => {
     const target = rows.find((item) => item.id === rowId);
     if (!target) return;
+    if (target.status === "Hoàn thành") {
+      toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
+      return;
+    }
     const payload = {
       programId: target.programId,
       upgradeItem: target.upgradeItem,
@@ -105,6 +111,19 @@ function ProgramUpgradeManagement() {
     } catch (error) {
       toast.error(error?.message || "Cập nhật không thành công");
     }
+  };
+
+  const handleStatusChange = (row, nextStatus) => {
+    if (row.status === "Hoàn thành") {
+      toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
+      return;
+    }
+    if (nextStatus === "Hoàn thành" && row.status !== "Hoàn thành") {
+      setPendingStatusChange({ rowId: row.id, status: nextStatus });
+      setCompleteConfirmOpen(true);
+      return;
+    }
+    void handleInlineUpdate(row.id, { status: nextStatus });
   };
 
   const handleDeleteOne = async (rowId) => {
@@ -258,7 +277,13 @@ function ProgramUpgradeManagement() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => navigate(`/lap-trinh/nang-cap/${row.id}`)}
+                  onClick={() => {
+                    if (row.status === "Hoàn thành") {
+                      toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
+                      return;
+                    }
+                    navigate(`/lap-trinh/nang-cap/${row.id}`);
+                  }}
                 >
                   <TableCell className="border border-slate-200 p-4">
                     <input
@@ -286,7 +311,7 @@ function ProgramUpgradeManagement() {
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
                       value={row.status}
-                      onChange={(event) => void handleInlineUpdate(row.id, { status: event.target.value })}
+                      onChange={(event) => handleStatusChange(row, event.target.value)}
                     >
                       {UPGRADE_STATUS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -325,6 +350,10 @@ function ProgramUpgradeManagement() {
                         icon={SquarePen}
                         onClick={(event) => {
                           event.stopPropagation();
+                          if (row.status === "Hoàn thành") {
+                            toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
+                            return;
+                          }
                           navigate(`/lap-trinh/nang-cap/${row.id}`);
                         }}
                         variant="primary-outline"
@@ -350,6 +379,48 @@ function ProgramUpgradeManagement() {
           </TableBody>
         </Table>
       </ManagementTableCard>
+
+      <Modal
+        open={completeConfirmOpen}
+        onClose={() => {
+          setCompleteConfirmOpen(false);
+          setPendingStatusChange(null);
+        }}
+        title="Xác nhận hoàn thành"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCompleteConfirmOpen(false);
+                setPendingStatusChange(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (pendingStatusChange?.rowId) {
+                  void handleInlineUpdate(pendingStatusChange.rowId, { status: "Hoàn thành" });
+                }
+                setCompleteConfirmOpen(false);
+                setPendingStatusChange(null);
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xác nhận
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Trạng thái sẽ được chuyển sang
+          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Bạn có chắc muốn tiếp tục?
+        </p>
+      </Modal>
 
       <Modal
         open={deleteOpen}

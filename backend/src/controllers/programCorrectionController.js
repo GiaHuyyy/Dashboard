@@ -81,16 +81,19 @@ const validatePayload = async (payload, { excludeCorrectionId = "" } = {}) => {
     return { status: 404, message: "Không tìm thấy phiếu gốc hợp lệ" };
   }
 
-  const duplicateFilters = {
-    programId: payload.programId,
-    isDeleted: false,
-  };
-  if (excludeCorrectionId && mongoose.isValidObjectId(excludeCorrectionId)) {
-    duplicateFilters._id = { $ne: excludeCorrectionId };
-  }
-  const existingAssignment = await ProgramCorrection.findOne(duplicateFilters).select("_id").lean();
-  if (existingAssignment) {
-    return { status: 409, message: "Hợp đồng này đã được phân công chỉnh sửa" };
+  if (payload.status !== "Hoàn thành") {
+    const duplicateFilters = {
+      programId: payload.programId,
+      isDeleted: false,
+      status: { $ne: "Hoàn thành" },
+    };
+    if (excludeCorrectionId && mongoose.isValidObjectId(excludeCorrectionId)) {
+      duplicateFilters._id = { $ne: excludeCorrectionId };
+    }
+    const existingAssignment = await ProgramCorrection.findOne(duplicateFilters).select("_id").lean();
+    if (existingAssignment) {
+      return { status: 409, message: "Hợp đồng này đã có chỉnh sửa đang mở" };
+    }
   }
 
   if (!payload.issueContent) {

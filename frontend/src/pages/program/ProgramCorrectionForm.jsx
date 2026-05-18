@@ -88,25 +88,29 @@ function ProgramCorrectionForm() {
   });
 
   const selectedProgramId = useWatch({ control, name: "programId" });
-  const assignedProgramIds = useMemo(
-    () => new Set(assignedCorrections.map((item) => item.programId).filter(Boolean)),
+  const openCorrections = useMemo(
+    () => assignedCorrections.filter((item) => item.status !== "Hoàn thành"),
     [assignedCorrections],
+  );
+  const openProgramIds = useMemo(
+    () => new Set(openCorrections.map((item) => item.programId).filter(Boolean)),
+    [openCorrections],
   );
   const assignedCorrectionByProgramId = useMemo(
     () =>
-      assignedCorrections.reduce((acc, item) => {
+      openCorrections.reduce((acc, item) => {
         if (item.programId) acc[item.programId] = item;
         return acc;
       }, {}),
-    [assignedCorrections],
+    [openCorrections],
   );
 
   const selectablePrograms = useMemo(() => {
     if (isEditMode) {
-      return programReferences.filter((item) => assignedProgramIds.has(item.id));
+      return programReferences.filter((item) => openProgramIds.has(item.id) || item.id === selectedProgramId);
     }
     return programReferences;
-  }, [assignedProgramIds, isEditMode, programReferences]);
+  }, [isEditMode, openProgramIds, programReferences, selectedProgramId]);
 
   const selectedProgram = useMemo(
     () => programReferences.find((item) => item.id === selectedProgramId),
@@ -123,12 +127,15 @@ function ProgramCorrectionForm() {
         ]);
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
         const corrections = Array.isArray(correctionResponse?.corrections) ? correctionResponse.corrections : [];
+        const openCorrectionRecords = corrections.filter((item) => item.status !== "Hoàn thành");
 
         setProgramReferences(programs);
         setAssignedCorrections(corrections);
 
         if (!isEditMode) {
-          const firstAvailable = programs.find((item) => !corrections.some((correction) => correction.programId === item.id));
+          const firstAvailable = programs.find(
+            (item) => !openCorrectionRecords.some((correction) => correction.programId === item.id),
+          );
           const nextDefaults = { ...defaultValues, programId: firstAvailable?.id || "" };
           reset(nextDefaults);
           setInitialSnapshot(nextDefaults);
@@ -232,7 +239,9 @@ function ProgramCorrectionForm() {
     )();
 
   if (isLoadingSources || isLoadingDetail) {
-    return <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>;
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
+    );
   }
 
   return (
@@ -252,7 +261,9 @@ function ProgramCorrectionForm() {
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Nội dung chỉnh sửa</div>
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
+          Nội dung chỉnh sửa
+        </div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
@@ -277,11 +288,12 @@ function ProgramCorrectionForm() {
                   <option value="">Không có dữ liệu</option>
                 ) : (
                   selectablePrograms.map((item) => {
-                    const isAssigned = assignedProgramIds.has(item.id);
-                    const isDisabled = !isEditMode && isAssigned;
-                    const label = !isEditMode && isAssigned
-                      ? `${item.contractCode} - ${item.contractName || ""} (Đã phân công)`
-                      : `${item.contractCode} - ${item.contractName || ""}`;
+                    const isOpen = openProgramIds.has(item.id);
+                    const isDisabled = !isEditMode && isOpen;
+                    const label =
+                      !isEditMode && isOpen
+                        ? `${item.contractCode} - ${item.contractName || ""} (Đang mở)`
+                        : `${item.contractCode} - ${item.contractName || ""}`;
                     return (
                       <option key={item.id} value={item.id} disabled={isDisabled}>
                         {label.trim()}
@@ -296,7 +308,11 @@ function ProgramCorrectionForm() {
             <FormField
               label="Module"
               type="text"
-              inputProps={{ value: selectedProgram?.module || "", readOnly: true, placeholder: "Tự động theo phiếu gốc" }}
+              inputProps={{
+                value: selectedProgram?.module || "",
+                readOnly: true,
+                placeholder: "Tự động theo phiếu gốc",
+              }}
             />
 
             <FormField
