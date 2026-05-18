@@ -320,7 +320,7 @@ export const listPrograms = async (req, res) => {
   }
 
   const programs = await Program.find(filters)
-    .sort({ programCreatedAt: -1, createdAt: -1 })
+    .sort({ programCreatedAt: 1, createdAt: 1 })
     .select("module time convert assigner assignee programCreatedAt design visible")
     .lean();
 
@@ -344,7 +344,7 @@ export const listProgramReferences = async (req, res) => {
     isDeleted: false,
     $or: [{ type: "program" }, { type: { $exists: false } }],
   })
-    .sort({ programCreatedAt: -1, createdAt: -1 })
+    .sort({ programCreatedAt: 1, createdAt: 1 })
     .select("contractCode module contractName time convert durationValue durationUnit")
     .lean();
 

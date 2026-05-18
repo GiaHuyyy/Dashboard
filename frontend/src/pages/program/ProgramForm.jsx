@@ -13,11 +13,10 @@ import {
   DURATION_UNIT_OPTIONS,
   MAIL_STATUS_OPTIONS,
   MODULE_OPTIONS,
-  PROGRAM_STAFF_OPTIONS,
   SALES_STAFF_OPTIONS,
   STATUS_OPTIONS,
 } from "@/constants/program";
-import { programApi } from "@/lib/api-client";
+import { programApi, staffApi } from "@/lib/api-client";
 import { uploadApi } from "@/lib/upload";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -112,8 +111,8 @@ const defaultValues = {
   durationValue: 1,
   durationUnit: "ngày",
   convert: "1",
-  assigner: PROGRAM_STAFF_OPTIONS[0],
-  assignee: PROGRAM_STAFF_OPTIONS[0],
+  assigner: "",
+  assignee: "",
   design: false,
   visible: true,
   contractImages: [],
@@ -137,6 +136,7 @@ function ProgramForm() {
   const contractImagesRef = useRef([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isLoadingProgram, setIsLoadingProgram] = useState(false);
+  const [staffOptions, setStaffOptions] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
 
@@ -154,6 +154,23 @@ function ProgramForm() {
 
   const selectedDurationValue = useWatch({ control, name: "durationValue" });
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
+
+  useEffect(() => {
+    const fetchStaffs = async () => {
+      try {
+        const response = await staffApi.references();
+        const nextOptions = Array.isArray(response?.staffs) ? response.staffs.map((item) => item.fullName).filter(Boolean) : [];
+        setStaffOptions(nextOptions);
+        if (nextOptions.length > 0) {
+          setValue("assigner", nextOptions[0], { shouldValidate: true });
+          setValue("assignee", nextOptions[0], { shouldValidate: true });
+        }
+      } catch (error) {
+        toast.error(error?.message || "Không thể tải danh sách nhân sự");
+      }
+    };
+    void fetchStaffs();
+  }, [setValue]);
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
@@ -196,8 +213,8 @@ function ProgramForm() {
           durationValue: safeDuration,
           durationUnit: program.durationUnit || "ngày",
           convert: program.convert || "1",
-          assigner: program.assigner || PROGRAM_STAFF_OPTIONS[0],
-          assignee: program.assignee || PROGRAM_STAFF_OPTIONS[0],
+          assigner: program.assigner || "",
+          assignee: program.assignee || "",
           design: Boolean(program.design),
           visible: Boolean(program.visible),
           contractImages: [],
@@ -389,6 +406,7 @@ function ProgramForm() {
             onRemoveImage={removeContractImage}
             onImageClick={setLightboxIndex}
             isUploading={isUploadingImages}
+            staffOptions={staffOptions}
           />
 
           <ContractInfo register={register} errors={errors} />

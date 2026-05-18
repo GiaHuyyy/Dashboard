@@ -5,6 +5,7 @@ import programCorrectionRoutes from "./program-correction.js";
 import programPointRoutes from "./program-point.js";
 import programUpgradeRoutes from "./program-upgrade.js";
 import programRoutes from "./program.js";
+import staffRoutes from "./staff.js";
 import uploadRoutes from "./upload.js";
 import authenticate from "../middleware/authenticate.js";
 import authorizeRoles from "../middleware/authorizeRoles.js";
@@ -17,6 +18,7 @@ router.get("/", (req, res) => {
 
 router.use("/auth", authRoutes);
 router.use("/programs", programRoutes);
+router.use("/staffs", staffRoutes);
 router.use("/program-corrections", programCorrectionRoutes);
 router.use("/program-points", programPointRoutes);
 router.use("/program-upgrades", programUpgradeRoutes);

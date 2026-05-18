@@ -5,8 +5,8 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
-import { CORRECTION_STAFF_OPTIONS, CORRECTION_STATUS_OPTIONS } from "@/constants/program-correction";
-import { correctionApi } from "@/lib/api-client";
+import { CORRECTION_STATUS_OPTIONS } from "@/constants/program-correction";
+import { correctionApi, staffApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,8 +20,6 @@ const PRIORITY_COLORS = {
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
-const PROGRAMMER_OPTIONS = ["Tất cả", ...CORRECTION_STAFF_OPTIONS];
-
 const formatDateTime = (value) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -47,6 +45,7 @@ function ProgramEditManagement() {
   const [deleteRow, setDeleteRow] = useState(null);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
+  const [staffOptions, setStaffOptions] = useState([]);
 
   const fetchCorrections = useCallback(async () => {
     setIsLoading(true);
@@ -73,6 +72,19 @@ function ProgramEditManagement() {
     void fetchCorrections();
   }, [fetchCorrections]);
 
+  useEffect(() => {
+    const fetchStaffs = async () => {
+      try {
+        const response = await staffApi.references();
+        const nextOptions = Array.isArray(response?.staffs) ? response.staffs.map((item) => item.fullName).filter(Boolean) : [];
+        setStaffOptions(nextOptions);
+      } catch {
+        setStaffOptions([]);
+      }
+    };
+    void fetchStaffs();
+  }, []);
+
   const displayedRows = rows;
   const displayedIds = displayedRows.map((item) => item.id);
   const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
@@ -97,6 +109,10 @@ function ProgramEditManagement() {
       programId: target.programId,
       issueContent: target.issueContent,
       priority: target.priority,
+      durationValue: target.durationValue,
+      durationUnit: target.durationUnit,
+      convert: target.convert,
+      bonusPoint: target.bonusPoint,
       assigner: target.assigner,
       assignee: target.assignee,
       assignedAt: target.assignedAt,
@@ -201,7 +217,7 @@ function ProgramEditManagement() {
           value={selectedProgrammer}
           onChange={(event) => setSelectedProgrammer(event.target.value)}
         >
-          {PROGRAMMER_OPTIONS.map((option) => (
+          {["Tất cả", ...staffOptions].map((option) => (
             <option key={option} value={option}>
               {option === "Tất cả" ? "Chọn lập trình" : option}
             </option>
@@ -262,6 +278,12 @@ function ProgramEditManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Mức độ
               </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Thời gian
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Quy đổi
+              </TableHead>
               <TableHead className="border border-slate-200 p-4 px-8 text-center font-semibold text-slate-500">
                 Trạng thái
               </TableHead>
@@ -270,6 +292,9 @@ function ProgramEditManagement() {
               </TableHead>
               <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">
                 Chuyển lập trình
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Điểm cộng thêm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Ngày giao
@@ -294,13 +319,13 @@ function ProgramEditManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={17} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={17} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -331,6 +356,8 @@ function ProgramEditManagement() {
                   >
                     {row.priority}
                   </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
@@ -353,13 +380,14 @@ function ProgramEditManagement() {
                       disabled={row.status === "Hoàn thành"}
                       onChange={(event) => void handleInlineUpdate(row.id, { assignee: event.target.value })}
                     >
-                      {CORRECTION_STAFF_OPTIONS.map((option) => (
+                      {staffOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>
                       ))}
                     </select>
                   </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">
                     {formatDateTime(row.assignedAt)}
                   </TableCell>

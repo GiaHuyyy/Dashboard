@@ -241,7 +241,7 @@ export const listProgramCorrections = async (req, res) => {
 
   const [items, total] = await Promise.all([
     ProgramCorrection.find(filters)
-      .sort({ assignedAt: -1, createdAt: -1 })
+      .sort({ assignedAt: 1, createdAt: 1 })
       .skip(skip)
       .limit(limitNumber)
       .populate({ path: "programId", select: "contractCode module" })

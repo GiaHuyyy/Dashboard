@@ -14,6 +14,8 @@ import ProgramForm from "./pages/program/ProgramForm";
 import ProgramPointManagement from "./pages/program/ProgramPointManagement";
 import ProgramUpgradeForm from "./pages/program/ProgramUpgradeForm";
 import ProgramUpgradeManagement from "./pages/program/ProgramUpgradeManagement";
+import StaffForm from "./pages/staff/StaffForm";
+import StaffManagement from "./pages/staff/StaffManagement";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import { fetchCurrentUser, logoutUser } from "./store/auth-slice";
@@ -123,6 +125,10 @@ function App() {
           <Route path="lap-trinh/quan-ly-chinh-sua/them-moi" element={<ProgramCorrectionForm />} />
           <Route path="lap-trinh/quan-ly-chinh-sua/:id" element={<ProgramCorrectionForm />} />
           <Route path="lap-trinh/quan-ly-diem" element={<ProgramPointManagement />} />
+          <Route path="nhan-su" element={<Navigate to="/nhan-su/danh-sach" replace />} />
+          <Route path="nhan-su/danh-sach" element={<StaffManagement />} />
+          <Route path="nhan-su/them-moi" element={<StaffForm />} />
+          <Route path="nhan-su/chinh-sua/:id" element={<StaffForm />} />
           <Route path="design" element={<Navigate to="/design/danh-sach" replace />} />
           <Route path="design/danh-sach" element={<Placeholder title="Danh sách design" />} />
           <Route path="design/quan-ly-diem" element={<Placeholder title="Quản lý điểm" />} />

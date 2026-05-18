@@ -1,5 +1,5 @@
 import FormField from "@/components/ui/form-field";
-import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS, PROGRAM_STAFF_OPTIONS } from "@/constants/program";
+import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS } from "@/constants/program";
 import { ImageUpload } from "./ImageUpload";
 
 export function ProgramInfo({
@@ -10,6 +10,7 @@ export function ProgramInfo({
   onRemoveImage,
   onImageClick,
   isUploading,
+  staffOptions = [],
 }) {
   return (
     <div className="space-y-4 gap-1 flex flex-col rounded-xl border border-slate-100 p-4">
@@ -49,7 +50,7 @@ export function ProgramInfo({
       <FormField
         label="Người giao"
         type="select"
-        options={PROGRAM_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
+        options={staffOptions.map((item) => ({ label: item, value: item }))}
         selectProps={register("assigner")}
         error={errors.assigner?.message}
       />
@@ -57,7 +58,7 @@ export function ProgramInfo({
       <FormField
         label="Người nhận"
         type="select"
-        options={PROGRAM_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
+        options={staffOptions.map((item) => ({ label: item, value: item }))}
         selectProps={register("assignee")}
         error={errors.assignee?.message}
       />

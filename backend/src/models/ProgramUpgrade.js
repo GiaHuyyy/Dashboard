@@ -40,8 +40,8 @@ const programUpgradeSchema = new mongoose.Schema(
     },
     slaHours: {
       type: Number,
-      required: true,
       min: 1,
+      default: 1,
     },
     bonusPoint: {
       type: Number,

@@ -26,7 +26,7 @@ function ProgramPointManagement() {
     totalProgramPoint: 0,
     totalUpgradePoint: 0,
     totalPoint: 0,
-    totalCorrectionCount: 0,
+    totalCorrectionPoint: 0,
   });
   const [ownerRows, setOwnerRows] = useState([]);
   const [detailRows, setDetailRows] = useState([]);
@@ -156,8 +156,8 @@ function ProgramPointManagement() {
           <p className="text-2xl font-semibold text-sky-700">{summary.totalPoint ?? 0}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-500">Số chỉnh sửa</p>
-          <p className="text-2xl font-semibold text-amber-700">{summary.totalCorrectionCount ?? 0}</p>
+          <p className="text-sm text-slate-500">Điểm chỉnh sửa</p>
+          <p className="text-2xl font-semibold text-amber-700">{summary.totalCorrectionPoint ?? 0}</p>
         </div>
       </div>
 
@@ -178,7 +178,7 @@ function ProgramPointManagement() {
                 Điểm nâng cấp
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Số chỉnh sửa
+                Điểm chỉnh sửa
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Tổng điểm
@@ -204,7 +204,7 @@ function ProgramPointManagement() {
                   <TableCell className="border border-slate-200 p-4 text-left">{row.assignee}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.programPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.upgradePoint}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.correctionCount}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.correctionPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
                     {row.totalPoint}
                   </TableCell>

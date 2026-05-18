@@ -9,10 +9,9 @@ import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import {
   CORRECTION_PRIORITY_OPTIONS,
-  CORRECTION_STAFF_OPTIONS,
   CORRECTION_STATUS_OPTIONS,
 } from "@/constants/program-correction";
-import { correctionApi, programApi } from "@/lib/api-client";
+import { correctionApi, programApi, staffApi } from "@/lib/api-client";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 
@@ -43,8 +42,8 @@ const defaultValues = {
   durationUnit: "ngày",
   convert: "1",
   bonusPoint: 0,
-  assigner: CORRECTION_STAFF_OPTIONS[0],
-  assignee: CORRECTION_STAFF_OPTIONS[1],
+  assigner: "",
+  assignee: "",
   assignedAt: "",
   receivedAt: "",
   dueAt: "",
@@ -69,8 +68,8 @@ const mapCorrectionToForm = (row) => ({
   durationUnit: row.durationUnit || "ngày",
   convert: row.convert || "1",
   bonusPoint: Number(row.bonusPoint) || 0,
-  assigner: row.assigner || CORRECTION_STAFF_OPTIONS[0],
-  assignee: row.assignee || CORRECTION_STAFF_OPTIONS[1],
+  assigner: row.assigner || "",
+  assignee: row.assignee || "",
   assignedAt: toDateTimeLocal(row.assignedAt),
   receivedAt: toDateTimeLocal(row.receivedAt),
   dueAt: toDateTimeLocal(row.dueAt),
@@ -99,6 +98,7 @@ function ProgramCorrectionForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [programReferences, setProgramReferences] = useState([]);
+  const [staffOptions, setStaffOptions] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
@@ -126,6 +126,23 @@ function ProgramCorrectionForm() {
   );
   const isReadOnlyMode = isEditMode && initialSnapshot.status === "Hoàn thành";
   const programRegister = register("programId");
+
+  useEffect(() => {
+    const fetchStaffs = async () => {
+      try {
+        const response = await staffApi.references();
+        const nextOptions = Array.isArray(response?.staffs) ? response.staffs.map((item) => item.fullName).filter(Boolean) : [];
+        setStaffOptions(nextOptions);
+        if (!isEditMode && nextOptions.length > 0) {
+          setValue("assigner", nextOptions[0], { shouldValidate: true });
+          setValue("assignee", nextOptions[0], { shouldValidate: true });
+        }
+      } catch (error) {
+        toast.error(error?.message || "Không thể tải danh sách nhân sự");
+      }
+    };
+    void fetchStaffs();
+  }, [isEditMode, setValue]);
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
@@ -394,7 +411,7 @@ function ProgramCorrectionForm() {
             <FormField
               label="Người giao"
               type="select"
-              options={CORRECTION_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
+              options={staffOptions.map((item) => ({ label: item, value: item }))}
               selectProps={register("assigner")}
               error={errors.assigner?.message}
             />
@@ -402,7 +419,7 @@ function ProgramCorrectionForm() {
             <FormField
               label="Người nhận"
               type="select"
-              options={CORRECTION_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
+              options={staffOptions.map((item) => ({ label: item, value: item }))}
               selectProps={register("assignee")}
               error={errors.assignee?.message}
             />

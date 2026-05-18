@@ -43,6 +43,12 @@ const navItems = [
       { label: "Quản lý điểm", path: "/design/quan-ly-diem" },
     ],
   },
+  {
+    label: "Quản lý nhân sự",
+    path: "/nhan-su",
+    icon: FileText,
+    children: [{ label: "Danh sách nhân sự", path: "/nhan-su/danh-sach", activePathPrefixes: ["/nhan-su/chinh-sua/", "/nhan-su/them-moi"] }],
+  },
   { label: "Quản lý kinh doanh", path: "/kinh-doanh", icon: FileText },
   { label: "Quản lý cấu hình", path: "/cau-hinh", icon: FileText },
   { label: "Biểu mẫu", path: "/bieu-mau", icon: FileText },

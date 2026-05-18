@@ -64,7 +64,6 @@ const normalizePayload = (body = {}) => ({
   priority: normalizeString(body.priority),
   durationValue: normalizeNumber(body.durationValue),
   durationUnit: normalizeString(body.durationUnit),
-  slaHours: normalizeNumber(body.slaHours),
   bonusPoint: normalizeNumber(body.bonusPoint),
   status: normalizeString(body.status),
   assigner: normalizeString(body.assigner),
@@ -107,9 +106,6 @@ const validatePayload = async (payload) => {
   if (!payload.assignee) {
     return { status: 400, message: "assignee là bắt buộc" };
   }
-  if (payload.slaHours === null || payload.slaHours <= 0) {
-    return { status: 400, message: "slaHours phải lớn hơn 0" };
-  }
   if (payload.bonusPoint === null || payload.bonusPoint < 0) {
     return { status: 400, message: "bonusPoint không hợp lệ" };
   }
@@ -141,7 +137,6 @@ const toResponseItem = (doc) => ({
   durationUnit: doc.durationUnit,
   time: doc.time || "",
   convert: doc.convert || "",
-  slaHours: doc.slaHours,
   bonusPoint: doc.bonusPoint,
   status: doc.status,
   assigner: doc.assigner,
@@ -216,7 +211,7 @@ export const listProgramUpgrades = async (req, res) => {
 
   const [items, total] = await Promise.all([
     ProgramUpgrade.find(filters)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .skip(skip)
       .limit(limitNumber)
       .populate({ path: "programId", select: "contractCode module" })
@@ -260,7 +255,6 @@ export const updateProgramUpgrade = async (req, res) => {
     priority: normalizedInput.priority || existing.priority,
     durationValue: normalizedInput.durationValue === null ? existing.durationValue : normalizedInput.durationValue,
     durationUnit: normalizedInput.durationUnit || existing.durationUnit,
-    slaHours: normalizedInput.slaHours === null ? existing.slaHours : normalizedInput.slaHours,
     bonusPoint: normalizedInput.bonusPoint === null ? existing.bonusPoint : normalizedInput.bonusPoint,
     status: normalizedInput.status || existing.status,
     assigner: normalizedInput.assigner || existing.assigner,
@@ -281,7 +275,6 @@ export const updateProgramUpgrade = async (req, res) => {
   existing.durationUnit = mergedPayload.durationUnit;
   existing.time = validationResult.time;
   existing.convert = validationResult.convert;
-  existing.slaHours = mergedPayload.slaHours;
   existing.bonusPoint = mergedPayload.bonusPoint;
   existing.status = mergedPayload.status;
   existing.assigner = mergedPayload.assigner;

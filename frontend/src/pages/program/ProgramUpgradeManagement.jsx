@@ -5,8 +5,8 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
-import { UPGRADE_STAFF_OPTIONS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
-import { upgradeApi } from "@/lib/api-client";
+import { UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
+import { staffApi, upgradeApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,8 +20,6 @@ const PRIORITY_COLORS = {
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
-const ASSIGNEE_OPTIONS = ["Tất cả", ...UPGRADE_STAFF_OPTIONS];
-
 function ProgramUpgradeManagement() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -35,6 +33,7 @@ function ProgramUpgradeManagement() {
   const [deleteRow, setDeleteRow] = useState(null);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
+  const [staffOptions, setStaffOptions] = useState([]);
 
   const fetchUpgrades = useCallback(async () => {
     setIsLoading(true);
@@ -60,6 +59,19 @@ function ProgramUpgradeManagement() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchUpgrades();
   }, [fetchUpgrades]);
+
+  useEffect(() => {
+    const fetchStaffs = async () => {
+      try {
+        const response = await staffApi.references();
+        const nextOptions = Array.isArray(response?.staffs) ? response.staffs.map((item) => item.fullName).filter(Boolean) : [];
+        setStaffOptions(nextOptions);
+      } catch {
+        setStaffOptions([]);
+      }
+    };
+    void fetchStaffs();
+  }, []);
 
   const displayedRows = rows;
   const displayedIds = displayedRows.map((item) => item.id);
@@ -98,7 +110,6 @@ function ProgramUpgradeManagement() {
       durationValue: target.durationValue,
       durationUnit: target.durationUnit,
       convert: target.convert,
-      slaHours: target.slaHours,
       bonusPoint: target.bonusPoint,
       status: target.status,
       assigner: target.assigner,
@@ -179,7 +190,7 @@ function ProgramUpgradeManagement() {
           value={selectedAssignee}
           onChange={(event) => setSelectedAssignee(event.target.value)}
         >
-          {ASSIGNEE_OPTIONS.map((option) => (
+          {["Tất cả", ...staffOptions].map((option) => (
             <option key={option} value={option}>
               {option === "Tất cả" ? "Chọn lập trình" : option}
             </option>
@@ -244,9 +255,6 @@ function ProgramUpgradeManagement() {
                 Ưu tiên
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                SLA
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Thời gian
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -275,13 +283,13 @@ function ProgramUpgradeManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -313,7 +321,6 @@ function ProgramUpgradeManagement() {
                   >
                     {row.priority}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.slaHours}h</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
@@ -339,7 +346,7 @@ function ProgramUpgradeManagement() {
                       disabled={row.status === "Hoàn thành"}
                       onChange={(event) => void handleInlineUpdate(row.id, { assignee: event.target.value })}
                     >
-                      {UPGRADE_STAFF_OPTIONS.map((option) => (
+                      {staffOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>

@@ -49,8 +49,7 @@ export const listProgramPoints = async (req, res) => {
       isDeleted: false,
       $or: [{ type: "program" }, { type: { $exists: false } }],
     })
-      .populate({ path: "createdBy", select: "name userName" })
-      .select("contractCode module time convert status programCreatedAt createdAt createdBy")
+      .select("contractCode module time convert status programCreatedAt createdAt assignee")
       .lean(),
     ProgramUpgrade.find({ isDeleted: false })
       .populate({ path: "programId", select: "contractCode module" })
@@ -58,7 +57,7 @@ export const listProgramPoints = async (req, res) => {
       .lean(),
     ProgramCorrection.find({ isDeleted: false })
       .populate({ path: "programId", select: "contractCode module" })
-      .select("programId issueContent status assignee assignedAt createdAt")
+      .select("programId issueContent status assignee bonusPoint assignedAt createdAt")
       .lean(),
   ]);
 
@@ -66,7 +65,7 @@ export const listProgramPoints = async (req, res) => {
   const assigneeSet = new Set();
 
   programs.forEach((item) => {
-    const ownerName = item.createdBy?.name || item.createdBy?.userName || "Không xác định";
+    const ownerName = item.assignee || "Không xác định";
     const createdAt = item.programCreatedAt || item.createdAt;
     if (!inRange(createdAt, startDate, endDate)) return;
     if (normalizedAssignee !== "all" && ownerName !== normalizedAssignee) return;
@@ -132,13 +131,13 @@ export const listProgramPoints = async (req, res) => {
       description,
       status: item.status || "",
       assignee: ownerName,
-      point: 0,
+      point: parsePoint(item.bonusPoint),
       createdAt,
       createdAtLabel: formatDateTime(createdAt),
     });
   });
 
-  const sortedDetails = details.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sortedDetails = details.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const summaryMap = new Map();
   const ensureSummary = (name) => {
@@ -147,7 +146,7 @@ export const listProgramPoints = async (req, res) => {
         assignee: name,
         programPoint: 0,
         upgradePoint: 0,
-        correctionCount: 0,
+        correctionPoint: 0,
         totalPoint: 0,
       });
     }
@@ -161,22 +160,22 @@ export const listProgramPoints = async (req, res) => {
     } else if (item.source === "Nâng cấp") {
       summary.upgradePoint += item.point;
     } else if (item.source === "Chỉnh sửa") {
-      summary.correctionCount += 1;
+      summary.correctionPoint += item.point;
     }
-    summary.totalPoint = Number((summary.programPoint + summary.upgradePoint).toFixed(3));
+    summary.totalPoint = Number((summary.programPoint + summary.upgradePoint + summary.correctionPoint).toFixed(3));
   });
 
   const owners = Array.from(summaryMap.values()).sort((a, b) => b.totalPoint - a.totalPoint);
   const totalProgramPoint = owners.reduce((sum, item) => sum + item.programPoint, 0);
   const totalUpgradePoint = owners.reduce((sum, item) => sum + item.upgradePoint, 0);
-  const totalCorrectionCount = owners.reduce((sum, item) => sum + item.correctionCount, 0);
+  const totalCorrectionPoint = owners.reduce((sum, item) => sum + item.correctionPoint, 0);
 
   return res.json({
     summary: {
       totalProgramPoint: Number(totalProgramPoint.toFixed(3)),
       totalUpgradePoint: Number(totalUpgradePoint.toFixed(3)),
-      totalPoint: Number((totalProgramPoint + totalUpgradePoint).toFixed(3)),
-      totalCorrectionCount,
+      totalCorrectionPoint: Number(totalCorrectionPoint.toFixed(3)),
+      totalPoint: Number((totalProgramPoint + totalUpgradePoint + totalCorrectionPoint).toFixed(3)),
     },
     owners,
     details: sortedDetails.map((item) => ({

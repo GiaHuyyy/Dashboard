@@ -7,8 +7,8 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
-import { UPGRADE_PRIORITY_OPTIONS, UPGRADE_STAFF_OPTIONS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
-import { programApi, upgradeApi } from "@/lib/api-client";
+import { UPGRADE_PRIORITY_OPTIONS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
+import { programApi, staffApi, upgradeApi } from "@/lib/api-client";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 
@@ -19,7 +19,6 @@ const schema = z.object({
   durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
   durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
-  slaHours: z.coerce.number().gt(0, "SLA phải lớn hơn 0"),
   bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
   status: z.enum(UPGRADE_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái" }),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
@@ -35,11 +34,10 @@ const defaultValues = {
   durationValue: 1,
   durationUnit: "ngày",
   convert: "1",
-  slaHours: 24,
   bonusPoint: 0,
   status: UPGRADE_STATUS_OPTIONS[0],
-  assigner: UPGRADE_STAFF_OPTIONS[0],
-  assignee: UPGRADE_STAFF_OPTIONS[0],
+  assigner: "",
+  assignee: "",
   visible: true,
   note: "",
 };
@@ -51,11 +49,10 @@ const mapUpgradeToForm = (item) => ({
   durationValue: Number(item.durationValue) || 1,
   durationUnit: item.durationUnit || "ngày",
   convert: item.convert || "1",
-  slaHours: Number(item.slaHours) || 24,
   bonusPoint: Number(item.bonusPoint) || 0,
   status: item.status || UPGRADE_STATUS_OPTIONS[0],
-  assigner: item.assigner || UPGRADE_STAFF_OPTIONS[0],
-  assignee: item.assignee || UPGRADE_STAFF_OPTIONS[0],
+  assigner: item.assigner || "",
+  assignee: item.assignee || "",
   visible: Boolean(item.visible ?? true),
   note: item.note || "",
 });
@@ -79,6 +76,7 @@ function ProgramUpgradeForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [programReferences, setProgramReferences] = useState([]);
+  const [staffOptions, setStaffOptions] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
@@ -111,6 +109,23 @@ function ProgramUpgradeForm() {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
   }, [selectedDurationUnit, selectedDurationValue, setValue]);
+
+  useEffect(() => {
+    const fetchStaffs = async () => {
+      try {
+        const response = await staffApi.references();
+        const nextOptions = Array.isArray(response?.staffs) ? response.staffs.map((item) => item.fullName).filter(Boolean) : [];
+        setStaffOptions(nextOptions);
+        if (!isEditMode && nextOptions.length > 0) {
+          setValue("assigner", nextOptions[0], { shouldValidate: true });
+          setValue("assignee", nextOptions[0], { shouldValidate: true });
+        }
+      } catch (error) {
+        toast.error(error?.message || "Không thể tải danh sách nhân sự");
+      }
+    };
+    void fetchStaffs();
+  }, [isEditMode, setValue]);
 
   useEffect(() => {
     const fetchSources = async () => {
@@ -173,7 +188,6 @@ function ProgramUpgradeForm() {
       durationValue: values.durationValue,
       durationUnit: values.durationUnit,
       convert: values.convert,
-      slaHours: values.slaHours,
       bonusPoint: values.bonusPoint,
       status: values.status,
       assigner: values.assigner,
@@ -357,18 +371,18 @@ function ProgramUpgradeForm() {
             <FormField
               label="Người giao"
               type="select"
-              options={UPGRADE_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
-              selectProps={register("assigner")}
-              error={errors.assigner?.message}
-            />
+               options={staffOptions.map((item) => ({ label: item, value: item }))}
+               selectProps={register("assigner")}
+               error={errors.assigner?.message}
+             />
 
             <FormField
               label="Người nhận"
               type="select"
-              options={UPGRADE_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
-              selectProps={register("assignee")}
-              error={errors.assignee?.message}
-            />
+               options={staffOptions.map((item) => ({ label: item, value: item }))}
+               selectProps={register("assignee")}
+               error={errors.assignee?.message}
+             />
 
             <FormField
               label="Trạng thái"
@@ -376,13 +390,6 @@ function ProgramUpgradeForm() {
               options={UPGRADE_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
               selectProps={register("status")}
               error={errors.status?.message}
-            />
-
-            <FormField
-              label="SLA (giờ)"
-              type="number"
-              inputProps={{ ...register("slaHours"), min: "1", step: "1" }}
-              error={errors.slaHours?.message}
             />
 
                 <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
