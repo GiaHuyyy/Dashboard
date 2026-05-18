@@ -58,6 +58,7 @@ function ProgramPointManagement() {
   }, [searchText, selectedAssignee, selectedMonth, selectedYear]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchPoints();
   }, [fetchPoints]);
 
@@ -279,7 +280,7 @@ function ProgramPointManagement() {
                   <TableCell className="border border-slate-200 p-4 text-left">{row.description}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.status}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 font-semibold">{row.point}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.point}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.createdAtLabel}</TableCell>
                 </TableRow>
               ))

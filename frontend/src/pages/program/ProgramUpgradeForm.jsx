@@ -204,6 +204,7 @@ function ProgramUpgradeForm() {
       note: values.note || "",
     };
 
+    // eslint-disable-next-line no-useless-assignment
     let savedUpgrade = null;
     try {
       if (isEditMode) {

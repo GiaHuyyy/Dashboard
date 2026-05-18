@@ -9,6 +9,7 @@ import { FormActions } from "@/components/program-form/FormActions";
 import { ProgramInfo } from "@/components/program-form/ProgramInfo";
 import { ContractInfo } from "@/components/program-form/ContractInfo";
 import { ImageLightbox } from "@/components/program-form/ImageLightbox";
+import Modal from "@/components/ui/modal";
 import {
   DURATION_UNIT_OPTIONS,
   MAIL_STATUS_OPTIONS,
@@ -139,6 +140,8 @@ function ProgramForm() {
   const [staffReferences, setStaffReferences] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(null);
 
   const {
     control,
@@ -154,6 +157,7 @@ function ProgramForm() {
 
   const selectedDurationValue = useWatch({ control, name: "durationValue" });
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
+  const isReadOnlyMode = isEditMode && initialSnapshot.values.status === "Hoàn thành";
 
   useEffect(() => {
     const fetchStaffs = async () => {
@@ -258,7 +262,7 @@ function ProgramForm() {
     fetchProgramDetail();
   }, [navigate, programId, reset, returnPath]);
 
-  const onSubmit = async (values, mode) => {
+  const persistProgram = async (values, mode) => {
     const shouldSendMail = mode === "save-mail";
     const convertedValue = calculateConvertByDuration(values.durationValue, values.durationUnit);
     const payloadWithoutImages = {
@@ -340,6 +344,18 @@ function ProgramForm() {
     navigate(returnPath);
   };
 
+  const onSubmit = async (values, mode) => {
+    if (isReadOnlyMode) {
+      return;
+    }
+    if (isEditMode && values.status === "Hoàn thành" && initialSnapshot.values.status !== "Hoàn thành") {
+      setPendingSubmit({ values, mode });
+      setCompleteConfirmOpen(true);
+      return;
+    }
+    await persistProgram(values, mode);
+  };
+
   const onInvalid = () => {
     toast.error("Vui lòng kiểm tra lại thông tin form");
   };
@@ -405,26 +421,29 @@ function ProgramForm() {
         isUploading={isUploadingImages}
         isEditMode={isEditMode}
         exitPath={returnPath}
+        readOnlyMode={isReadOnlyMode}
       />
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Nội dung</div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
-          <ProgramInfo
-            register={register}
-            errors={errors}
-            contractImages={contractImages}
-            onFilesSelected={handleContractImageChange}
-             onRemoveImage={removeContractImage}
-             onImageClick={setLightboxIndex}
-             isUploading={isUploadingImages}
-             assignerOptions={assignerOptions}
-             assigneeOptions={assigneeOptions}
-           />
+      <fieldset disabled={isReadOnlyMode}>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Nội dung</div>
+          <div className="grid gap-5 p-5 lg:grid-cols-2">
+            <ProgramInfo
+              register={register}
+              errors={errors}
+              contractImages={contractImages}
+              onFilesSelected={handleContractImageChange}
+              onRemoveImage={removeContractImage}
+              onImageClick={setLightboxIndex}
+              isUploading={isUploadingImages}
+              assignerOptions={assignerOptions}
+              assigneeOptions={assigneeOptions}
+            />
 
-           <ContractInfo register={register} errors={errors} salesOptions={salesOptions} />
+            <ContractInfo register={register} errors={errors} salesOptions={salesOptions} />
+          </div>
         </div>
-      </div>
+      </fieldset>
 
       <ImageLightbox
         currentIndex={lightboxIndex}
@@ -433,6 +452,49 @@ function ProgramForm() {
         onNext={() => setLightboxIndex(lightboxIndex + 1)}
         onPrev={() => setLightboxIndex(lightboxIndex - 1)}
       />
+
+      <Modal
+        open={completeConfirmOpen}
+        onClose={() => {
+          setCompleteConfirmOpen(false);
+          setPendingSubmit(null);
+        }}
+        title="Xác nhận hoàn thành"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCompleteConfirmOpen(false);
+                setPendingSubmit(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const current = pendingSubmit;
+                setCompleteConfirmOpen(false);
+                setPendingSubmit(null);
+                if (current) {
+                  void persistProgram(current.values, current.mode);
+                }
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xác nhận
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Bạn đang chuyển trạng thái sang
+          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
+        </p>
+      </Modal>
     </form>
   );
 }
