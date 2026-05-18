@@ -45,6 +45,8 @@ function ProgramEditManagement() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState(null);
 
   const fetchCorrections = useCallback(async () => {
     setIsLoading(true);
@@ -87,6 +89,10 @@ function ProgramEditManagement() {
   const handleInlineUpdate = async (rowId, patch) => {
     const target = rows.find((item) => item.id === rowId);
     if (!target) return;
+    if (target.status === "Hoàn thành") {
+      toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
+      return;
+    }
     const payload = {
       programId: target.programId,
       issueContent: target.issueContent,
@@ -111,6 +117,19 @@ function ProgramEditManagement() {
     } catch (error) {
       toast.error(error?.message || "Cập nhật không thành công");
     }
+  };
+
+  const handleStatusChange = (row, nextStatus) => {
+    if (row.status === "Hoàn thành") {
+      toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
+      return;
+    }
+    if (nextStatus === "Hoàn thành" && row.status !== "Hoàn thành") {
+      setPendingStatusChange({ rowId: row.id, status: nextStatus });
+      setCompleteConfirmOpen(true);
+      return;
+    }
+    void handleInlineUpdate(row.id, { status: nextStatus });
   };
 
   const handleDeleteOne = async (rowId) => {
@@ -214,7 +233,11 @@ function ProgramEditManagement() {
         </select>
       </div>
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm số HĐ, module, mô tả">
+      <ManagementTableCard
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm số HĐ, module, mô tả"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
@@ -227,21 +250,45 @@ function ProgramEditManagement() {
                   onClick={(event) => event.stopPropagation()}
                 />
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Số HĐ</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Module</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mức độ</TableHead>
-              <TableHead className="border border-slate-200 p-4 px-8 text-center font-semibold text-slate-500">Trạng thái</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Người giao</TableHead>
-              <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">Chuyển lập trình</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày giao</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày nhận</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày dự kiến</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                STT
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Số HĐ
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Module
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Mức độ
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 px-8 text-center font-semibold text-slate-500">
+                Trạng thái
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Người giao
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">
+                Chuyển lập trình
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày giao
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày nhận
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày dự kiến
+              </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Ngày hoàn thành
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hiển thị</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Thao tác</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Hiển thị
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Thao tác
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -275,16 +322,21 @@ function ProgramEditManagement() {
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
+                    {row.contractCode}
+                  </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.module}</TableCell>
-                  <TableCell className={`border border-slate-200 p-4 font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}>
+                  <TableCell
+                    className={`border border-slate-200 p-4 font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}
+                  >
                     {row.priority}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
                       value={row.status}
-                      onChange={(event) => void handleInlineUpdate(row.id, { status: event.target.value })}
+                      disabled={row.status === "Hoàn thành"}
+                      onChange={(event) => handleStatusChange(row, event.target.value)}
                     >
                       {CORRECTION_STATUS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -298,6 +350,7 @@ function ProgramEditManagement() {
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
                       value={row.assignee}
+                      disabled={row.status === "Hoàn thành"}
                       onChange={(event) => void handleInlineUpdate(row.id, { assignee: event.target.value })}
                     >
                       {CORRECTION_STAFF_OPTIONS.map((option) => (
@@ -307,14 +360,26 @@ function ProgramEditManagement() {
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{formatDateTime(row.assignedAt)}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{formatDateTime(row.receivedAt)}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{formatDateTime(row.dueAt)}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{formatDateTime(row.completedAt)}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-center" onClick={(event) => event.stopPropagation()}>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                    {formatDateTime(row.assignedAt)}
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                    {formatDateTime(row.receivedAt)}
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                    {formatDateTime(row.dueAt)}
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                    {formatDateTime(row.completedAt)}
+                  </TableCell>
+                  <TableCell
+                    className="border border-slate-200 p-4 text-center"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <input
                       type="checkbox"
                       checked={row.visible}
+                      disabled={row.status === "Hoàn thành"}
                       onChange={(event) => void handleInlineUpdate(row.id, { visible: event.target.checked })}
                     />
                   </TableCell>
@@ -349,6 +414,48 @@ function ProgramEditManagement() {
           </TableBody>
         </Table>
       </ManagementTableCard>
+
+      <Modal
+        open={completeConfirmOpen}
+        onClose={() => {
+          setCompleteConfirmOpen(false);
+          setPendingStatusChange(null);
+        }}
+        title="Xác nhận hoàn thành"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCompleteConfirmOpen(false);
+                setPendingStatusChange(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (pendingStatusChange?.rowId) {
+                  void handleInlineUpdate(pendingStatusChange.rowId, { status: "Hoàn thành" });
+                }
+                setCompleteConfirmOpen(false);
+                setPendingStatusChange(null);
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xác nhận
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Trạng thái sẽ được chuyển sang
+          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Bạn có chắc muốn tiếp tục?
+        </p>
+      </Modal>
 
       <Modal
         open={deleteOpen}

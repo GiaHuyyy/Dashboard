@@ -277,13 +277,7 @@ function ProgramUpgradeManagement() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => {
-                    if (row.status === "Hoàn thành") {
-                      toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
-                      return;
-                    }
-                    navigate(`/lap-trinh/nang-cap/${row.id}`);
-                  }}
+                  onClick={() => navigate(`/lap-trinh/nang-cap/${row.id}`)}
                 >
                   <TableCell className="border border-slate-200 p-4">
                     <input
@@ -311,6 +305,7 @@ function ProgramUpgradeManagement() {
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
                       value={row.status}
+                      disabled={row.status === "Hoàn thành"}
                       onChange={(event) => handleStatusChange(row, event.target.value)}
                     >
                       {UPGRADE_STATUS_OPTIONS.map((option) => (
@@ -325,6 +320,7 @@ function ProgramUpgradeManagement() {
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
                       value={row.assignee}
+                      disabled={row.status === "Hoàn thành"}
                       onChange={(event) => void handleInlineUpdate(row.id, { assignee: event.target.value })}
                     >
                       {UPGRADE_STAFF_OPTIONS.map((option) => (
@@ -341,6 +337,7 @@ function ProgramUpgradeManagement() {
                     <input
                       type="checkbox"
                       checked={row.visible}
+                      disabled={row.status === "Hoàn thành"}
                       onChange={(event) => void handleInlineUpdate(row.id, { visible: event.target.checked })}
                     />
                   </TableCell>
@@ -350,10 +347,6 @@ function ProgramUpgradeManagement() {
                         icon={SquarePen}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (row.status === "Hoàn thành") {
-                            toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
-                            return;
-                          }
                           navigate(`/lap-trinh/nang-cap/${row.id}`);
                         }}
                         variant="primary-outline"

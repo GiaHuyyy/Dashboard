@@ -74,6 +74,7 @@ function ProgramUpgradeForm() {
     () => programReferences.find((item) => item.id === selectedProgramId),
     [programReferences, selectedProgramId],
   );
+  const isReadOnlyMode = isEditMode && initialSnapshot.status === "Hoàn thành";
 
   useEffect(() => {
     const fetchSources = async () => {
@@ -164,8 +165,7 @@ function ProgramUpgradeForm() {
   };
 
   const onSubmit = async (values, mode) => {
-    if (isEditMode && initialSnapshot.status === "Hoàn thành") {
-      toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
+    if (isReadOnlyMode) {
       return;
     }
     if (isEditMode && values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
@@ -203,13 +203,15 @@ function ProgramUpgradeForm() {
           showSaveMail={false}
           saveLabel={isEditMode ? "Cập nhật" : "Lưu"}
           saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
+          readOnlyMode={isReadOnlyMode}
         />
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Nội dung nâng cấp
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
+        <fieldset disabled={isReadOnlyMode}>
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
+              Nội dung nâng cấp
+            </div>
+            <div className="grid gap-5 p-5 lg:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin nâng cấp</p>
 
@@ -294,13 +296,14 @@ function ProgramUpgradeForm() {
               error={errors.bonusPoint?.message}
             />
 
-            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-              <input type="checkbox" {...register("visible")} />
-              Hiển thị
-            </label>
+                <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                  <input type="checkbox" {...register("visible")} />
+                  Hiển thị
+                </label>
+              </div>
+            </div>
           </div>
-        </div>
-        </div>
+        </fieldset>
       </form>
 
       <Modal

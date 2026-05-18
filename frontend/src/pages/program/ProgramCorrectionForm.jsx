@@ -13,6 +13,7 @@ import {
 } from "@/constants/program-correction";
 import { correctionApi, programApi } from "@/lib/api-client";
 import FormField from "@/components/ui/form-field";
+import Modal from "@/components/ui/modal";
 
 const schema = z.object({
   programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
@@ -71,10 +72,11 @@ function ProgramCorrectionForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [programReferences, setProgramReferences] = useState([]);
-  const [assignedCorrections, setAssignedCorrections] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(null);
 
   const {
     control,
@@ -88,55 +90,23 @@ function ProgramCorrectionForm() {
   });
 
   const selectedProgramId = useWatch({ control, name: "programId" });
-  const openCorrections = useMemo(
-    () => assignedCorrections.filter((item) => item.status !== "Hoàn thành"),
-    [assignedCorrections],
-  );
-  const openProgramIds = useMemo(
-    () => new Set(openCorrections.map((item) => item.programId).filter(Boolean)),
-    [openCorrections],
-  );
-  const assignedCorrectionByProgramId = useMemo(
-    () =>
-      openCorrections.reduce((acc, item) => {
-        if (item.programId) acc[item.programId] = item;
-        return acc;
-      }, {}),
-    [openCorrections],
-  );
-
-  const selectablePrograms = useMemo(() => {
-    if (isEditMode) {
-      return programReferences.filter((item) => openProgramIds.has(item.id) || item.id === selectedProgramId);
-    }
-    return programReferences;
-  }, [isEditMode, openProgramIds, programReferences, selectedProgramId]);
-
   const selectedProgram = useMemo(
     () => programReferences.find((item) => item.id === selectedProgramId),
     [programReferences, selectedProgramId],
   );
+  const isReadOnlyMode = isEditMode && initialSnapshot.status === "Hoàn thành";
 
   useEffect(() => {
     const fetchSources = async () => {
       setIsLoadingSources(true);
       try {
-        const [programResponse, correctionResponse] = await Promise.all([
-          programApi.references(),
-          correctionApi.list({ limit: 500, page: 1 }),
-        ]);
+        const programResponse = await programApi.references();
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
-        const corrections = Array.isArray(correctionResponse?.corrections) ? correctionResponse.corrections : [];
-        const openCorrectionRecords = corrections.filter((item) => item.status !== "Hoàn thành");
 
         setProgramReferences(programs);
-        setAssignedCorrections(corrections);
 
         if (!isEditMode) {
-          const firstAvailable = programs.find(
-            (item) => !openCorrectionRecords.some((correction) => correction.programId === item.id),
-          );
-          const nextDefaults = { ...defaultValues, programId: firstAvailable?.id || "" };
+          const nextDefaults = { ...defaultValues, programId: programs[0]?.id || "" };
           reset(nextDefaults);
           setInitialSnapshot(nextDefaults);
         }
@@ -175,16 +145,7 @@ function ProgramCorrectionForm() {
     void fetchDetail();
   }, [id, isEditMode, navigate, reset]);
 
-  const programRegister = register("programId");
-
-  const handleProgramChange = (nextProgramId) => {
-    if (!isEditMode) return;
-    const targetCorrection = assignedCorrectionByProgramId[nextProgramId];
-    if (!targetCorrection || !targetCorrection.id || targetCorrection.id === id) return;
-    navigate(`/lap-trinh/quan-ly-chinh-sua/${targetCorrection.id}`);
-  };
-
-  const onSubmit = async (values, mode) => {
+  const persistCorrection = async (values, mode) => {
     const payload = {
       programId: values.programId,
       issueContent: values.issueContent,
@@ -208,9 +169,6 @@ function ProgramCorrectionForm() {
       } else {
         const response = await correctionApi.create(payload);
         savedCorrection = response?.correction || null;
-        if (savedCorrection) {
-          setAssignedCorrections((prev) => [savedCorrection, ...prev]);
-        }
       }
     } catch (error) {
       toast.error(error?.message || "Không thể lưu yêu cầu chỉnh sửa");
@@ -232,6 +190,18 @@ function ProgramCorrectionForm() {
     navigate("/lap-trinh/chinh-sua");
   };
 
+  const onSubmit = async (values, mode) => {
+    if (isReadOnlyMode) {
+      return;
+    }
+    if (isEditMode && values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
+      setPendingSubmit({ values, mode });
+      setCompleteConfirmOpen(true);
+      return;
+    }
+    await persistCorrection(values, mode);
+  };
+
   const submitWithMode = (mode) =>
     handleSubmit(
       (values) => onSubmit(values, mode),
@@ -245,61 +215,51 @@ function ProgramCorrectionForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
-        onSave={() => submitWithMode("save")}
-        onSaveStay={() => submitWithMode("save-stay")}
-        onSaveMail={() => null}
-        onReset={() => reset(isEditMode ? initialSnapshot : defaultValues)}
-        isSubmitting={isSubmitting}
-        isUploading={false}
-        isEditMode={isEditMode}
-        exitPath="/lap-trinh/chinh-sua"
-        showSaveMail={false}
-        saveLabel={isEditMode ? "Cập nhật" : "Lưu"}
-        saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
-      />
+    <>
+      <form className="space-y-4">
+        <FormActions
+          onSave={() => submitWithMode("save")}
+          onSaveStay={() => submitWithMode("save-stay")}
+          onSaveMail={() => null}
+          onReset={() => reset(isEditMode ? initialSnapshot : defaultValues)}
+          isSubmitting={isSubmitting}
+          isUploading={false}
+          isEditMode={isEditMode}
+          exitPath="/lap-trinh/chinh-sua"
+          showSaveMail={false}
+          saveLabel={isEditMode ? "Cập nhật" : "Lưu"}
+          saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
+          readOnlyMode={isReadOnlyMode}
+        />
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Nội dung chỉnh sửa
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
+        <fieldset disabled={isReadOnlyMode}>
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
+              Nội dung chỉnh sửa
+            </div>
+            <div className="grid gap-5 p-5 lg:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
 
             <label className="text-sm font-semibold text-slate-600">
               Phiếu gốc / Số HĐ
               <select
-                {...programRegister}
-                value={selectedProgramId || ""}
-                onChange={(event) => {
-                  programRegister.onChange(event);
-                  handleProgramChange(event.target.value);
-                }}
+                {...register("programId")}
                 className={`w-full rounded-md border px-3 py-2 text-sm font-light focus:outline-none ${
                   errors.programId
                     ? "border-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
                     : "border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
                 }`}
-                disabled={selectablePrograms.length === 0}
+                disabled={programReferences.length === 0}
               >
-                {selectablePrograms.length === 0 ? (
+                {programReferences.length === 0 ? (
                   <option value="">Không có dữ liệu</option>
                 ) : (
-                  selectablePrograms.map((item) => {
-                    const isOpen = openProgramIds.has(item.id);
-                    const isDisabled = !isEditMode && isOpen;
-                    const label =
-                      !isEditMode && isOpen
-                        ? `${item.contractCode} - ${item.contractName || ""} (Đang mở)`
-                        : `${item.contractCode} - ${item.contractName || ""}`;
-                    return (
-                      <option key={item.id} value={item.id} disabled={isDisabled}>
-                        {label.trim()}
-                      </option>
-                    );
-                  })
+                  programReferences.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {`${item.contractCode} - ${item.contractName || ""}`.trim()}
+                    </option>
+                  ))
                 )}
               </select>
               {errors.programId ? <p className="mt-1 text-xs text-rose-600">{errors.programId.message}</p> : null}
@@ -398,9 +358,54 @@ function ProgramCorrectionForm() {
               error={errors.completedAt?.message}
             />
           </div>
-        </div>
-      </div>
-    </form>
+            </div>
+          </div>
+        </fieldset>
+      </form>
+
+      <Modal
+        open={completeConfirmOpen}
+        onClose={() => {
+          setCompleteConfirmOpen(false);
+          setPendingSubmit(null);
+        }}
+        title="Xác nhận hoàn thành"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCompleteConfirmOpen(false);
+                setPendingSubmit(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const current = pendingSubmit;
+                setCompleteConfirmOpen(false);
+                setPendingSubmit(null);
+                if (current) {
+                  void persistCorrection(current.values, current.mode);
+                }
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xác nhận
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Bạn đang chuyển trạng thái sang
+          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
+        </p>
+      </Modal>
+    </>
   );
 }
 
