@@ -161,3 +161,14 @@ export const upgradeApi = {
       body: JSON.stringify({ ids }),
     }),
 };
+
+export const pointApi = {
+  list: ({ assignee = "all", month = "all", year = "all", search = "" } = {}) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("assignee", assignee);
+    searchParams.set("month", String(month));
+    searchParams.set("year", String(year));
+    searchParams.set("search", search);
+    return request(`/program-points?${searchParams.toString()}`);
+  },
+};
