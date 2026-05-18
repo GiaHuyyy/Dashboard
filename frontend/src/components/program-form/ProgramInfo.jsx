@@ -1,5 +1,5 @@
 import FormField from "@/components/ui/form-field";
-import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS } from "@/constants/program";
+import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS, PROGRAM_STAFF_OPTIONS } from "@/constants/program";
 import { ImageUpload } from "./ImageUpload";
 
 export function ProgramInfo({
@@ -44,6 +44,22 @@ export function ProgramInfo({
         type="text"
         inputProps={{ ...register("convert"), readOnly: true, placeholder: "Tự động" }}
         error={errors.convert?.message}
+      />
+
+      <FormField
+        label="Người giao"
+        type="select"
+        options={PROGRAM_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
+        selectProps={register("assigner")}
+        error={errors.assigner?.message}
+      />
+
+      <FormField
+        label="Người nhận"
+        type="select"
+        options={PROGRAM_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
+        selectProps={register("assignee")}
+        error={errors.assignee?.message}
       />
 
       <div className="grid grid-cols-2 gap-4">

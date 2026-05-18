@@ -95,9 +95,13 @@ function ProgramUpgradeManagement() {
       programId: target.programId,
       upgradeItem: target.upgradeItem,
       priority: target.priority,
+      durationValue: target.durationValue,
+      durationUnit: target.durationUnit,
+      convert: target.convert,
       slaHours: target.slaHours,
       bonusPoint: target.bonusPoint,
       status: target.status,
+      assigner: target.assigner,
       assignee: target.assignee,
       visible: target.visible,
       note: target.note || "",
@@ -242,14 +246,23 @@ function ProgramUpgradeManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 SLA
               </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Thời gian
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Quy đổi
+              </TableHead>
               <TableHead className="border border-slate-200 p-4 px-6 text-center font-semibold text-slate-500">
                 Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Điểm cộng thêm
               </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Người giao
+              </TableHead>
               <TableHead className="border border-slate-200 p-4 px-10 text-center font-semibold text-slate-500">
-                Lập trình
+                Người nhận
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Hiển thị
@@ -262,13 +275,13 @@ function ProgramUpgradeManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -301,6 +314,8 @@ function ProgramUpgradeManagement() {
                     {row.priority}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.slaHours}h</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
@@ -316,6 +331,7 @@ function ProgramUpgradeManagement() {
                     </select>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"

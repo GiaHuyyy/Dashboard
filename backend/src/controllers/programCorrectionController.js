@@ -5,6 +5,7 @@ import ProgramCorrection from "../models/ProgramCorrection.js";
 
 const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao", "Khẩn"];
 const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đã nhận", "Đang xử lý", "Hoàn thành"];
+const DURATION_UNITS = ["h", "ngày"];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -47,10 +48,30 @@ const parsePositiveInteger = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
+const formatNumber = (value) => {
+  if (!Number.isFinite(value)) return "";
+  return Number(value.toFixed(3)).toString();
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  if (!Number.isFinite(durationValue) || durationValue <= 0) return "";
+  if (durationUnit === "ngày") return formatNumber(durationValue);
+  if (durationUnit === "h") return formatNumber(durationValue / 8);
+  return "";
+};
+
+const normalizeNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const normalizePayload = (body = {}) => ({
   programId: normalizeString(body.programId),
   issueContent: normalizeString(body.issueContent),
   priority: normalizeString(body.priority),
+  durationValue: normalizeNumber(body.durationValue),
+  durationUnit: normalizeString(body.durationUnit),
+  bonusPoint: normalizeNumber(body.bonusPoint),
   assigner: normalizeString(body.assigner),
   assignee: normalizeString(body.assignee),
   assignedAt: normalizeDate(body.assignedAt),
@@ -84,6 +105,15 @@ const validatePayload = async (payload) => {
   if (!payload.issueContent) {
     return { status: 400, message: "issueContent là bắt buộc" };
   }
+  if (payload.durationValue === null || payload.durationValue <= 0) {
+    return { status: 400, message: "durationValue phải lớn hơn 0" };
+  }
+  if (!DURATION_UNITS.includes(payload.durationUnit)) {
+    return { status: 400, message: `durationUnit không hợp lệ. Giá trị cho phép: ${DURATION_UNITS.join(", ")}` };
+  }
+  if (payload.bonusPoint === null || payload.bonusPoint < 0) {
+    return { status: 400, message: "bonusPoint không hợp lệ" };
+  }
   if (!payload.assigner) {
     return { status: 400, message: "assigner là bắt buộc" };
   }
@@ -115,7 +145,11 @@ const validatePayload = async (payload) => {
     return { status: 400, message: "Ngày dự kiến không được nhỏ hơn ngày giao" };
   }
 
-  return { targetProgram };
+  return {
+    targetProgram,
+    time: `${formatNumber(payload.durationValue)} ${payload.durationUnit}`,
+    convert: calculateConvertByDuration(payload.durationValue, payload.durationUnit),
+  };
 };
 
 const toResponseItem = (doc) => ({
@@ -125,6 +159,11 @@ const toResponseItem = (doc) => ({
   module: doc.programId?.module || "",
   issueContent: doc.issueContent,
   priority: doc.priority,
+  durationValue: doc.durationValue,
+  durationUnit: doc.durationUnit,
+  time: doc.time || "",
+  convert: doc.convert || "",
+  bonusPoint: doc.bonusPoint || 0,
   status: doc.status,
   assigner: doc.assigner,
   assignee: doc.assignee,
@@ -146,6 +185,8 @@ export const createProgramCorrection = async (req, res) => {
 
   const createdCorrection = await ProgramCorrection.create({
     ...payload,
+    time: validationResult.time,
+    convert: validationResult.convert,
     createdBy: req.user.sub,
   });
 
@@ -242,6 +283,9 @@ export const updateProgramCorrection = async (req, res) => {
     programId: normalizedInput.programId || String(existing.programId),
     issueContent: normalizedInput.issueContent || existing.issueContent,
     priority: normalizedInput.priority || existing.priority,
+    durationValue: normalizedInput.durationValue === null ? existing.durationValue : normalizedInput.durationValue,
+    durationUnit: normalizedInput.durationUnit || existing.durationUnit,
+    bonusPoint: normalizedInput.bonusPoint === null ? existing.bonusPoint : normalizedInput.bonusPoint,
     assigner: normalizedInput.assigner || existing.assigner,
     assignee: normalizedInput.assignee || existing.assignee,
     assignedAt: normalizedInput.assignedAt || existing.assignedAt,
@@ -261,6 +305,11 @@ export const updateProgramCorrection = async (req, res) => {
   existing.programId = mergedPayload.programId;
   existing.issueContent = mergedPayload.issueContent;
   existing.priority = mergedPayload.priority;
+  existing.durationValue = mergedPayload.durationValue;
+  existing.durationUnit = mergedPayload.durationUnit;
+  existing.time = validationResult.time;
+  existing.convert = validationResult.convert;
+  existing.bonusPoint = mergedPayload.bonusPoint;
   existing.assigner = mergedPayload.assigner;
   existing.assignee = mergedPayload.assignee;
   existing.assignedAt = mergedPayload.assignedAt;

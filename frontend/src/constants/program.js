@@ -13,3 +13,5 @@ export const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
 export const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
 
 export const SALES_STAFF_OPTIONS = ["ĐỖ VAN SANG", "TRẦN LAN", "NGUYỄN HUY"];
+
+export const PROGRAM_STAFF_OPTIONS = ["NGUYỄN HOÀNG NAM", "PHAN VĂN KHÁNH", "TRẦN VĂN HÙNG"];

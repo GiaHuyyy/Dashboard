@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
+import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import {
   CORRECTION_PRIORITY_OPTIONS,
   CORRECTION_STAFF_OPTIONS,
@@ -19,6 +20,10 @@ const schema = z.object({
   programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
   issueContent: z.string().trim().min(5, "Vui lòng nhập mô tả lỗi/chỉnh sửa"),
   priority: z.enum(CORRECTION_PRIORITY_OPTIONS, { message: "Vui lòng chọn mức độ ưu tiên" }),
+  durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
+  durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
+  convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
+  bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
   assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
   assignedAt: z.string().trim().min(1, "Vui lòng nhập ngày giao"),
@@ -34,6 +39,10 @@ const defaultValues = {
   programId: "",
   issueContent: "",
   priority: CORRECTION_PRIORITY_OPTIONS[1],
+  durationValue: 1,
+  durationUnit: "ngày",
+  convert: "1",
+  bonusPoint: 0,
   assigner: CORRECTION_STAFF_OPTIONS[0],
   assignee: CORRECTION_STAFF_OPTIONS[1],
   assignedAt: "",
@@ -56,6 +65,10 @@ const mapCorrectionToForm = (row) => ({
   programId: row.programId || "",
   issueContent: row.issueContent || "",
   priority: row.priority || CORRECTION_PRIORITY_OPTIONS[1],
+  durationValue: Number(row.durationValue) || 1,
+  durationUnit: row.durationUnit || "ngày",
+  convert: row.convert || "1",
+  bonusPoint: Number(row.bonusPoint) || 0,
   assigner: row.assigner || CORRECTION_STAFF_OPTIONS[0],
   assignee: row.assignee || CORRECTION_STAFF_OPTIONS[1],
   assignedAt: toDateTimeLocal(row.assignedAt),
@@ -66,6 +79,20 @@ const mapCorrectionToForm = (row) => ({
   visible: Boolean(row.visible ?? true),
   note: row.note || "",
 });
+
+const formatNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return Number(parsed.toFixed(3)).toString();
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  const numeric = Number(durationValue);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  if (durationUnit === "ngày") return formatNumber(numeric);
+  if (durationUnit === "h") return formatNumber(numeric / 8);
+  return "";
+};
 
 function ProgramCorrectionForm() {
   const navigate = useNavigate();
@@ -83,6 +110,7 @@ function ProgramCorrectionForm() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
@@ -90,11 +118,19 @@ function ProgramCorrectionForm() {
   });
 
   const selectedProgramId = useWatch({ control, name: "programId" });
+  const selectedDurationValue = useWatch({ control, name: "durationValue" });
+  const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
   const selectedProgram = useMemo(
     () => programReferences.find((item) => item.id === selectedProgramId),
     [programReferences, selectedProgramId],
   );
   const isReadOnlyMode = isEditMode && initialSnapshot.status === "Hoàn thành";
+  const programRegister = register("programId");
+
+  useEffect(() => {
+    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
+    setValue("convert", convertedValue, { shouldValidate: true });
+  }, [selectedDurationUnit, selectedDurationValue, setValue]);
 
   useEffect(() => {
     const fetchSources = async () => {
@@ -106,7 +142,14 @@ function ProgramCorrectionForm() {
         setProgramReferences(programs);
 
         if (!isEditMode) {
-          const nextDefaults = { ...defaultValues, programId: programs[0]?.id || "" };
+          const selected = programs[0];
+          const nextDefaults = {
+            ...defaultValues,
+            programId: selected?.id || "",
+            durationValue: selected?.durationValue || defaultValues.durationValue,
+            durationUnit: selected?.durationUnit || defaultValues.durationUnit,
+            convert: selected?.convert || defaultValues.convert,
+          };
           reset(nextDefaults);
           setInitialSnapshot(nextDefaults);
         }
@@ -150,6 +193,10 @@ function ProgramCorrectionForm() {
       programId: values.programId,
       issueContent: values.issueContent,
       priority: values.priority,
+      durationValue: values.durationValue,
+      durationUnit: values.durationUnit,
+      convert: values.convert,
+      bonusPoint: values.bonusPoint,
       assigner: values.assigner,
       assignee: values.assignee,
       assignedAt: values.assignedAt,
@@ -244,13 +291,21 @@ function ProgramCorrectionForm() {
             <label className="text-sm font-semibold text-slate-600">
               Phiếu gốc / Số HĐ
               <select
-                {...register("programId")}
+                {...programRegister}
                 className={`w-full rounded-md border px-3 py-2 text-sm font-light focus:outline-none ${
                   errors.programId
                     ? "border-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
                     : "border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
                 }`}
                 disabled={programReferences.length === 0}
+                onChange={(event) => {
+                  const selected = programReferences.find((item) => item.id === event.target.value);
+                  programRegister.onChange(event);
+                  if (!selected) return;
+                  setValue("durationValue", selected.durationValue || defaultValues.durationValue, { shouldValidate: true });
+                  setValue("durationUnit", selected.durationUnit || defaultValues.durationUnit, { shouldValidate: true });
+                  setValue("convert", selected.convert || defaultValues.convert, { shouldValidate: true });
+                }}
               >
                 {programReferences.length === 0 ? (
                   <option value="">Không có dữ liệu</option>
@@ -288,6 +343,36 @@ function ProgramCorrectionForm() {
               options={CORRECTION_PRIORITY_OPTIONS.map((item) => ({ label: item, value: item }))}
               selectProps={register("priority")}
               error={errors.priority?.message}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                label="Thời gian"
+                type="number"
+                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", placeholder: "Nhập số" }}
+                error={errors.durationValue?.message}
+              />
+              <FormField
+                label="Đơn vị"
+                type="select"
+                options={DURATION_UNIT_OPTIONS.map((item) => ({ label: item, value: item }))}
+                selectProps={register("durationUnit")}
+                error={errors.durationUnit?.message}
+              />
+            </div>
+
+            <FormField
+              label="Quy đổi"
+              type="text"
+              inputProps={{ ...register("convert"), readOnly: true, placeholder: "Tự động" }}
+              error={errors.convert?.message}
+            />
+
+            <FormField
+              label="Điểm cộng thêm"
+              type="number"
+              inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125" }}
+              error={errors.bonusPoint?.message}
             />
 
             <FormField

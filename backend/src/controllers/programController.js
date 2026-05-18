@@ -84,6 +84,8 @@ const normalizeProgramPayload = (body) => {
   const durationUnit = normalizeString(body.durationUnit);
   const time = durationValue !== null ? `${formatNumber(durationValue)} ${durationUnit}` : "";
   const convert = durationValue !== null ? calculateConvertByDuration(durationValue, durationUnit) : "";
+  const assigner = normalizeString(body.assigner);
+  const assignee = normalizeString(body.assignee);
   const design = normalizeBoolean(body.design);
   const visible = normalizeBoolean(body.visible);
   const contractName = normalizeString(body.contractName);
@@ -104,6 +106,8 @@ const normalizeProgramPayload = (body) => {
     durationUnit,
     time,
     convert,
+    assigner,
+    assignee,
     design,
     visible,
     contractName,
@@ -124,6 +128,8 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     durationValue,
     durationUnit,
     convert,
+    assigner,
+    assignee,
     design,
     visible,
     contractName,
@@ -140,6 +146,8 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     !module ||
     durationValue === null ||
     !durationUnit ||
+    !assigner ||
+    !assignee ||
     !contractName ||
     !contractCode ||
     !selectedSalesStaff ||
@@ -149,7 +157,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     return {
       status: 400,
       message:
-        "module, durationValue, durationUnit, contractName, contractCode, selectedSalesStaff, salesReceiverName, salesReceiverEmail là bắt buộc",
+        "module, durationValue, durationUnit, assigner, assignee, contractName, contractCode, selectedSalesStaff, salesReceiverName, salesReceiverEmail là bắt buộc",
     };
   }
 
@@ -313,7 +321,7 @@ export const listPrograms = async (req, res) => {
 
   const programs = await Program.find(filters)
     .sort({ programCreatedAt: -1, createdAt: -1 })
-    .select("module time convert programCreatedAt design visible")
+    .select("module time convert assigner assignee programCreatedAt design visible")
     .lean();
 
   return res.json({
@@ -322,6 +330,8 @@ export const listPrograms = async (req, res) => {
       module: item.module,
       time: item.time,
       convert: item.convert,
+      assigner: item.assigner || "",
+      assignee: item.assignee || "",
       createdAt: formatDateTime(item.programCreatedAt || item.createdAt),
       design: item.design,
       visible: item.visible,
@@ -335,7 +345,7 @@ export const listProgramReferences = async (req, res) => {
     $or: [{ type: "program" }, { type: { $exists: false } }],
   })
     .sort({ programCreatedAt: -1, createdAt: -1 })
-    .select("contractCode module contractName")
+    .select("contractCode module contractName time convert durationValue durationUnit")
     .lean();
 
   return res.json({
@@ -344,6 +354,10 @@ export const listProgramReferences = async (req, res) => {
       contractCode: item.contractCode,
       contractName: item.contractName,
       module: item.module,
+      time: item.time || "",
+      convert: item.convert || "",
+      durationValue: item.durationValue ?? null,
+      durationUnit: item.durationUnit || "",
     })),
   });
 };
@@ -362,6 +376,8 @@ export const getProgramById = async (req, res) => {
       durationValue: program.durationValue,
       durationUnit: program.durationUnit,
       convert: program.convert,
+      assigner: program.assigner || "",
+      assignee: program.assignee || "",
       design: program.design,
       visible: program.visible,
       contractName: program.contractName,
@@ -399,6 +415,8 @@ export const updateProgram = async (req, res) => {
   existingProgram.durationUnit = payload.durationUnit;
   existingProgram.time = payload.time;
   existingProgram.convert = payload.convert;
+  existingProgram.assigner = payload.assigner;
+  existingProgram.assignee = payload.assignee;
   existingProgram.design = payload.design;
   existingProgram.visible = payload.visible;
   existingProgram.contractName = payload.contractName;

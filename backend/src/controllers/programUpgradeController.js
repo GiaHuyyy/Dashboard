@@ -5,6 +5,7 @@ import ProgramUpgrade from "../models/ProgramUpgrade.js";
 
 const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao", "Khẩn"];
 const STATUS_OPTIONS = ["Mới tạo", "Đang xử lý", "Hoàn thành", "Tạm dừng"];
+const DURATION_UNITS = ["h", "ngày"];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -24,6 +25,18 @@ const normalizeNumber = (value) => {
 const parsePositiveInteger = (value) => {
   const parsed = Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const formatNumber = (value) => {
+  if (!Number.isFinite(value)) return "";
+  return Number(value.toFixed(3)).toString();
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  if (!Number.isFinite(durationValue) || durationValue <= 0) return "";
+  if (durationUnit === "ngày") return formatNumber(durationValue);
+  if (durationUnit === "h") return formatNumber(durationValue / 8);
+  return "";
 };
 
 const toIsoString = (value) => {
@@ -49,9 +62,12 @@ const normalizePayload = (body = {}) => ({
   programId: normalizeString(body.programId),
   upgradeItem: normalizeString(body.upgradeItem),
   priority: normalizeString(body.priority),
+  durationValue: normalizeNumber(body.durationValue),
+  durationUnit: normalizeString(body.durationUnit),
   slaHours: normalizeNumber(body.slaHours),
   bonusPoint: normalizeNumber(body.bonusPoint),
   status: normalizeString(body.status),
+  assigner: normalizeString(body.assigner),
   assignee: normalizeString(body.assignee),
   visible: normalizeBoolean(body.visible),
   note: normalizeString(body.note),
@@ -79,6 +95,15 @@ const validatePayload = async (payload) => {
   if (!payload.upgradeItem) {
     return { status: 400, message: "upgradeItem là bắt buộc" };
   }
+  if (payload.durationValue === null || payload.durationValue <= 0) {
+    return { status: 400, message: "durationValue phải lớn hơn 0" };
+  }
+  if (!DURATION_UNITS.includes(payload.durationUnit)) {
+    return { status: 400, message: `durationUnit không hợp lệ. Giá trị cho phép: ${DURATION_UNITS.join(", ")}` };
+  }
+  if (!payload.assigner) {
+    return { status: 400, message: "assigner là bắt buộc" };
+  }
   if (!payload.assignee) {
     return { status: 400, message: "assignee là bắt buộc" };
   }
@@ -98,7 +123,11 @@ const validatePayload = async (payload) => {
     return { status: 400, message: "visible phải là kiểu boolean" };
   }
 
-  return { program };
+  return {
+    program,
+    time: `${formatNumber(payload.durationValue)} ${payload.durationUnit}`,
+    convert: calculateConvertByDuration(payload.durationValue, payload.durationUnit),
+  };
 };
 
 const toResponseItem = (doc) => ({
@@ -108,9 +137,14 @@ const toResponseItem = (doc) => ({
   module: doc.programId?.module || "",
   upgradeItem: doc.upgradeItem,
   priority: doc.priority,
+  durationValue: doc.durationValue,
+  durationUnit: doc.durationUnit,
+  time: doc.time || "",
+  convert: doc.convert || "",
   slaHours: doc.slaHours,
   bonusPoint: doc.bonusPoint,
   status: doc.status,
+  assigner: doc.assigner,
   assignee: doc.assignee,
   visible: doc.visible,
   note: doc.note || "",
@@ -127,6 +161,8 @@ export const createProgramUpgrade = async (req, res) => {
 
   const createdUpgrade = await ProgramUpgrade.create({
     ...payload,
+    time: validationResult.time,
+    convert: validationResult.convert,
     createdBy: req.user.sub,
   });
 
@@ -222,9 +258,12 @@ export const updateProgramUpgrade = async (req, res) => {
     programId: normalizedInput.programId || String(existing.programId),
     upgradeItem: normalizedInput.upgradeItem || existing.upgradeItem,
     priority: normalizedInput.priority || existing.priority,
+    durationValue: normalizedInput.durationValue === null ? existing.durationValue : normalizedInput.durationValue,
+    durationUnit: normalizedInput.durationUnit || existing.durationUnit,
     slaHours: normalizedInput.slaHours === null ? existing.slaHours : normalizedInput.slaHours,
     bonusPoint: normalizedInput.bonusPoint === null ? existing.bonusPoint : normalizedInput.bonusPoint,
     status: normalizedInput.status || existing.status,
+    assigner: normalizedInput.assigner || existing.assigner,
     assignee: normalizedInput.assignee || existing.assignee,
     visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
@@ -238,9 +277,14 @@ export const updateProgramUpgrade = async (req, res) => {
   existing.programId = mergedPayload.programId;
   existing.upgradeItem = mergedPayload.upgradeItem;
   existing.priority = mergedPayload.priority;
+  existing.durationValue = mergedPayload.durationValue;
+  existing.durationUnit = mergedPayload.durationUnit;
+  existing.time = validationResult.time;
+  existing.convert = validationResult.convert;
   existing.slaHours = mergedPayload.slaHours;
   existing.bonusPoint = mergedPayload.bonusPoint;
   existing.status = mergedPayload.status;
+  existing.assigner = mergedPayload.assigner;
   existing.assignee = mergedPayload.assignee;
   existing.visible = mergedPayload.visible;
   existing.note = mergedPayload.note;

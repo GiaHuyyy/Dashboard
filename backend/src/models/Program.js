@@ -27,6 +27,17 @@ const programSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    assigner: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    assignee: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true,
+    },
     type: {
       type: String,
       required: true,

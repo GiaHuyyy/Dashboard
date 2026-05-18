@@ -18,6 +18,26 @@ const programUpgradeSchema = new mongoose.Schema(
       required: true,
       enum: ["Thấp", "Trung bình", "Cao", "Khẩn"],
     },
+    durationValue: {
+      type: Number,
+      required: true,
+      min: 0.1,
+    },
+    durationUnit: {
+      type: String,
+      required: true,
+      enum: ["h", "ngày"],
+    },
+    time: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    convert: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     slaHours: {
       type: Number,
       required: true,
@@ -36,6 +56,11 @@ const programUpgradeSchema = new mongoose.Schema(
       index: true,
     },
     assignee: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    assigner: {
       type: String,
       required: true,
       trim: true,
