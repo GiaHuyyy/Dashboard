@@ -5,8 +5,8 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
-import { CORRECTION_STAFF_OPTIONS, CORRECTION_STATUS_OPTIONS } from "@/constants/program-correction";
-import { correctionApi } from "@/lib/api-client";
+import { UPGRADE_STAFF_OPTIONS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
+import { upgradeApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,25 +20,13 @@ const PRIORITY_COLORS = {
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
-const PROGRAMMER_OPTIONS = ["Tất cả", ...CORRECTION_STAFF_OPTIONS];
+const ASSIGNEE_OPTIONS = ["Tất cả", ...UPGRADE_STAFF_OPTIONS];
 
-const formatDateTime = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-
-function ProgramEditManagement() {
+function ProgramUpgradeManagement() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedProgrammer, setSelectedProgrammer] = useState("Tất cả");
+  const [selectedAssignee, setSelectedAssignee] = useState("Tất cả");
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [selectedYear, setSelectedYear] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
@@ -46,103 +34,34 @@ function ProgramEditManagement() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
 
-  const fetchCorrections = useCallback(async () => {
+  const fetchUpgrades = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await correctionApi.list({
-        assignee: selectedProgrammer === "Tất cả" ? "all" : selectedProgrammer,
+      const response = await upgradeApi.list({
+        assignee: selectedAssignee === "Tất cả" ? "all" : selectedAssignee,
         month: selectedMonth === "Tất cả" ? "all" : Number(selectedMonth.split(" ")[1]),
         year: selectedYear === "Tất cả" ? "all" : Number(selectedYear),
         search: searchText.trim(),
         limit: 200,
       });
-      const nextRows = Array.isArray(response?.corrections) ? response.corrections : [];
+      const nextRows = Array.isArray(response?.upgrades) ? response.upgrades : [];
       setRows(nextRows);
       setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
     } catch (error) {
-      toast.error(error?.message || "Không thể tải danh sách chỉnh sửa");
+      toast.error(error?.message || "Không thể tải danh sách nâng cấp");
     } finally {
       setIsLoading(false);
     }
-  }, [searchText, selectedMonth, selectedProgrammer, selectedYear]);
+  }, [searchText, selectedAssignee, selectedMonth, selectedYear]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchCorrections();
-  }, [fetchCorrections]);
+    void fetchUpgrades();
+  }, [fetchUpgrades]);
 
   const displayedRows = rows;
   const displayedIds = displayedRows.map((item) => item.id);
   const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
-
-  const openCreateForm = () => {
-    navigate("/lap-trinh/quan-ly-chinh-sua/them-moi");
-  };
-
-  const openEditForm = (row) => {
-    navigate(`/lap-trinh/quan-ly-chinh-sua/${row.id}`);
-  };
-
-  const handleInlineUpdate = async (rowId, patch) => {
-    const target = rows.find((item) => item.id === rowId);
-    if (!target) return;
-    const payload = {
-      programId: target.programId,
-      issueContent: target.issueContent,
-      priority: target.priority,
-      assigner: target.assigner,
-      assignee: target.assignee,
-      assignedAt: target.assignedAt,
-      receivedAt: target.receivedAt || null,
-      dueAt: target.dueAt,
-      completedAt: target.completedAt || null,
-      status: target.status,
-      visible: target.visible,
-      note: target.note || "",
-      ...patch,
-    };
-
-    try {
-      const response = await correctionApi.update(rowId, payload);
-      const updated = response?.correction;
-      if (!updated) return;
-      setRows((prev) => prev.map((item) => (item.id === rowId ? updated : item)));
-    } catch (error) {
-      toast.error(error?.message || "Cập nhật không thành công");
-    }
-  };
-
-  const handleDeleteOne = async (rowId) => {
-    try {
-      await correctionApi.remove(rowId);
-      setRows((prev) => prev.filter((item) => item.id !== rowId));
-      setSelectedIds((prev) => prev.filter((item) => item !== rowId));
-      toast.success("Đã xóa yêu cầu chỉnh sửa");
-    } catch (error) {
-      toast.error(error?.message || "Xóa dữ liệu không thành công");
-    }
-  };
-
-  const handleDeleteMany = async () => {
-    try {
-      if (selectedIds.length > 0) {
-        const response = await correctionApi.removeMany(selectedIds);
-        setRows((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
-        toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} yêu cầu chỉnh sửa`);
-      } else {
-        const response = await correctionApi.removeMany([]);
-        setRows([]);
-        toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) yêu cầu chỉnh sửa`);
-      }
-    } catch (error) {
-      toast.error(error?.message || "Xóa dữ liệu không thành công");
-    } finally {
-      setDeleteOpen(false);
-      setDeleteRow(null);
-    }
-  };
 
   const handleToggleAll = (checked) => {
     if (checked) {
@@ -162,16 +81,70 @@ function ProgramEditManagement() {
     });
   };
 
-  const openDeleteMany = () => {
-    setDeleteRow(null);
-    setDeleteOpen(true);
+  const handleInlineUpdate = async (rowId, patch) => {
+    const target = rows.find((item) => item.id === rowId);
+    if (!target) return;
+    const payload = {
+      programId: target.programId,
+      upgradeItem: target.upgradeItem,
+      priority: target.priority,
+      slaHours: target.slaHours,
+      bonusPoint: target.bonusPoint,
+      status: target.status,
+      assignee: target.assignee,
+      visible: target.visible,
+      note: target.note || "",
+      ...patch,
+    };
+    try {
+      const response = await upgradeApi.update(rowId, payload);
+      const updated = response?.upgrade;
+      if (!updated) return;
+      setRows((prev) => prev.map((item) => (item.id === rowId ? updated : item)));
+    } catch (error) {
+      toast.error(error?.message || "Cập nhật không thành công");
+    }
+  };
+
+  const handleDeleteOne = async (rowId) => {
+    try {
+      await upgradeApi.remove(rowId);
+      setRows((prev) => prev.filter((item) => item.id !== rowId));
+      setSelectedIds((prev) => prev.filter((item) => item !== rowId));
+      toast.success("Đã xóa yêu cầu nâng cấp");
+    } catch (error) {
+      toast.error(error?.message || "Xóa dữ liệu không thành công");
+    }
+  };
+
+  const handleDeleteMany = async () => {
+    try {
+      if (selectedIds.length > 0) {
+        const response = await upgradeApi.removeMany(selectedIds);
+        setRows((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
+        setSelectedIds([]);
+        toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} yêu cầu nâng cấp`);
+      } else {
+        const response = await upgradeApi.removeMany([]);
+        setRows([]);
+        toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) yêu cầu nâng cấp`);
+      }
+    } catch (error) {
+      toast.error(error?.message || "Xóa dữ liệu không thành công");
+    } finally {
+      setDeleteOpen(false);
+      setDeleteRow(null);
+    }
   };
 
   return (
     <>
       <ManagementActions
-        onAdd={openCreateForm}
-        onDeleteAll={openDeleteMany}
+        onAdd={() => navigate("/lap-trinh/nang-cap/them-moi")}
+        onDeleteAll={() => {
+          setDeleteRow(null);
+          setDeleteOpen(true);
+        }}
         deleteDisabled={rows.length === 0}
         deleteLabel={deleteManyLabel}
       />
@@ -179,10 +152,10 @@ function ProgramEditManagement() {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-          value={selectedProgrammer}
-          onChange={(event) => setSelectedProgrammer(event.target.value)}
+          value={selectedAssignee}
+          onChange={(event) => setSelectedAssignee(event.target.value)}
         >
-          {PROGRAMMER_OPTIONS.map((option) => (
+          {ASSIGNEE_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option === "Tất cả" ? "Chọn lập trình" : option}
             </option>
@@ -214,7 +187,11 @@ function ProgramEditManagement() {
         </select>
       </div>
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm số HĐ, module, mô tả">
+      <ManagementTableCard
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm số HĐ, module, hạng mục"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
@@ -227,33 +204,51 @@ function ProgramEditManagement() {
                   onClick={(event) => event.stopPropagation()}
                 />
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Số HĐ</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Module</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mức độ</TableHead>
-              <TableHead className="border border-slate-200 p-4 px-8 text-center font-semibold text-slate-500">Trạng thái</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Người giao</TableHead>
-              <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">Chuyển lập trình</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày giao</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày nhận</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày dự kiến</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày hoàn thành
+                STT
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hiển thị</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Thao tác</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Phiếu gốc (HĐ)
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Module
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Hạng mục nâng cấp
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ưu tiên
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                SLA
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 px-6 text-center font-semibold text-slate-500">
+                Trạng thái
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Điểm cộng thêm
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 px-10 text-center font-semibold text-slate-500">
+                Lập trình
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Hiển thị
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Thao tác
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -262,7 +257,7 @@ function ProgramEditManagement() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => openEditForm(row)}
+                  onClick={() => navigate(`/lap-trinh/nang-cap/${row.id}`)}
                 >
                   <TableCell className="border border-slate-200 p-4">
                     <input
@@ -275,43 +270,48 @@ function ProgramEditManagement() {
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
+                    {row.contractCode}
+                  </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.module}</TableCell>
-                  <TableCell className={`border border-slate-200 p-4 font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}>
+                  <TableCell className="border border-slate-200 p-4 text-left">{row.upgradeItem}</TableCell>
+                  <TableCell
+                    className={`border border-slate-200 p-4 font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}
+                  >
                     {row.priority}
                   </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.slaHours}h</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
                       value={row.status}
                       onChange={(event) => void handleInlineUpdate(row.id, { status: event.target.value })}
                     >
-                      {CORRECTION_STATUS_OPTIONS.map((option) => (
+                      {UPGRADE_STATUS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-left">{row.assigner}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
                       value={row.assignee}
                       onChange={(event) => void handleInlineUpdate(row.id, { assignee: event.target.value })}
                     >
-                      {CORRECTION_STAFF_OPTIONS.map((option) => (
+                      {UPGRADE_STAFF_OPTIONS.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{formatDateTime(row.assignedAt)}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{formatDateTime(row.receivedAt)}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{formatDateTime(row.dueAt)}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{formatDateTime(row.completedAt)}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-center" onClick={(event) => event.stopPropagation()}>
+                  <TableCell
+                    className="border border-slate-200 p-4 text-center"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <input
                       type="checkbox"
                       checked={row.visible}
@@ -324,7 +324,7 @@ function ProgramEditManagement() {
                         icon={SquarePen}
                         onClick={(event) => {
                           event.stopPropagation();
-                          openEditForm(row);
+                          navigate(`/lap-trinh/nang-cap/${row.id}`);
                         }}
                         variant="primary-outline"
                         iconOnly
@@ -396,11 +396,11 @@ function ProgramEditManagement() {
         ) : selectedIds.length > 0 ? (
           <p className="text-sm text-slate-600">Bạn có chắc muốn xóa {selectedIds.length} mục đã chọn?</p>
         ) : (
-          <p className="text-sm text-slate-600">Bạn có chắc muốn xóa toàn bộ danh sách chỉnh sửa?</p>
+          <p className="text-sm text-slate-600">Bạn có chắc muốn xóa toàn bộ danh sách nâng cấp?</p>
         )}
       </Modal>
     </>
   );
 }
 
-export default ProgramEditManagement;
+export default ProgramUpgradeManagement;

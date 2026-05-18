@@ -11,6 +11,8 @@ import ProgramCorrectionForm from "./pages/program/ProgramCorrectionForm";
 import ListProgram from "./pages/program/ListProgram";
 import ProgramEditManagement from "./pages/program/ProgramEditManagement";
 import ProgramForm from "./pages/program/ProgramForm";
+import ProgramUpgradeForm from "./pages/program/ProgramUpgradeForm";
+import ProgramUpgradeManagement from "./pages/program/ProgramUpgradeManagement";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import { fetchCurrentUser, logoutUser } from "./store/auth-slice";
@@ -113,7 +115,9 @@ function App() {
           <Route path="lap-trinh/danh-sach" element={<ListProgram />} />
           <Route path="lap-trinh/them-moi" element={<ProgramForm />} />
           <Route path="lap-trinh/chinh-sua/:id" element={<ProgramForm />} />
-          <Route path="lap-trinh/nang-cap" element={<Placeholder title="Danh sách nâng cấp" />} />
+          <Route path="lap-trinh/nang-cap" element={<ProgramUpgradeManagement />} />
+          <Route path="lap-trinh/nang-cap/them-moi" element={<ProgramUpgradeForm />} />
+          <Route path="lap-trinh/nang-cap/:id" element={<ProgramUpgradeForm />} />
           <Route path="lap-trinh/chinh-sua" element={<ProgramEditManagement />} />
           <Route path="lap-trinh/quan-ly-chinh-sua/them-moi" element={<ProgramCorrectionForm />} />
           <Route path="lap-trinh/quan-ly-chinh-sua/:id" element={<ProgramCorrectionForm />} />

@@ -128,3 +128,36 @@ export const correctionApi = {
       body: JSON.stringify({ ids }),
     }),
 };
+
+export const upgradeApi = {
+  list: ({ assignee = "all", month = "all", year = "all", search = "", page = 1, limit = 50 } = {}) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("assignee", assignee);
+    searchParams.set("month", String(month));
+    searchParams.set("year", String(year));
+    searchParams.set("search", search);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
+    return request(`/program-upgrades?${searchParams.toString()}`);
+  },
+  create: (payload) =>
+    request("/program-upgrades", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  detail: (id) => request(`/program-upgrades/${id}`),
+  update: (id, payload) =>
+    request(`/program-upgrades/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id) =>
+    request(`/program-upgrades/${id}`, {
+      method: "DELETE",
+    }),
+  removeMany: (ids) =>
+    request("/program-upgrades", {
+      method: "DELETE",
+      body: JSON.stringify({ ids }),
+    }),
+};
