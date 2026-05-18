@@ -13,10 +13,10 @@ import {
   DURATION_UNIT_OPTIONS,
   MAIL_STATUS_OPTIONS,
   MODULE_OPTIONS,
-  SALES_STAFF_OPTIONS,
   STATUS_OPTIONS,
 } from "@/constants/program";
 import { programApi, staffApi } from "@/lib/api-client";
+import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { uploadApi } from "@/lib/upload";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -120,7 +120,7 @@ const defaultValues = {
   contractCode: "",
   status: STATUS_OPTIONS[0],
   mailStatus: MAIL_STATUS_OPTIONS[0],
-  selectedSalesStaff: SALES_STAFF_OPTIONS[0],
+  selectedSalesStaff: "",
   salesReceiverName: "",
   salesReceiverEmail: "",
   ccEmails: "",
@@ -136,7 +136,7 @@ function ProgramForm() {
   const contractImagesRef = useRef([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isLoadingProgram, setIsLoadingProgram] = useState(false);
-  const [staffOptions, setStaffOptions] = useState([]);
+  const [staffReferences, setStaffReferences] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
 
@@ -159,18 +159,30 @@ function ProgramForm() {
     const fetchStaffs = async () => {
       try {
         const response = await staffApi.references();
-        const nextOptions = Array.isArray(response?.staffs) ? response.staffs.map((item) => item.fullName).filter(Boolean) : [];
-        setStaffOptions(nextOptions);
-        if (nextOptions.length > 0) {
-          setValue("assigner", nextOptions[0], { shouldValidate: true });
-          setValue("assignee", nextOptions[0], { shouldValidate: true });
+        const nextReferences = Array.isArray(response?.staffs) ? response.staffs : [];
+        setStaffReferences(nextReferences);
+        const managerOptions = getStaffNamesByRole(nextReferences, "Quản lý");
+        const programmerOptions = getStaffNamesByRole(nextReferences, "Lập trình viên");
+        const salesOptions = getStaffNamesByRole(nextReferences, "Nhân viên kinh doanh");
+        if (!isEditMode && managerOptions.length > 0) {
+          setValue("assigner", managerOptions[0], { shouldValidate: true });
+        }
+        if (!isEditMode && programmerOptions.length > 0) {
+          setValue("assignee", programmerOptions[0], { shouldValidate: true });
+        }
+        if (!isEditMode && salesOptions.length > 0) {
+          setValue("selectedSalesStaff", salesOptions[0], { shouldValidate: true });
         }
       } catch (error) {
         toast.error(error?.message || "Không thể tải danh sách nhân sự");
       }
     };
     void fetchStaffs();
-  }, [setValue]);
+  }, [isEditMode, setValue]);
+
+  const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
+  const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
+  const salesOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh"));
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
@@ -222,7 +234,7 @@ function ProgramForm() {
           contractCode: program.contractCode || "",
           status: program.status || STATUS_OPTIONS[0],
           mailStatus: program.mailStatus || MAIL_STATUS_OPTIONS[0],
-          selectedSalesStaff: program.selectedSalesStaff || SALES_STAFF_OPTIONS[0],
+          selectedSalesStaff: program.selectedSalesStaff || "",
           salesReceiverName: program.salesReceiverName || "",
           salesReceiverEmail: program.salesReceiverEmail || "",
           ccEmails: Array.isArray(program.ccEmails) ? program.ccEmails.join(", ") : "",
@@ -403,13 +415,14 @@ function ProgramForm() {
             errors={errors}
             contractImages={contractImages}
             onFilesSelected={handleContractImageChange}
-            onRemoveImage={removeContractImage}
-            onImageClick={setLightboxIndex}
-            isUploading={isUploadingImages}
-            staffOptions={staffOptions}
-          />
+             onRemoveImage={removeContractImage}
+             onImageClick={setLightboxIndex}
+             isUploading={isUploadingImages}
+             assignerOptions={assignerOptions}
+             assigneeOptions={assigneeOptions}
+           />
 
-          <ContractInfo register={register} errors={errors} />
+           <ContractInfo register={register} errors={errors} salesOptions={salesOptions} />
         </div>
       </div>
 

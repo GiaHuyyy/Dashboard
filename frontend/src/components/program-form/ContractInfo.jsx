@@ -1,7 +1,7 @@
 import FormField from "@/components/ui/form-field";
-import { MAIL_STATUS_OPTIONS, SALES_STAFF_OPTIONS, STATUS_OPTIONS } from "@/constants/program";
+import { MAIL_STATUS_OPTIONS, STATUS_OPTIONS } from "@/constants/program";
 
-export function ContractInfo({ register, errors }) {
+export function ContractInfo({ register, errors, salesOptions = [] }) {
   return (
     <div className="space-y-4 gap-1 flex flex-col rounded-xl border border-slate-100 p-4">
       <p className="text-md font-semibold text-slate-700">Thông tin hợp đồng</p>
@@ -44,7 +44,7 @@ export function ContractInfo({ register, errors }) {
       <FormField
         label="Chọn nhân viên kinh doanh"
         type="select"
-        options={SALES_STAFF_OPTIONS.map((item) => ({ label: item, value: item }))}
+        options={salesOptions}
         selectProps={register("selectedSalesStaff")}
         error={errors.selectedSalesStaff?.message}
       />

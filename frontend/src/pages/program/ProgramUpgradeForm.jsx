@@ -9,6 +9,7 @@ import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { UPGRADE_PRIORITY_OPTIONS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
 import { programApi, staffApi, upgradeApi } from "@/lib/api-client";
+import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 
@@ -76,7 +77,7 @@ function ProgramUpgradeForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [programReferences, setProgramReferences] = useState([]);
-  const [staffOptions, setStaffOptions] = useState([]);
+  const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
@@ -114,11 +115,15 @@ function ProgramUpgradeForm() {
     const fetchStaffs = async () => {
       try {
         const response = await staffApi.references();
-        const nextOptions = Array.isArray(response?.staffs) ? response.staffs.map((item) => item.fullName).filter(Boolean) : [];
-        setStaffOptions(nextOptions);
-        if (!isEditMode && nextOptions.length > 0) {
-          setValue("assigner", nextOptions[0], { shouldValidate: true });
-          setValue("assignee", nextOptions[0], { shouldValidate: true });
+        const nextReferences = Array.isArray(response?.staffs) ? response.staffs : [];
+        setStaffReferences(nextReferences);
+        const managerOptions = getStaffNamesByRole(nextReferences, "Quản lý");
+        const programmerOptions = getStaffNamesByRole(nextReferences, "Lập trình viên");
+        if (!isEditMode && managerOptions.length > 0) {
+          setValue("assigner", managerOptions[0], { shouldValidate: true });
+        }
+        if (!isEditMode && programmerOptions.length > 0) {
+          setValue("assignee", programmerOptions[0], { shouldValidate: true });
         }
       } catch (error) {
         toast.error(error?.message || "Không thể tải danh sách nhân sự");
@@ -126,6 +131,9 @@ function ProgramUpgradeForm() {
     };
     void fetchStaffs();
   }, [isEditMode, setValue]);
+
+  const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
+  const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
 
   useEffect(() => {
     const fetchSources = async () => {
@@ -368,18 +376,18 @@ function ProgramUpgradeForm() {
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
 
-            <FormField
-              label="Người giao"
-              type="select"
-               options={staffOptions.map((item) => ({ label: item, value: item }))}
+             <FormField
+               label="Người giao"
+               type="select"
+               options={assignerOptions}
                selectProps={register("assigner")}
                error={errors.assigner?.message}
              />
 
-            <FormField
-              label="Người nhận"
-              type="select"
-               options={staffOptions.map((item) => ({ label: item, value: item }))}
+             <FormField
+               label="Người nhận"
+               type="select"
+               options={assigneeOptions}
                selectProps={register("assignee")}
                error={errors.assignee?.message}
              />

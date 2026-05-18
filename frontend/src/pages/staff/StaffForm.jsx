@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -8,6 +8,7 @@ import { z } from "zod";
 import { FormActions } from "@/components/program-form/FormActions";
 import { staffApi } from "@/lib/api-client";
 import FormField from "@/components/ui/form-field";
+import { STAFF_ROLE_OPTIONS, getDepartmentByRole } from "@/lib/staff-roles";
 
 const schema = z.object({
   fullName: z.string().trim().min(2, "Vui lòng nhập họ tên"),
@@ -36,11 +37,20 @@ function StaffForm() {
     register,
     handleSubmit,
     reset,
+    setValue,
+    control,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues,
   });
+
+  const watchedRole = useWatch({ control, name: "role" });
+
+  useEffect(() => {
+    if (!watchedRole) return;
+    setValue("department", getDepartmentByRole(watchedRole), { shouldValidate: true });
+  }, [setValue, watchedRole]);
 
   useEffect(() => {
     if (!isEditMode) return;
@@ -57,7 +67,7 @@ function StaffForm() {
           fullName: staff.fullName || "",
           email: staff.email || "",
           phone: staff.phone || "",
-          department: staff.department || "Lập trình",
+          department: staff.department || getDepartmentByRole(staff.role || "Lập trình viên"),
           role: staff.role || "Lập trình viên",
           isActive: Boolean(staff.isActive),
         });
@@ -120,13 +130,19 @@ function StaffForm() {
             inputProps={{ ...register("phone") }}
             error={errors.phone?.message}
           />
-          <FormField
-            label="Phòng ban"
-            type="text"
-            inputProps={{ ...register("department") }}
-            error={errors.department?.message}
-          />
-          <FormField label="Vai trò" type="text" inputProps={{ ...register("role") }} error={errors.role?.message} />
+           <FormField
+             label="Phòng ban"
+             type="text"
+             inputProps={{ ...register("department"), readOnly: true, className: "bg-slate-50" }}
+             error={errors.department?.message}
+           />
+           <FormField
+             label="Vai trò"
+             type="select"
+             options={STAFF_ROLE_OPTIONS.map((item) => ({ label: item, value: item }))}
+             selectProps={register("role")}
+             error={errors.role?.message}
+           />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input type="checkbox" {...register("isActive")} />
             Đang hoạt động

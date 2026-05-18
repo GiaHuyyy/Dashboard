@@ -27,7 +27,7 @@ const staffSchema = new mongoose.Schema(
     role: {
       type: String,
       trim: true,
-      default: "Nhân sự",
+      default: "Lập trình viên",
     },
     isActive: {
       type: Boolean,

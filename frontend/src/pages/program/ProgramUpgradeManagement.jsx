@@ -7,6 +7,7 @@ import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
 import { UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
 import { staffApi, upgradeApi } from "@/lib/api-client";
+import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,7 +34,7 @@ function ProgramUpgradeManagement() {
   const [deleteRow, setDeleteRow] = useState(null);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
-  const [staffOptions, setStaffOptions] = useState([]);
+  const [staffReferences, setStaffReferences] = useState([]);
 
   const fetchUpgrades = useCallback(async () => {
     setIsLoading(true);
@@ -64,14 +65,16 @@ function ProgramUpgradeManagement() {
     const fetchStaffs = async () => {
       try {
         const response = await staffApi.references();
-        const nextOptions = Array.isArray(response?.staffs) ? response.staffs.map((item) => item.fullName).filter(Boolean) : [];
-        setStaffOptions(nextOptions);
+        const nextReferences = Array.isArray(response?.staffs) ? response.staffs : [];
+        setStaffReferences(nextReferences);
       } catch {
-        setStaffOptions([]);
+        setStaffReferences([]);
       }
     };
     void fetchStaffs();
   }, []);
+
+  const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
 
   const displayedRows = rows;
   const displayedIds = displayedRows.map((item) => item.id);
@@ -190,7 +193,7 @@ function ProgramUpgradeManagement() {
           value={selectedAssignee}
           onChange={(event) => setSelectedAssignee(event.target.value)}
         >
-          {["Tất cả", ...staffOptions].map((option) => (
+          {["Tất cả", ...assigneeOptions.map((item) => item.value)].map((option) => (
             <option key={option} value={option}>
               {option === "Tất cả" ? "Chọn lập trình" : option}
             </option>
@@ -346,7 +349,7 @@ function ProgramUpgradeManagement() {
                       disabled={row.status === "Hoàn thành"}
                       onChange={(event) => void handleInlineUpdate(row.id, { assignee: event.target.value })}
                     >
-                      {staffOptions.map((option) => (
+                      {assigneeOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>

@@ -3,6 +3,11 @@ import mongoose from "mongoose";
 import Staff from "../models/Staff.js";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ROLE_DEPARTMENT_MAP = {
+  "Lập trình viên": "Lập trình",
+  "Nhân viên kinh doanh": "Kinh doanh",
+  "Quản lý": "Quản lý",
+};
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -18,8 +23,8 @@ const normalizePayload = (body = {}) => ({
   fullName: normalizeString(body.fullName),
   email: normalizeString(body.email).toLowerCase(),
   phone: normalizeString(body.phone),
-  department: normalizeString(body.department) || "Lập trình",
-  role: normalizeString(body.role) || "Nhân sự",
+  role: normalizeString(body.role) || "Lập trình viên",
+  department: "",
   isActive: normalizeBoolean(body.isActive),
 });
 
@@ -49,6 +54,7 @@ const toResponseItem = (doc) => ({
 
 export const createStaff = async (req, res) => {
   const payload = normalizePayload(req.body);
+  payload.department = ROLE_DEPARTMENT_MAP[payload.role] || normalizeString(req.body.department) || "Khác";
   const validation = await validatePayload(payload);
   if (validation) return res.status(validation.status).json({ message: validation.message });
 
@@ -79,11 +85,16 @@ export const listStaffs = async (req, res) => {
 };
 
 export const listStaffReferences = async (req, res) => {
-  const staffs = await Staff.find({ isDeleted: false, isActive: true }).sort({ fullName: 1 }).select("fullName").lean();
+  const staffs = await Staff.find({ isDeleted: false, isActive: true })
+    .sort({ fullName: 1 })
+    .select("fullName role department")
+    .lean();
   return res.json({
     staffs: staffs.map((item) => ({
       id: item._id,
       fullName: item.fullName,
+      role: item.role || "",
+      department: item.department || "",
     })),
   });
 };
@@ -105,8 +116,8 @@ export const updateStaff = async (req, res) => {
     fullName: input.fullName || existing.fullName,
     email: input.email || existing.email,
     phone: typeof req.body.phone === "string" ? input.phone : existing.phone,
-    department: input.department || existing.department,
     role: input.role || existing.role,
+    department: ROLE_DEPARTMENT_MAP[input.role || existing.role] || input.department || existing.department,
     isActive: input.isActive === null ? existing.isActive : input.isActive,
   };
   const validation = await validatePayload(merged, { excludeId: String(existing._id) });
