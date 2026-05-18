@@ -350,8 +350,8 @@ function ProgramUpgradeManagement() {
                       onChange={(event) => void handleInlineUpdate(row.id, { assignee: event.target.value })}
                     >
                       {assigneeOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
+                        <option key={option.value} value={option.value}>
+                          {option.label}
                         </option>
                       ))}
                     </select>
