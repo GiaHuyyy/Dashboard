@@ -345,7 +345,7 @@ export const listProgramReferences = async (req, res) => {
     $or: [{ type: "program" }, { type: { $exists: false } }],
   })
     .sort({ programCreatedAt: 1, createdAt: 1 })
-    .select("contractCode module contractName time convert durationValue durationUnit")
+    .select("contractCode module contractName time convert durationValue durationUnit salesReceiverEmail ccEmails")
     .lean();
 
   return res.json({
@@ -358,6 +358,8 @@ export const listProgramReferences = async (req, res) => {
       convert: item.convert || "",
       durationValue: item.durationValue ?? null,
       durationUnit: item.durationUnit || "",
+      salesReceiverEmail: item.salesReceiverEmail || "",
+      ccEmails: Array.isArray(item.ccEmails) ? item.ccEmails : [],
     })),
   });
 };

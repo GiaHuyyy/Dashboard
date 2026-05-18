@@ -3,6 +3,7 @@ import { Router } from "express";
 import authRoutes from "./auth.js";
 import programCorrectionRoutes from "./program-correction.js";
 import programPointRoutes from "./program-point.js";
+import programSourceRoutes from "./program-source.js";
 import programUpgradeRoutes from "./program-upgrade.js";
 import programRoutes from "./program.js";
 import staffRoutes from "./staff.js";
@@ -22,6 +23,7 @@ router.use("/staffs", staffRoutes);
 router.use("/program-corrections", programCorrectionRoutes);
 router.use("/program-points", programPointRoutes);
 router.use("/program-upgrades", programUpgradeRoutes);
+router.use("/program-sources", programSourceRoutes);
 router.use("/upload", uploadRoutes);
 
 router.get("/protected", authenticate, (req, res) => {

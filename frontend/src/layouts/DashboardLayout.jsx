@@ -8,7 +8,19 @@ import { authApi } from "@/lib/api-client";
 import { logoutUser } from "@/store/auth-slice";
 
 const navItems = [
-  { label: "Quản lý hệ thống", path: "/he-thong", icon: FileText },
+  {
+    label: "Quản lý hệ thống",
+    path: "/he-thong",
+    icon: FileText,
+    children: [
+      {
+        label: "Quản lý source",
+        path: "/he-thong/source",
+        activePathPrefixes: ["/he-thong/source/"],
+      },
+      { label: "Quản lý server", path: "/he-thong/server" },
+    ],
+  },
   { label: "Quản lý bảng giá", path: "/bang-gia", icon: FileText },
   {
     label: "Quản lý lập trình",
