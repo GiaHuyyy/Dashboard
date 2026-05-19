@@ -71,7 +71,10 @@ const toDateInput = (value) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 function DesignForm() {
@@ -115,7 +118,8 @@ function DesignForm() {
 
         if (!isEditMode) {
           const manager = staffs.find((item) => item.role === "Quản lý");
-          const designer = staffs.find((item) => item.role === "Thiết kế") || staffs.find((item) => item.role === "Thiết kế viên");
+          const designer =
+            staffs.find((item) => item.role === "Thiết kế") || staffs.find((item) => item.role === "Thiết kế viên");
           const nextDefault = {
             ...defaultValues,
             assigner: manager?.fullName || "",
@@ -199,7 +203,7 @@ function DesignForm() {
       handoverDate: values.handoverDate || null,
       receiveDate: values.receiveDate || null,
       expectedDate: values.expectedDate || null,
-      completedDate: values.status === "Hoàn thành" ? values.completedDate || new Date().toISOString().slice(0, 10) : null,
+      completedDate: values.completedDate || null,
       note: values.note || "",
     };
 
@@ -266,7 +270,7 @@ function DesignForm() {
         <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
           Thông tin công việc design
         </div>
-        <div className="grid gap-5 p-5">
+        <div className="grid gap-5 p-5 lg:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
 

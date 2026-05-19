@@ -185,12 +185,6 @@ export const getDesignTaskById = async (req, res) => {
 
 export const createDesignTask = async (req, res) => {
   const payload = normalizePayload(req.body);
-  if (payload.status === "Hoàn thành" && !payload.completedDate) {
-    payload.completedDate = new Date();
-  }
-  if (payload.status !== "Hoàn thành") {
-    payload.completedDate = null;
-  }
   payload.deadline = payload.expectedDate;
   const validationError = await validatePayload(payload);
   if (validationError) return res.status(validationError.status).json({ message: validationError.message });
@@ -229,12 +223,6 @@ export const updateDesignTask = async (req, res) => {
     visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
-  if (mergedPayload.status === "Hoàn thành" && !mergedPayload.completedDate) {
-    mergedPayload.completedDate = new Date();
-  }
-  if (mergedPayload.status !== "Hoàn thành") {
-    mergedPayload.completedDate = null;
-  }
   mergedPayload.deadline = mergedPayload.expectedDate;
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));

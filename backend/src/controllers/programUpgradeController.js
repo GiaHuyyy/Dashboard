@@ -176,13 +176,6 @@ export const createProgramUpgrade = async (req, res) => {
   if (validationResult.status) {
     return res.status(validationResult.status).json({ message: validationResult.message });
   }
-  if (payload.status === "Hoàn thành" && !payload.completedAt) {
-    payload.completedAt = new Date();
-  }
-  if (payload.status !== "Hoàn thành") {
-    payload.completedAt = null;
-  }
-
   const createdUpgrade = await ProgramUpgrade.create({
     ...payload,
     time: validationResult.time,
@@ -295,13 +288,6 @@ export const updateProgramUpgrade = async (req, res) => {
     visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
-  if (mergedPayload.status === "Hoàn thành" && !mergedPayload.completedAt) {
-    mergedPayload.completedAt = new Date();
-  }
-  if (mergedPayload.status !== "Hoàn thành") {
-    mergedPayload.completedAt = null;
-  }
-
   const validationResult = await validatePayload(mergedPayload);
   if (validationResult.status) {
     return res.status(validationResult.status).json({ message: validationResult.message });
