@@ -12,11 +12,9 @@ export const uploadContractImage = async (req, res) => {
     return res.status(400).json({ message: "Không có file được gửi" });
   }
 
-  const missingVars = [
-    "CLOUDINARY_CLOUD_NAME",
-    "CLOUDINARY_API_KEY",
-    "CLOUDINARY_API_SECRET",
-  ].filter((key) => !process.env[key]);
+  const missingVars = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"].filter(
+    (key) => !process.env[key],
+  );
 
   if (missingVars.length > 0) {
     return res.status(500).json({
@@ -39,18 +37,7 @@ export const uploadContractImage = async (req, res) => {
       resource_type: "auto",
       folder: process.env.CLOUDINARY_UPLOAD_FOLDER || "dashboard",
     };
-    const preset = process.env.CLOUDINARY_UPLOAD_PRESET?.trim();
-
-    let result;
-    try {
-      result = await uploadWithOptions(preset ? { ...baseOptions, upload_preset: preset } : baseOptions);
-    } catch (error) {
-      if (preset && String(error?.message || "").toLowerCase().includes("upload preset not found")) {
-        result = await uploadWithOptions(baseOptions);
-      } else {
-        throw error;
-      }
-    }
+    const result = await uploadWithOptions(baseOptions);
 
     return res.json({
       message: "Upload thành công",
