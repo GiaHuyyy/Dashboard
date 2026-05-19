@@ -11,7 +11,7 @@ import { SOURCE_DOWNLOAD_STATUS_OPTIONS, SOURCE_SEND_STATUS_OPTIONS } from "@/co
 import { programApi, sourceApi } from "@/lib/api-client";
 
 const schema = z.object({
-  programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
+  programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc (HĐ)"),
   domain: z.string().trim().min(1, "Vui lòng nhập Domain"),
   sourceLink: z.string().trim().url("Link source không hợp lệ"),
   expiresAt: z.string().trim().min(1, "Vui lòng chọn ngày hết hạn tải"),

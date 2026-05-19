@@ -34,6 +34,8 @@ import StaffManagement from "./pages/staff/StaffManagement";
 import SourceForm from "./pages/system/SourceForm";
 import SourceManagement from "./pages/system/SourceManagement";
 import ServerManagement from "./pages/system/ServerManagement";
+import BusinessManagement from "./pages/business/BusinessManagement";
+import BusinessForm from "./pages/business/BusinessForm";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import { fetchCurrentUser, logoutUser } from "./store/auth-slice";
@@ -174,7 +176,10 @@ function App() {
           <Route path="design/them-moi" element={<DesignForm />} />
           <Route path="design/chinh-sua/:id" element={<DesignForm />} />
           <Route path="design/quan-ly-diem" element={<DesignPointManagement />} />
-          <Route path="kinh-doanh" element={<Placeholder title="Quản lý kinh doanh" />} />
+          <Route path="kinh-doanh" element={<Navigate to="/kinh-doanh/danh-sach" replace />} />
+          <Route path="kinh-doanh/danh-sach" element={<BusinessManagement />} />
+          <Route path="kinh-doanh/them-moi" element={<BusinessForm />} />
+          <Route path="kinh-doanh/chinh-sua/:id" element={<BusinessForm />} />
           <Route path="cau-hinh" element={<Placeholder title="Quản lý cấu hình" />} />
           <Route path="bieu-mau" element={<Placeholder title="Biểu mẫu" />} />
         </Route>

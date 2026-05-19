@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -7,33 +7,11 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { ProgramInfo } from "@/components/program-form/ProgramInfo";
-import { ContractInfo } from "@/components/program-form/ContractInfo";
-import { ImageLightbox } from "@/components/program-form/ImageLightbox";
-import Modal from "@/components/ui/modal";
-import {
-  DURATION_UNIT_OPTIONS,
-  MAIL_STATUS_OPTIONS,
-  MODULE_OPTIONS,
-  STATUS_OPTIONS,
-} from "@/constants/program";
-import { designApi, programApi, staffApi } from "@/lib/api-client";
+import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS, STATUS_OPTIONS } from "@/constants/program";
+import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
-import { uploadApi } from "@/lib/upload";
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const nameRegex = /^[\p{L}\s]+$/u;
-const CONTRACT_NAME_MIN_LENGTH = 4;
-const CONTRACT_CODE_MIN_LENGTH = 6;
-const SALES_RECEIVER_NAME_MIN_LENGTH = 4;
-const EMAIL_LOCAL_MIN_LENGTH = 6;
-const EMAIL_LOCAL_HAS_LETTER_REGEX = /[A-Za-zÀ-ỹ]/u;
-const hasValidEmailLocalPart = (email) => {
-  const localPart = (email || "").split("@")[0] || "";
-  if (localPart.length < EMAIL_LOCAL_MIN_LENGTH) {
-    return false;
-  }
-  return EMAIL_LOCAL_HAS_LETTER_REGEX.test(localPart);
-};
+import FormField from "@/components/ui/form-field";
+import Modal from "@/components/ui/modal";
 
 const formatNumber = (value) => {
   const parsed = Number(value);
@@ -49,64 +27,33 @@ const calculateConvertByDuration = (durationValue, durationUnit) => {
   return "";
 };
 
-const programSchema = z.object({
-  module: z.enum(MODULE_OPTIONS, { message: "Vui lòng chọn module hợp lệ" }),
-  durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
-  durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
-  convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
-  assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
-  assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
-  designTaskId: z.string().trim().optional(),
-  design: z.boolean(),
-  visible: z.boolean(),
-  contractImages: z.array(z.any()).optional(),
-  contractName: z
-    .string()
-    .trim()
-    .min(CONTRACT_NAME_MIN_LENGTH, `Tên hợp đồng tối thiểu ${CONTRACT_NAME_MIN_LENGTH} ký tự`),
-  contractCode: z
-    .string()
-    .trim()
-    .min(CONTRACT_CODE_MIN_LENGTH, `Số hợp đồng tối thiểu ${CONTRACT_CODE_MIN_LENGTH} ký tự`),
-  status: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
-  mailStatus: z.enum(MAIL_STATUS_OPTIONS, { message: "Vui lòng chọn mail nhận hợp lệ" }),
-  selectedSalesStaff: z.string().trim().min(1, "Vui lòng chọn nhân viên kinh doanh"),
-  salesReceiverName: z
-    .string()
-    .trim()
-    .min(
-      SALES_RECEIVER_NAME_MIN_LENGTH,
-      `Họ tên kinh doanh nhận mail tối thiểu ${SALES_RECEIVER_NAME_MIN_LENGTH} ký tự`,
-    )
-    .refine((value) => nameRegex.test(value), "Họ tên kinh doanh nhận mail chỉ được chứa chữ và khoảng trắng"),
-  salesReceiverEmail: z
-    .string()
-    .trim()
-    .email("Email kinh doanh nhận không hợp lệ")
-    .refine(
-      (value) => hasValidEmailLocalPart(value),
-      `Email kinh doanh nhận: phần trước @ tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
-    ),
-  ccEmails: z
-    .string()
-    .optional()
-    .refine((value) => {
-      if (!value?.trim()) return true;
-      return value
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean)
-        .every((email) => emailRegex.test(email));
-    }, "Danh sách email cc không hợp lệ")
-    .refine((value) => {
-      if (!value?.trim()) return true;
-      return value
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean)
-        .every((email) => hasValidEmailLocalPart(email));
-    }, `Email cc: phần trước @ tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`),
-})
+const toDateTimeLocal = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60000);
+  return localDate.toISOString().slice(0, 16);
+};
+
+const programSchema = z
+  .object({
+    businessContractId: z.string().trim().min(1, "Vui lòng chọn hợp đồng"),
+    module: z.enum(MODULE_OPTIONS, { message: "Vui lòng chọn module hợp lệ" }),
+    durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
+    durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
+    convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
+    assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
+    assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
+    designTaskId: z.string().trim().optional(),
+    design: z.boolean(),
+    visible: z.boolean(),
+    processingStatus: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+    assignedAt: z.string().trim().min(1, "Vui lòng chọn ngày giao"),
+    receivedAt: z.string().optional(),
+    dueAt: z.string().trim().min(1, "Vui lòng chọn ngày dự kiến"),
+    completedAt: z.string().optional(),
+  })
   .superRefine((values, ctx) => {
     if (values.design && !values.designTaskId?.trim()) {
       ctx.addIssue({
@@ -118,6 +65,7 @@ const programSchema = z.object({
   });
 
 const defaultValues = {
+  businessContractId: "",
   module: MODULE_OPTIONS[0],
   durationValue: 1,
   durationUnit: "ngày",
@@ -127,15 +75,11 @@ const defaultValues = {
   designTaskId: "",
   design: false,
   visible: true,
-  contractImages: [],
-  contractName: "",
-  contractCode: "",
-  status: STATUS_OPTIONS[0],
-  mailStatus: MAIL_STATUS_OPTIONS[0],
-  selectedSalesStaff: "",
-  salesReceiverName: "",
-  salesReceiverEmail: "",
-  ccEmails: "",
+  processingStatus: STATUS_OPTIONS[0],
+  assignedAt: "",
+  receivedAt: "",
+  dueAt: "",
+  completedAt: "",
 };
 
 function ProgramForm() {
@@ -144,14 +88,13 @@ function ProgramForm() {
   const { id: programId } = useParams();
   const returnPath = location.state?.sourcePath || "/lap-trinh/danh-sach";
   const isEditMode = Boolean(programId);
-  const [contractImages, setContractImages] = useState([]);
-  const contractImagesRef = useRef([]);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const businessContractFromState = location.state?.businessContract || null;
+
   const [isLoadingProgram, setIsLoadingProgram] = useState(false);
   const [staffReferences, setStaffReferences] = useState([]);
   const [designReferences, setDesignReferences] = useState([]);
-  const [lightboxIndex, setLightboxIndex] = useState(null);
-  const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
+  const [businessContractReferences, setBusinessContractReferences] = useState([]);
+  const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
 
@@ -171,47 +114,61 @@ function ProgramForm() {
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
   const selectedDesign = useWatch({ control, name: "design" });
   const selectedDesignTaskId = useWatch({ control, name: "designTaskId" });
-  const isReadOnlyMode = isEditMode && initialSnapshot.values.status === "Hoàn thành";
+  const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
+  const selectedProcessingStatus = useWatch({ control, name: "processingStatus" });
+  const isReadOnlyMode = isEditMode && initialSnapshot.processingStatus === "Hoàn thành";
+
+  const selectedBusinessContract = useMemo(
+    () => businessContractReferences.find((item) => item.id === selectedBusinessContractId) || null,
+    [businessContractReferences, selectedBusinessContractId],
+  );
 
   useEffect(() => {
-    const fetchStaffs = async () => {
+    const fetchReferences = async () => {
       try {
-        const [staffResponse, designResponse] = await Promise.all([staffApi.references(), designApi.references()]);
-        const nextReferences = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
+        const [staffResponse, designResponse, businessResponse] = await Promise.all([
+          staffApi.references(),
+          designApi.references(),
+          businessContractApi.references(),
+        ]);
+        const nextStaffReferences = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const nextDesignReferences = Array.isArray(designResponse?.designTasks) ? designResponse.designTasks : [];
-        setStaffReferences(nextReferences);
+        const nextBusinessReferences = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
+
+        setStaffReferences(nextStaffReferences);
         setDesignReferences(nextDesignReferences);
-        const managerOptions = getStaffNamesByRole(nextReferences, "Quản lý");
-        const programmerOptions = getStaffNamesByRole(nextReferences, "Lập trình viên");
-        const salesOptions = getStaffNamesByRole(nextReferences, "Nhân viên kinh doanh");
+        setBusinessContractReferences(nextBusinessReferences);
+
+        const managerOptions = getStaffNamesByRole(nextStaffReferences, "Quản lý");
+        const programmerOptions = getStaffNamesByRole(nextStaffReferences, "Lập trình viên");
         if (!isEditMode && managerOptions.length > 0) {
           setValue("assigner", managerOptions[0], { shouldValidate: true });
         }
         if (!isEditMode && programmerOptions.length > 0) {
           setValue("assignee", programmerOptions[0], { shouldValidate: true });
         }
-        if (!isEditMode && salesOptions.length > 0) {
-          setValue("selectedSalesStaff", salesOptions[0], { shouldValidate: true });
-        }
       } catch (error) {
         toast.error(error?.message || "Không thể tải dữ liệu tham chiếu");
       }
     };
-    void fetchStaffs();
+    void fetchReferences();
   }, [isEditMode, setValue]);
 
   const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
-  const salesOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh"));
   const designTaskOptions = designReferences.map((item) => ({
     label: item?.label || item?.title || "Design",
+    value: item?.id,
+  }));
+  const contractOptions = businessContractReferences.map((item) => ({
+    label: item?.label || `${item.contractCode || "N/A"} - ${item.contractName || "N/A"}`,
     value: item?.id,
   }));
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
-  }, [selectedDurationUnit, selectedDurationValue, setValue]);
+  }, [selectedDurationValue, selectedDurationUnit, setValue]);
 
   useEffect(() => {
     if (!selectedDesign) {
@@ -220,29 +177,22 @@ function ProgramForm() {
   }, [selectedDesign, setValue]);
 
   useEffect(() => {
-    if (!selectedDesign) return;
-    if (selectedDesignTaskId) return;
-    if (designReferences.length === 0) return;
+    if (selectedProcessingStatus === "Hoàn thành") return;
+    setValue("completedAt", "", { shouldValidate: true });
+  }, [selectedProcessingStatus, setValue]);
+
+  useEffect(() => {
+    if (!selectedDesign || selectedDesignTaskId || designReferences.length === 0) return;
     setValue("designTaskId", designReferences[0].id, { shouldValidate: true });
   }, [designReferences, selectedDesign, selectedDesignTaskId, setValue]);
 
   useEffect(() => {
-    contractImagesRef.current = contractImages;
-  }, [contractImages]);
-
-  useEffect(
-    () => () => {
-      contractImagesRef.current.forEach((item) => {
-        if (item.kind === "file" && item.previewUrl) {
-          URL.revokeObjectURL(item.previewUrl);
-        }
-      });
-    },
-    [],
-  );
+    if (isEditMode || !businessContractFromState?.id) return;
+    setValue("businessContractId", businessContractFromState.id, { shouldValidate: true });
+  }, [businessContractFromState, isEditMode, setValue]);
 
   useEffect(() => {
-    if (!programId) return;
+    if (!isEditMode) return;
 
     const fetchProgramDetail = async () => {
       setIsLoadingProgram(true);
@@ -258,33 +208,25 @@ function ProgramForm() {
         const parsedDuration = Number(program.durationValue);
         const safeDuration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 1;
         const formValues = {
+          businessContractId: program.businessContractId || "",
           module: program.module || MODULE_OPTIONS[0],
           durationValue: safeDuration,
           durationUnit: program.durationUnit || "ngày",
           convert: program.convert || "1",
           assigner: program.assigner || "",
           assignee: program.assignee || "",
+          // eslint-disable-next-line no-extra-boolean-cast
           designTaskId: Boolean(program.design) ? program.designTaskId || "" : "",
           design: Boolean(program.design),
           visible: Boolean(program.visible),
-          contractImages: [],
-          contractName: program.contractName || "",
-          contractCode: program.contractCode || "",
-          status: program.status || STATUS_OPTIONS[0],
-          mailStatus: program.mailStatus || MAIL_STATUS_OPTIONS[0],
-          selectedSalesStaff: program.selectedSalesStaff || "",
-          salesReceiverName: program.salesReceiverName || "",
-          salesReceiverEmail: program.salesReceiverEmail || "",
-          ccEmails: Array.isArray(program.ccEmails) ? program.ccEmails.join(", ") : "",
+          processingStatus: program.processingStatus || STATUS_OPTIONS[0],
+          assignedAt: toDateTimeLocal(program.assignedAt),
+          receivedAt: toDateTimeLocal(program.receivedAt),
+          dueAt: toDateTimeLocal(program.dueAt),
+          completedAt: toDateTimeLocal(program.completedAt),
         };
-
-        const initialImages = Array.isArray(program.contractImages)
-          ? program.contractImages.map((url) => ({ kind: "url", url }))
-          : [];
-
         reset(formValues);
-        setContractImages(initialImages);
-        setInitialSnapshot({ values: formValues, images: initialImages });
+        setInitialSnapshot(formValues);
       } catch (error) {
         toast.error(error?.message || "Không thể tải dữ liệu chỉnh sửa");
         navigate(returnPath);
@@ -293,60 +235,28 @@ function ProgramForm() {
       }
     };
 
-    fetchProgramDetail();
-  }, [navigate, programId, reset, returnPath]);
+    void fetchProgramDetail();
+  }, [isEditMode, navigate, programId, reset, returnPath]);
 
   const persistProgram = async (values, mode) => {
     const shouldSendMail = mode === "save-mail";
-    const convertedValue = calculateConvertByDuration(values.durationValue, values.durationUnit);
-    const payloadWithoutImages = {
+    const payload = {
       ...values,
-      contractImages: [],
-      time: `${formatNumber(values.durationValue)} ${values.durationUnit}`,
-      convert: convertedValue,
+      convert: calculateConvertByDuration(values.durationValue, values.durationUnit),
       sendMail: shouldSendMail,
-      ccEmails: values.ccEmails
-        ? values.ccEmails
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean)
-        : [],
+      receivedAt: values.receivedAt || null,
+      completedAt: values.processingStatus === "Hoàn thành" ? values.completedAt || null : null,
     };
 
     try {
       await programApi.validate({
-        ...payloadWithoutImages,
+        ...payload,
         currentProgramId: isEditMode ? programId : undefined,
       });
     } catch (error) {
       toast.error(error?.message || "Lưu dữ liệu không thành công");
       return;
     }
-
-    let uploadedImageUrls = [];
-    const existingImageUrls = contractImages.filter((item) => item.kind === "url").map((item) => item.url);
-    const newImageFiles = contractImages.filter((item) => item.kind === "file").map((item) => item.file);
-
-    if (newImageFiles.length > 0) {
-      setIsUploadingImages(true);
-      try {
-        const uploadPromises = newImageFiles.map(async (file) => {
-          const response = await uploadApi.uploadToCloudinary(file);
-          return response.url;
-        });
-        uploadedImageUrls = await Promise.all(uploadPromises);
-      } catch (error) {
-        toast.error(error?.message || "Upload ảnh hợp đồng không thành công");
-        return;
-      } finally {
-        setIsUploadingImages(false);
-      }
-    }
-
-    const payload = {
-      ...payloadWithoutImages,
-      contractImages: [...existingImageUrls, ...uploadedImageUrls],
-    };
 
     let response;
     try {
@@ -360,17 +270,22 @@ function ProgramForm() {
       return;
     }
 
+    if (mode === "save-stay") {
+      toast.success(response?.message || (isEditMode ? "Đã cập nhật form tại trang" : "Đã lưu form tại trang"));
+      if (!isEditMode && response?.program?.id) {
+        navigate(`/lap-trinh/chinh-sua/${response.program.id}`, { replace: true, state: { sourcePath: returnPath } });
+        return;
+      }
+      setInitialSnapshot(values);
+      reset(values);
+      return;
+    }
+
     if (mode === "save-mail") {
       toast.success(response?.message || (isEditMode ? "Đã cập nhật form và gửi mail" : "Đã lưu form và gửi mail"));
       if (!isEditMode) {
         navigate(returnPath);
-        return;
       }
-      return;
-    }
-
-    if (mode === "save-stay") {
-      toast.success(response?.message || (isEditMode ? "Đã cập nhật form tại trang" : "Đã lưu form tại trang"));
       return;
     }
 
@@ -378,47 +293,18 @@ function ProgramForm() {
     navigate(returnPath);
   };
 
+  const onInvalid = () => {
+    toast.error("Vui lòng kiểm tra lại thông tin form");
+  };
+
   const onSubmit = async (values, mode) => {
-    if (isReadOnlyMode) {
-      return;
-    }
-    if (isEditMode && values.status === "Hoàn thành" && initialSnapshot.values.status !== "Hoàn thành") {
+    if (isReadOnlyMode) return;
+    if (values.processingStatus === "Hoàn thành" && initialSnapshot.processingStatus !== "Hoàn thành") {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
       return;
     }
     await persistProgram(values, mode);
-  };
-
-  const onInvalid = () => {
-    toast.error("Vui lòng kiểm tra lại thông tin form");
-  };
-
-  const handleContractImageChange = (files) => {
-    const normalizedNewFiles = files.map((file) => ({
-      kind: "file",
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
-
-    setContractImages((prev) => {
-      const nextItems = [...prev, ...normalizedNewFiles];
-      setValue("contractImages", nextItems, { shouldValidate: true });
-      return nextItems;
-    });
-  };
-
-  const removeContractImage = (index) => {
-    setContractImages((prev) => {
-      const target = prev[index];
-      if (target?.kind === "file" && target.previewUrl) {
-        URL.revokeObjectURL(target.previewUrl);
-      }
-
-      const nextItems = prev.filter((_, i) => i !== index);
-      setValue("contractImages", nextItems, { shouldValidate: true });
-      return nextItems;
-    });
   };
 
   const submitWithMode = (mode) =>
@@ -436,58 +322,100 @@ function ProgramForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
-        onSave={() => submitWithMode("save")}
-        onSaveMail={() => submitWithMode("save-mail")}
-        onSaveStay={() => submitWithMode("save-stay")}
-        onReset={() => {
-          contractImages.forEach((item) => {
-            if (item.kind === "file" && item.previewUrl) {
-              URL.revokeObjectURL(item.previewUrl);
-            }
-          });
+    <>
+      <form className="space-y-4">
+        <FormActions
+          onSave={() => submitWithMode("save")}
+          onSaveMail={() => submitWithMode("save-mail")}
+          onSaveStay={() => submitWithMode("save-stay")}
+          onReset={() => reset(initialSnapshot)}
+          isSubmitting={isSubmitting}
+          isUploading={false}
+          isEditMode={isEditMode}
+          exitPath={returnPath}
+          readOnlyMode={isReadOnlyMode}
+        />
 
-          reset(initialSnapshot.values);
-          setContractImages(initialSnapshot.images);
-        }}
-        isSubmitting={isSubmitting}
-        isUploading={isUploadingImages}
-        isEditMode={isEditMode}
-        exitPath={returnPath}
-        readOnlyMode={isReadOnlyMode}
-      />
+        <fieldset disabled={isReadOnlyMode}>
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Nội dung</div>
+            <div className="grid gap-5 p-5 lg:grid-cols-2">
+              <ProgramInfo
+                register={register}
+                errors={errors}
+                contractOptions={contractOptions}
+                selectedContract={selectedBusinessContract}
+                designTaskOptions={designTaskOptions}
+                designEnabled={Boolean(selectedDesign)}
+              />
 
-      <fieldset disabled={isReadOnlyMode}>
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Nội dung</div>
-          <div className="grid gap-5 p-5 lg:grid-cols-2">
-            <ProgramInfo
-              register={register}
-              errors={errors}
-              contractImages={contractImages}
-              onFilesSelected={handleContractImageChange}
-              onRemoveImage={removeContractImage}
-              onImageClick={setLightboxIndex}
-              isUploading={isUploadingImages}
-              assignerOptions={assignerOptions}
-              assigneeOptions={assigneeOptions}
-              designTaskOptions={designTaskOptions}
-              designEnabled={Boolean(selectedDesign)}
-            />
+              <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
+                <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
 
-            <ContractInfo register={register} errors={errors} salesOptions={salesOptions} />
+                <FormField
+                  label="Người giao (Quản lý)"
+                  type="select"
+                  options={assignerOptions}
+                  selectProps={register("assigner")}
+                  error={errors.assigner?.message}
+                />
+
+                <FormField
+                  label="Người nhận (lập trình)"
+                  type="select"
+                  options={assigneeOptions}
+                  selectProps={register("assignee")}
+                  error={errors.assignee?.message}
+                />
+
+                <FormField
+                  label="Trạng thái"
+                  type="select"
+                  options={STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+                  selectProps={register("processingStatus")}
+                  error={errors.processingStatus?.message}
+                />
+
+                <FormField
+                  label="Ngày giao"
+                  type="datetime-local"
+                  inputProps={register("assignedAt")}
+                  error={errors.assignedAt?.message}
+                />
+
+                <FormField
+                  label="Ngày nhận"
+                  type="datetime-local"
+                  inputProps={register("receivedAt")}
+                  error={errors.receivedAt?.message}
+                />
+
+                <FormField
+                  label="Ngày dự kiến"
+                  type="datetime-local"
+                  inputProps={register("dueAt")}
+                  error={errors.dueAt?.message}
+                />
+
+                <FormField
+                  label="Ngày hoàn thành"
+                  type="datetime-local"
+                  inputProps={{
+                    ...register("completedAt"),
+                    disabled: selectedProcessingStatus !== "Hoàn thành",
+                  }}
+                  error={errors.completedAt?.message}
+                />
+
+                <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                  <input type="checkbox" {...register("visible")} />
+                  Hiển thị
+                </label>
+              </div>
+            </div>
           </div>
-        </div>
-      </fieldset>
-
-      <ImageLightbox
-        currentIndex={lightboxIndex}
-        images={contractImages}
-        onClose={() => setLightboxIndex(null)}
-        onNext={() => setLightboxIndex(lightboxIndex + 1)}
-        onPrev={() => setLightboxIndex(lightboxIndex - 1)}
-      />
+        </fieldset>
+      </form>
 
       <Modal
         open={completeConfirmOpen}
@@ -531,7 +459,7 @@ function ProgramForm() {
           <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
         </p>
       </Modal>
-    </form>
+    </>
   );
 }
 

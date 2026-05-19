@@ -75,7 +75,7 @@ function DesignPointManagement() {
       "Loại design",
       "Mức ưu tiên",
       "Trạng thái",
-      "Người giao",
+      "Người giao (Quản lý)",
       "Người nhận",
       "Quy đổi",
       "Điểm thêm",
@@ -258,7 +258,7 @@ function DesignPointManagement() {
                 Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Người giao
+                Người giao (Quản lý)
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Người nhận

@@ -172,12 +172,15 @@ const toResponseItem = (doc) => ({
 
 export const createProgramUpgrade = async (req, res) => {
   const payload = normalizePayload(req.body);
-  const validationResult = await validatePayload(payload);
+  const normalizedPayload =
+    payload.status === STATUS_OPTIONS[2] ? payload : { ...payload, completedAt: null };
+
+  const validationResult = await validatePayload(normalizedPayload);
   if (validationResult.status) {
     return res.status(validationResult.status).json({ message: validationResult.message });
   }
   const createdUpgrade = await ProgramUpgrade.create({
-    ...payload,
+    ...normalizedPayload,
     time: validationResult.time,
     convert: validationResult.convert,
     createdBy: req.user.sub,
@@ -288,6 +291,9 @@ export const updateProgramUpgrade = async (req, res) => {
     visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
+  if (mergedPayload.status !== STATUS_OPTIONS[2]) {
+    mergedPayload.completedAt = null;
+  }
   const validationResult = await validatePayload(mergedPayload);
   if (validationResult.status) {
     return res.status(validationResult.status).json({ message: validationResult.message });

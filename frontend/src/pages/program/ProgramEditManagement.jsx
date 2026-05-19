@@ -291,7 +291,7 @@ function ProgramEditManagement() {
                 Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Người giao
+                Người giao (Quản lý)
               </TableHead>
               <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">
                 Chuyển lập trình

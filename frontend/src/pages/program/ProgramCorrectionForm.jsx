@@ -8,7 +8,7 @@ import { z } from "zod";
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { CORRECTION_PRIORITY_OPTIONS, CORRECTION_STATUS_OPTIONS } from "@/constants/program-correction";
-import { correctionApi, programApi, staffApi } from "@/lib/api-client";
+import { businessContractApi, correctionApi, programApi, staffApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -20,7 +20,7 @@ const isValidDateValue = (value) => {
 };
 
 const schema = z.object({
-  programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
+  businessContractId: z.string().trim().min(1, "Vui lòng chọn phiếu gốc (HĐ)"),
   issueContent: z.string().trim().min(5, "Vui lòng nhập mô tả lỗi/chỉnh sửa"),
   priority: z.enum(CORRECTION_PRIORITY_OPTIONS, { message: "Vui lòng chọn mức độ ưu tiên" }),
   durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
@@ -34,16 +34,15 @@ const schema = z.object({
   dueAt: z.string().trim().min(1, "Vui lòng nhập ngày dự kiến").refine(isValidDateValue, "Ngày dự kiến không hợp lệ"),
   completedAt: z
     .string()
-    .trim()
-    .min(1, "Vui lòng nhập ngày hoàn thành")
-    .refine(isValidDateValue, "Ngày hoàn thành không hợp lệ"),
+    .optional()
+    .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
   status: z.enum(CORRECTION_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái" }),
   visible: z.boolean(),
   note: z.string().optional(),
 });
 
 const defaultValues = {
-  programId: "",
+  businessContractId: "",
   issueContent: "",
   priority: CORRECTION_PRIORITY_OPTIONS[1],
   durationValue: 1,
@@ -69,7 +68,7 @@ const toDateTimeLocal = (value) => {
 };
 
 const mapCorrectionToForm = (row) => ({
-  programId: row.programId || "",
+  businessContractId: row.businessContractId || "",
   issueContent: row.issueContent || "",
   priority: row.priority || CORRECTION_PRIORITY_OPTIONS[1],
   durationValue: Number(row.durationValue) || 1,
@@ -101,11 +100,15 @@ const calculateConvertByDuration = (durationValue, durationUnit) => {
   return "";
 };
 
+const getProgramByBusinessContractId = (programs, businessContractId) =>
+  programs.find((item) => item.businessContractId === businessContractId) || null;
+
 function ProgramCorrectionForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [programReferences, setProgramReferences] = useState([]);
+  const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -125,15 +128,16 @@ function ProgramCorrectionForm() {
     defaultValues,
   });
 
-  const selectedProgramId = useWatch({ control, name: "programId" });
+  const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
   const selectedDurationValue = useWatch({ control, name: "durationValue" });
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
+  const selectedStatus = useWatch({ control, name: "status" });
   const selectedProgram = useMemo(
-    () => programReferences.find((item) => item.id === selectedProgramId),
-    [programReferences, selectedProgramId],
+    () => getProgramByBusinessContractId(programReferences, selectedBusinessContractId),
+    [programReferences, selectedBusinessContractId],
   );
   const isReadOnlyMode = isEditMode && initialSnapshot.status === "Hoàn thành";
-  const programRegister = register("programId");
+  const businessContractRegister = register("businessContractId");
 
   useEffect(() => {
     const fetchStaffs = async () => {
@@ -165,22 +169,32 @@ function ProgramCorrectionForm() {
   }, [selectedDurationUnit, selectedDurationValue, setValue]);
 
   useEffect(() => {
+    if (selectedStatus === "Hoàn thành") return;
+    setValue("completedAt", "", { shouldValidate: true });
+  }, [selectedStatus, setValue]);
+
+  useEffect(() => {
     const fetchSources = async () => {
       setIsLoadingSources(true);
       try {
-        const programResponse = await programApi.references();
+        const [programResponse, businessResponse] = await Promise.all([
+          programApi.references(),
+          businessContractApi.references(),
+        ]);
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
-
+        const contracts = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
         setProgramReferences(programs);
+        setBusinessContractReferences(contracts);
 
         if (!isEditMode) {
-          const selected = programs[0];
+          const selected = contracts[0];
+          const linkedProgram = getProgramByBusinessContractId(programs, selected?.id);
           const nextDefaults = {
             ...defaultValues,
-            programId: selected?.id || "",
-            durationValue: selected?.durationValue || defaultValues.durationValue,
-            durationUnit: selected?.durationUnit || defaultValues.durationUnit,
-            convert: selected?.convert || defaultValues.convert,
+            businessContractId: selected?.id || "",
+            durationValue: linkedProgram?.durationValue || defaultValues.durationValue,
+            durationUnit: linkedProgram?.durationUnit || defaultValues.durationUnit,
+            convert: linkedProgram?.convert || defaultValues.convert,
           };
           reset(nextDefaults);
           setInitialSnapshot(nextDefaults);
@@ -207,7 +221,11 @@ function ProgramCorrectionForm() {
           navigate("/lap-trinh/chinh-sua");
           return;
         }
-        const formValues = mapCorrectionToForm(correction);
+        const linkedProgram = programReferences.find((item) => item.id === correction.programId) || null;
+        const formValues = mapCorrectionToForm({
+          ...correction,
+          businessContractId: linkedProgram?.businessContractId || "",
+        });
         reset(formValues);
         setInitialSnapshot(formValues);
       } catch (error) {
@@ -218,11 +236,16 @@ function ProgramCorrectionForm() {
       }
     };
     void fetchDetail();
-  }, [id, isEditMode, navigate, reset]);
+  }, [id, isEditMode, navigate, programReferences, reset]);
 
   const persistCorrection = async (values, mode) => {
+    const selectedLinkedProgram = getProgramByBusinessContractId(programReferences, values.businessContractId);
+    if (!selectedLinkedProgram?.id) {
+      toast.error("Hợp đồng này chưa có phiếu gốc lập trình để tạo chỉnh sửa");
+      return;
+    }
     const payload = {
-      programId: values.programId,
+      programId: selectedLinkedProgram.id,
       issueContent: values.issueContent,
       priority: values.priority,
       durationValue: values.durationValue,
@@ -234,7 +257,7 @@ function ProgramCorrectionForm() {
       assignedAt: values.assignedAt,
       receivedAt: values.receivedAt || null,
       dueAt: values.dueAt,
-      completedAt: values.completedAt || null,
+      completedAt: values.status === "Hoàn thành" ? values.completedAt || null : null,
       status: values.status,
       visible: values.visible,
       note: values.note || "",
@@ -274,7 +297,7 @@ function ProgramCorrectionForm() {
     if (isReadOnlyMode) {
       return;
     }
-    if (isEditMode && values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
+    if (values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
       return;
@@ -301,7 +324,7 @@ function ProgramCorrectionForm() {
           onSave={() => submitWithMode("save")}
           onSaveStay={() => submitWithMode("save-stay")}
           onSaveMail={() => null}
-          onReset={() => reset(isEditMode ? initialSnapshot : defaultValues)}
+          onReset={() => reset(initialSnapshot)}
           isSubmitting={isSubmitting}
           isUploading={false}
           isEditMode={isEditMode}
@@ -321,20 +344,29 @@ function ProgramCorrectionForm() {
               <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
                 <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
 
-                <label className="text-sm font-semibold text-slate-600">
-                  Phiếu gốc / Số HĐ
-                  <select
-                    {...programRegister}
-                    className={`w-full rounded-md border px-3 py-2 text-sm font-light focus:outline-none ${
-                      errors.programId
-                        ? "border-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
-                        : "border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
-                    }`}
-                    disabled={programReferences.length === 0}
-                    onChange={(event) => {
-                      const selected = programReferences.find((item) => item.id === event.target.value);
-                      programRegister.onChange(event);
-                      if (!selected) return;
+                <FormField
+                  label="Phiếu gốc (HĐ)"
+                  type="select"
+                  options={
+                    businessContractReferences.length === 0
+                      ? [{ label: "Không có dữ liệu", value: "" }]
+                      : businessContractReferences.map((item) => ({
+                          label: `${item.contractCode} - ${item.contractName || ""}`.trim(),
+                          value: item.id,
+                        }))
+                  }
+                  selectProps={{
+                    ...businessContractRegister,
+                    disabled: businessContractReferences.length === 0,
+                    onChange: (event) => {
+                      const selected = getProgramByBusinessContractId(programReferences, event.target.value);
+                      businessContractRegister.onChange(event);
+                      if (!selected) {
+                        setValue("durationValue", defaultValues.durationValue, { shouldValidate: true });
+                        setValue("durationUnit", defaultValues.durationUnit, { shouldValidate: true });
+                        setValue("convert", defaultValues.convert, { shouldValidate: true });
+                        return;
+                      }
                       setValue("durationValue", selected.durationValue || defaultValues.durationValue, {
                         shouldValidate: true,
                       });
@@ -342,20 +374,10 @@ function ProgramCorrectionForm() {
                         shouldValidate: true,
                       });
                       setValue("convert", selected.convert || defaultValues.convert, { shouldValidate: true });
-                    }}
-                  >
-                    {programReferences.length === 0 ? (
-                      <option value="">Không có dữ liệu</option>
-                    ) : (
-                      programReferences.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {`${item.contractCode} - ${item.contractName || ""}`.trim()}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  {errors.programId ? <p className="mt-1 text-xs text-rose-600">{errors.programId.message}</p> : null}
-                </label>
+                    },
+                  }}
+                  error={errors.businessContractId?.message}
+                />
 
                 <FormField
                   label="Module"
@@ -428,7 +450,7 @@ function ProgramCorrectionForm() {
                 <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
 
                 <FormField
-                  label="Người giao"
+                  label="Người giao (Quản lý)"
                   type="select"
                   options={assignerOptions}
                   selectProps={register("assigner")}
@@ -475,7 +497,7 @@ function ProgramCorrectionForm() {
                 <FormField
                   label="Ngày hoàn thành"
                   type="datetime-local"
-                  inputProps={{ ...register("completedAt") }}
+                  inputProps={{ ...register("completedAt"), disabled: selectedStatus !== "Hoàn thành" }}
                   error={errors.completedAt?.message}
                 />
 

@@ -1,15 +1,15 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SquarePen, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { programApi } from "@/lib/api-client";
-import { MODULE_OPTIONS } from "@/constants/program";
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
-import Modal from "@/components/ui/modal";
+import { MODULE_OPTIONS } from "@/constants/program";
+import { programApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
+import Modal from "@/components/ui/modal";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function ListProgram() {
   const navigate = useNavigate();
@@ -153,42 +153,30 @@ function ListProgram() {
                   onClick={(event) => event.stopPropagation()}
                 />
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                STT
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Module
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Thời gian
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Quy đổi
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày tạo
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Design
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Hiển thị
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Thao tác
-              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Module</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Thời gian</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Quy đổi</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày giao</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày nhận</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày dự kiến</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày hoàn thành</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Design</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hiển thị</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : filteredPrograms.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -213,17 +201,16 @@ function ListProgram() {
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.module}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.convert}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.createdAt}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.processingStatus || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.assignedAtLabel || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.receivedAtLabel || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.dueAtLabel || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.completedAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <input type="checkbox" checked={row.design} readOnly onClick={(event) => event.stopPropagation()} />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={row.visible}
-                      readOnly
-                      onClick={(event) => event.stopPropagation()}
-                    />
+                    <input type="checkbox" checked={row.visible} readOnly onClick={(event) => event.stopPropagation()} />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">

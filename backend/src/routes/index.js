@@ -16,6 +16,7 @@ import programRoutes from "./program.js";
 import sslPriceRoutes from "./ssl-price.js";
 import staffRoutes from "./staff.js";
 import uploadRoutes from "./upload.js";
+import businessContractRoutes from "./business-contract.js";
 import authenticate from "../middleware/authenticate.js";
 import authorizeRoles from "../middleware/authorizeRoles.js";
 
@@ -41,6 +42,7 @@ router.use("/design-points", designPointRoutes);
 router.use("/program-upgrades", programUpgradeRoutes);
 router.use("/program-sources", programSourceRoutes);
 router.use("/upload", uploadRoutes);
+router.use("/business-contracts", businessContractRoutes);
 
 router.get("/protected", authenticate, (req, res) => {
   res.json({

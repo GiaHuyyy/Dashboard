@@ -8,7 +8,7 @@ import { z } from "zod";
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { UPGRADE_PRIORITY_OPTIONS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
-import { programApi, staffApi, upgradeApi } from "@/lib/api-client";
+import { businessContractApi, programApi, staffApi, upgradeApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -20,8 +20,8 @@ const isValidDateValue = (value) => {
 };
 
 const schema = z.object({
-  programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
-  upgradeItem: z.string().trim().min(3, "Vui lòng nhập hạng mục nâng cấp"),
+  businessContractId: z.string().trim().min(1, "Vui lòng chọn phiếu gốc (HĐ)"),
+  upgradeItem: z.string().trim().min(3, "Vui lòng nhập hàng mục nâng cấp"),
   priority: z.enum(UPGRADE_PRIORITY_OPTIONS, { message: "Vui lòng chọn mức độ ưu tiên" }),
   durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
   durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
@@ -35,15 +35,14 @@ const schema = z.object({
   dueAt: z.string().trim().min(1, "Vui lòng nhập ngày dự kiến").refine(isValidDateValue, "Ngày dự kiến không hợp lệ"),
   completedAt: z
     .string()
-    .trim()
-    .min(1, "Vui lòng nhập ngày hoàn thành")
-    .refine(isValidDateValue, "Ngày hoàn thành không hợp lệ"),
+    .optional()
+    .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
   visible: z.boolean(),
   note: z.string().optional(),
 });
 
 const defaultValues = {
-  programId: "",
+  businessContractId: "",
   upgradeItem: "",
   priority: UPGRADE_PRIORITY_OPTIONS[1],
   durationValue: 1,
@@ -74,7 +73,7 @@ const toDateTimeLocal = (value) => {
 };
 
 const mapUpgradeToForm = (item) => ({
-  programId: item.programId || "",
+  businessContractId: item.businessContractId || "",
   upgradeItem: item.upgradeItem || "",
   priority: item.priority || UPGRADE_PRIORITY_OPTIONS[1],
   durationValue: Number(item.durationValue) || 1,
@@ -106,11 +105,15 @@ const calculateConvertByDuration = (durationValue, durationUnit) => {
   return "";
 };
 
+const getProgramByBusinessContractId = (programs, businessContractId) =>
+  programs.find((item) => item.businessContractId === businessContractId) || null;
+
 function ProgramUpgradeForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const [programReferences, setProgramReferences] = useState([]);
+  const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -130,20 +133,26 @@ function ProgramUpgradeForm() {
     defaultValues,
   });
 
-  const selectedProgramId = useWatch({ control, name: "programId" });
+  const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
   const selectedDurationValue = useWatch({ control, name: "durationValue" });
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
+  const selectedStatus = useWatch({ control, name: "status" });
   const selectedProgram = useMemo(
-    () => programReferences.find((item) => item.id === selectedProgramId),
-    [programReferences, selectedProgramId],
+    () => getProgramByBusinessContractId(programReferences, selectedBusinessContractId),
+    [programReferences, selectedBusinessContractId],
   );
   const isReadOnlyMode = isEditMode && initialSnapshot.status === "Hoàn thành";
-  const programRegister = register("programId");
+  const businessContractRegister = register("businessContractId");
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
   }, [selectedDurationUnit, selectedDurationValue, setValue]);
+
+  useEffect(() => {
+    if (selectedStatus === "Hoàn thành") return;
+    setValue("completedAt", "", { shouldValidate: true });
+  }, [selectedStatus, setValue]);
 
   useEffect(() => {
     const fetchStaffs = async () => {
@@ -173,17 +182,23 @@ function ProgramUpgradeForm() {
     const fetchSources = async () => {
       setIsLoadingSources(true);
       try {
-        const response = await programApi.references();
-        const programs = Array.isArray(response?.programs) ? response.programs : [];
+        const [programResponse, businessResponse] = await Promise.all([
+          programApi.references(),
+          businessContractApi.references(),
+        ]);
+        const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
+        const contracts = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
         setProgramReferences(programs);
+        setBusinessContractReferences(contracts);
         if (!isEditMode) {
-          const selected = programs[0];
+          const selected = contracts[0];
+          const linkedProgram = getProgramByBusinessContractId(programs, selected?.id);
           const nextDefaults = {
             ...defaultValues,
-            programId: selected?.id || "",
-            durationValue: selected?.durationValue || defaultValues.durationValue,
-            durationUnit: selected?.durationUnit || defaultValues.durationUnit,
-            convert: selected?.convert || defaultValues.convert,
+            businessContractId: selected?.id || "",
+            durationValue: linkedProgram?.durationValue || defaultValues.durationValue,
+            durationUnit: linkedProgram?.durationUnit || defaultValues.durationUnit,
+            convert: linkedProgram?.convert || defaultValues.convert,
           };
           reset(nextDefaults);
           setInitialSnapshot(nextDefaults);
@@ -209,7 +224,11 @@ function ProgramUpgradeForm() {
           navigate("/lap-trinh/nang-cap");
           return;
         }
-        const formValues = mapUpgradeToForm(upgrade);
+        const linkedProgram = programReferences.find((item) => item.id === upgrade.programId) || null;
+        const formValues = mapUpgradeToForm({
+          ...upgrade,
+          businessContractId: linkedProgram?.businessContractId || "",
+        });
         reset(formValues);
         setInitialSnapshot(formValues);
       } catch (error) {
@@ -220,11 +239,16 @@ function ProgramUpgradeForm() {
       }
     };
     void fetchDetail();
-  }, [id, isEditMode, navigate, reset]);
+  }, [id, isEditMode, navigate, programReferences, reset]);
 
   const persistUpgrade = async (values, mode) => {
+    const selectedLinkedProgram = getProgramByBusinessContractId(programReferences, values.businessContractId);
+    if (!selectedLinkedProgram?.id) {
+      toast.error("Hợp đồng này chưa có phiếu gốc lập trình để tạo nâng cấp");
+      return;
+    }
     const payload = {
-      programId: values.programId,
+      programId: selectedLinkedProgram.id,
       upgradeItem: values.upgradeItem,
       priority: values.priority,
       durationValue: values.durationValue,
@@ -237,7 +261,7 @@ function ProgramUpgradeForm() {
       assignedAt: values.assignedAt,
       receivedAt: values.receivedAt || null,
       dueAt: values.dueAt,
-      completedAt: values.completedAt || null,
+      completedAt: values.status === "Hoàn thành" ? values.completedAt || null : null,
       visible: values.visible,
       note: values.note || "",
     };
@@ -276,7 +300,7 @@ function ProgramUpgradeForm() {
     if (isReadOnlyMode) {
       return;
     }
-    if (isEditMode && values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
+    if (values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
       return;
@@ -303,7 +327,7 @@ function ProgramUpgradeForm() {
           onSave={() => submitWithMode("save")}
           onSaveStay={() => submitWithMode("save-stay")}
           onSaveMail={() => null}
-          onReset={() => reset(isEditMode ? initialSnapshot : defaultValues)}
+          onReset={() => reset(initialSnapshot)}
           isSubmitting={isSubmitting}
           isUploading={false}
           isEditMode={isEditMode}
@@ -324,23 +348,28 @@ function ProgramUpgradeForm() {
                 <p className="text-md font-semibold text-slate-700">Thông tin nâng cấp</p>
 
                 <FormField
-                  label="Phiếu gốc / Số HĐ"
+                  label="Phiếu gốc (HĐ)"
                   type="select"
                   options={
-                    programReferences.length === 0
+                    businessContractReferences.length === 0
                       ? [{ label: "Không có dữ liệu", value: "" }]
-                      : programReferences.map((item) => ({
+                      : businessContractReferences.map((item) => ({
                           label: `${item.contractCode} - ${item.contractName || ""}`.trim(),
                           value: item.id,
                         }))
                   }
                   selectProps={{
-                    ...programRegister,
-                    disabled: programReferences.length === 0,
+                    ...businessContractRegister,
+                    disabled: businessContractReferences.length === 0,
                     onChange: (event) => {
-                      const selected = programReferences.find((item) => item.id === event.target.value);
-                      programRegister.onChange(event);
-                      if (!selected) return;
+                      const selected = getProgramByBusinessContractId(programReferences, event.target.value);
+                      businessContractRegister.onChange(event);
+                      if (!selected) {
+                        setValue("durationValue", defaultValues.durationValue, { shouldValidate: true });
+                        setValue("durationUnit", defaultValues.durationUnit, { shouldValidate: true });
+                        setValue("convert", defaultValues.convert, { shouldValidate: true });
+                        return;
+                      }
                       setValue("durationValue", selected.durationValue || defaultValues.durationValue, {
                         shouldValidate: true,
                       });
@@ -350,7 +379,7 @@ function ProgramUpgradeForm() {
                       setValue("convert", selected.convert || defaultValues.convert, { shouldValidate: true });
                     },
                   }}
-                  error={errors.programId?.message}
+                  error={errors.businessContractId?.message}
                 />
 
                 <FormField
@@ -359,14 +388,14 @@ function ProgramUpgradeForm() {
                   inputProps={{
                     value: selectedProgram?.module || "",
                     readOnly: true,
-                    placeholder: "Tự động theo phiếu gốc",
+                    placeholder: "Tự động điền khi chọn Phiếu gốc (HĐ)",
                   }}
                 />
 
                 <FormField
                   label="Hạng mục nâng cấp"
                   type="textarea"
-                  inputProps={{ ...register("upgradeItem"), rows: 4, placeholder: "Mô tả hạng mục nâng cấp..." }}
+                  inputProps={{ ...register("upgradeItem"), rows: 4, placeholder: "Mô tả hàng mục nâng cấp..." }}
                   error={errors.upgradeItem?.message}
                 />
 
@@ -420,7 +449,7 @@ function ProgramUpgradeForm() {
                 <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
 
                 <FormField
-                  label="Người giao"
+                  label="Người giao (Quản lý)"
                   type="select"
                   options={assignerOptions}
                   selectProps={register("assigner")}
@@ -467,7 +496,7 @@ function ProgramUpgradeForm() {
                 <FormField
                   label="Ngày hoàn thành"
                   type="datetime-local"
-                  inputProps={{ ...register("completedAt") }}
+                  inputProps={{ ...register("completedAt"), disabled: selectedStatus !== "Hoàn thành" }}
                   error={errors.completedAt?.message}
                 />
 

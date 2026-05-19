@@ -73,7 +73,19 @@ const navItems = [
     icon: FileText,
     children: [{ label: "Danh sách nhân sự", path: "/nhan-su/danh-sach", activePathPrefixes: ["/nhan-su/chinh-sua/", "/nhan-su/them-moi"] }],
   },
-  { label: "Quản lý kinh doanh", path: "/kinh-doanh", icon: FileText },
+  {
+    label: "Quản lý kinh doanh",
+    path: "/kinh-doanh",
+    icon: FileText,
+    children: [
+      {
+        label: "Danh sách hợp đồng",
+        path: "/kinh-doanh/danh-sach",
+        activePaths: ["/kinh-doanh/them-moi"],
+        activePathPrefixes: ["/kinh-doanh/chinh-sua/"],
+      },
+    ],
+  },
   { label: "Quản lý cấu hình", path: "/cau-hinh", icon: FileText },
   { label: "Biểu mẫu", path: "/bieu-mau", icon: FileText },
 ];

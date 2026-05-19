@@ -285,7 +285,7 @@ function ProgramUpgradeManagement() {
                 Điểm cộng thêm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Người giao
+                Người giao (Quản lý)
               </TableHead>
               <TableHead className="border border-slate-200 p-4 px-10 text-center font-semibold text-slate-500">
                 Người nhận

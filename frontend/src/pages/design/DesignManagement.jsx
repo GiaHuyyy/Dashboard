@@ -111,7 +111,9 @@ function DesignManagement() {
       };
       const response = await designApi.update(row.id, payload);
       const nextRow = response?.designTask;
-      setRows((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...(nextRow || {}), status: nextStatus } : item)));
+      setRows((prev) =>
+        prev.map((item) => (item.id === row.id ? { ...item, ...(nextRow || {}), status: nextStatus } : item)),
+      );
       toast.success("Đã cập nhật trạng thái");
     } catch (error) {
       toast.error(error?.message || "Không thể cập nhật trạng thái");
@@ -218,7 +220,7 @@ function DesignManagement() {
                 Điểm thêm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Người giao
+                Người giao (Quản lý)
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Người nhận

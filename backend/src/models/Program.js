@@ -38,6 +38,12 @@ const programSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    businessContractId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BusinessContract",
+      required: true,
+      index: true,
+    },
     designTaskId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "DesignTask",
@@ -58,6 +64,29 @@ const programSchema = new mongoose.Schema(
     programCreatedAt: {
       type: Date,
       default: Date.now,
+    },
+    assignedAt: {
+      type: Date,
+      required: true,
+    },
+    receivedAt: {
+      type: Date,
+      default: null,
+    },
+    dueAt: {
+      type: Date,
+      required: true,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    processingStatus: {
+      type: String,
+      enum: ["Đã nhận", "Đang xử lý", "Hoàn thành"],
+      required: true,
+      default: "Đã nhận",
+      index: true,
     },
     design: {
       type: Boolean,

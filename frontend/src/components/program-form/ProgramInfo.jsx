@@ -1,23 +1,29 @@
 import FormField from "@/components/ui/form-field";
 import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS } from "@/constants/program";
-import { ImageUpload } from "./ImageUpload";
 
 export function ProgramInfo({
   register,
   errors,
-  contractImages,
-  onFilesSelected,
-  onRemoveImage,
-  onImageClick,
-  isUploading,
-  assignerOptions = [],
-  assigneeOptions = [],
+  contractOptions = [],
+  selectedContract,
   designTaskOptions = [],
   designEnabled = false,
 }) {
   return (
-    <div className="space-y-4 gap-1 flex flex-col rounded-xl border border-slate-100 p-4">
+    <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
       <p className="text-md font-semibold text-slate-700">Thông tin lập trình</p>
+
+      <FormField
+        label="Chọn hợp đồng"
+        type="select"
+        options={contractOptions.length > 0 ? contractOptions : [{ label: "Chưa có hợp đồng", value: "" }]}
+        selectProps={{ ...register("businessContractId"), disabled: contractOptions.length === 0 }}
+        error={errors.businessContractId?.message}
+      />
+
+      <FormField label="Tên hợp đồng" type="text" inputProps={{ value: selectedContract?.contractName || "", readOnly: true }} />
+      <FormField label="Số hợp đồng" type="text" inputProps={{ value: selectedContract?.contractCode || "", readOnly: true }} />
+      <FormField label="Nhân viên kinh doanh" type="text" inputProps={{ value: selectedContract?.selectedSalesStaff || "", readOnly: true }} />
 
       <FormField
         label="Module"
@@ -50,22 +56,6 @@ export function ProgramInfo({
         error={errors.convert?.message}
       />
 
-      <FormField
-        label="Người giao"
-        type="select"
-        options={assignerOptions}
-        selectProps={register("assigner")}
-        error={errors.assigner?.message}
-      />
-
-      <FormField
-        label="Người nhận (lập trình)"
-        type="select"
-        options={assigneeOptions}
-        selectProps={register("assignee")}
-        error={errors.assignee?.message}
-      />
-
       {designEnabled ? (
         <FormField
           label="Thiết kế tham chiếu"
@@ -81,20 +71,7 @@ export function ProgramInfo({
           <input type="checkbox" {...register("design")} />
           Design
         </label>
-        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-          <input type="checkbox" {...register("visible")} />
-          Hiển thị
-        </label>
       </div>
-
-      <ImageUpload
-        previews={contractImages}
-        onFilesSelected={onFilesSelected}
-        onRemoveImage={onRemoveImage}
-        onImageClick={onImageClick}
-        isUploading={isUploading}
-        maxImages={6}
-      />
     </div>
   );
 }

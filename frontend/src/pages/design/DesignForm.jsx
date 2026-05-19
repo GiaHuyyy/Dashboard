@@ -349,7 +349,7 @@ function DesignForm() {
             <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
 
             <FormField
-              label="Người giao"
+              label="Người giao (Quản lý)"
               type="select"
               options={managerOptions.length > 0 ? managerOptions : [{ label: "Không có dữ liệu", value: "" }]}
               selectProps={{ ...register("assigner"), disabled: managerOptions.length === 0 }}

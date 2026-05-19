@@ -1,18 +1,14 @@
 import mongoose from "mongoose";
 
+import BusinessContract from "../models/BusinessContract.js";
 import DesignTask from "../models/DesignTask.js";
 import Program from "../models/Program.js";
 import { sendProgramMail } from "../services/programMailService.js";
 
 const MODULE_OPTIONS = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
-const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
-const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
 const DURATION_UNITS = ["h", "ngày"];
+const PROCESSING_STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NAME_REGEX = /^[\p{L}\s]+$/u;
-const CONTRACT_NAME_MIN_LENGTH = 4;
-const CONTRACT_CODE_MIN_LENGTH = 6;
-const SALES_RECEIVER_NAME_MIN_LENGTH = 4;
 const EMAIL_LOCAL_MIN_LENGTH = 6;
 const EMAIL_LOCAL_HAS_LETTER_REGEX = /[A-Za-zÀ-ỹ]/u;
 
@@ -25,12 +21,16 @@ const normalizeBoolean = (value) => {
   }
   return null;
 };
-
 const normalizeNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
-
+const normalizeDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+};
 const parseCcEmails = (ccEmails) => {
   if (!ccEmails) return [];
   if (Array.isArray(ccEmails)) {
@@ -41,28 +41,20 @@ const parseCcEmails = (ccEmails) => {
     .map((item) => item.trim())
     .filter(Boolean);
 };
-
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 const formatNumber = (value) => {
   if (!Number.isFinite(value)) return "";
   return Number(value.toFixed(3)).toString();
 };
-
 const calculateConvertByDuration = (durationValue, durationUnit) => {
   if (durationUnit === "ngày") return formatNumber(durationValue);
   if (durationUnit === "h") return formatNumber(durationValue / 8);
   return "";
 };
-
 const hasValidEmailLocalPart = (email) => {
   const localPart = email.split("@")[0] || "";
-  if (localPart.length < EMAIL_LOCAL_MIN_LENGTH) {
-    return false;
-  }
+  if (localPart.length < EMAIL_LOCAL_MIN_LENGTH) return false;
   return EMAIL_LOCAL_HAS_LETTER_REGEX.test(localPart);
 };
-
 const formatDateTime = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -75,34 +67,23 @@ const formatDateTime = (value) => {
   const seconds = String(date.getSeconds()).padStart(2, "0");
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 };
-
 const toObjectIdString = (value) => {
   if (!value) return "";
   return typeof value === "string" ? value : String(value);
 };
+const toIsoString = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString();
+};
 
-const normalizeProgramPayload = (body) => {
+const normalizeProgramPayload = (body = {}) => {
   const module = normalizeString(body.module);
   const durationValue = normalizeNumber(body.durationValue);
   const durationUnit = normalizeString(body.durationUnit);
   const time = durationValue !== null ? `${formatNumber(durationValue)} ${durationUnit}` : "";
   const convert = durationValue !== null ? calculateConvertByDuration(durationValue, durationUnit) : "";
-  const assigner = normalizeString(body.assigner);
-  const assignee = normalizeString(body.assignee);
-  const design = normalizeBoolean(body.design);
-  const visible = normalizeBoolean(body.visible);
-  const contractName = normalizeString(body.contractName);
-  const contractCode = normalizeString(body.contractCode);
-  const contractImages = Array.isArray(body.contractImages)
-    ? body.contractImages.map((img) => normalizeString(img)).filter(Boolean)
-    : [];
-  const status = normalizeString(body.status);
-  const mailStatus = normalizeString(body.mailStatus);
-  const selectedSalesStaff = normalizeString(body.selectedSalesStaff);
-  const salesReceiverName = normalizeString(body.salesReceiverName);
-  const salesReceiverEmail = normalizeString(body.salesReceiverEmail).toLowerCase();
-  const ccEmails = parseCcEmails(body.ccEmails);
-  const designTaskId = normalizeString(body.designTaskId) || null;
 
   return {
     module,
@@ -110,151 +91,108 @@ const normalizeProgramPayload = (body) => {
     durationUnit,
     time,
     convert,
-    assigner,
-    assignee,
-    design,
-    visible,
-    contractName,
-    contractCode,
-    contractImages,
-    status,
-    mailStatus,
-    selectedSalesStaff,
-    salesReceiverName,
-    salesReceiverEmail,
-    ccEmails,
-    designTaskId,
+    assigner: normalizeString(body.assigner),
+    assignee: normalizeString(body.assignee),
+    businessContractId: normalizeString(body.businessContractId),
+    assignedAt: normalizeDate(body.assignedAt),
+    receivedAt: normalizeDate(body.receivedAt),
+    dueAt: normalizeDate(body.dueAt),
+    completedAt: normalizeDate(body.completedAt),
+    processingStatus: normalizeString(body.processingStatus) || PROCESSING_STATUS_OPTIONS[0],
+    design: normalizeBoolean(body.design),
+    visible: normalizeBoolean(body.visible),
+    designTaskId: normalizeString(body.designTaskId) || null,
     designTaskTitle: "",
+    contractSnapshot: null,
   };
 };
 
 const validateProgramPayload = async (payload, { checkDuplicate = true, excludeProgramId = "" } = {}) => {
-  const {
-    module,
-    durationValue,
-    durationUnit,
-    convert,
-    assigner,
-    assignee,
-    design,
-    visible,
-    contractName,
-    contractCode,
-    status,
-    mailStatus,
-    selectedSalesStaff,
-    salesReceiverName,
-    salesReceiverEmail,
-    ccEmails,
-    designTaskId,
-  } = payload;
+  const { module, durationValue, durationUnit, convert, assigner, assignee, design, visible, designTaskId } = payload;
 
-  if (
-    !module ||
-    durationValue === null ||
-    !durationUnit ||
-    !assigner ||
-    !assignee ||
-    !contractName ||
-    !contractCode ||
-    !selectedSalesStaff ||
-    !salesReceiverName ||
-    !salesReceiverEmail
-  ) {
+  if (!module || durationValue === null || !durationUnit || !assigner || !assignee) {
+    return { status: 400, message: "module, durationValue, durationUnit, assigner, assignee là bắt buộc" };
+  }
+  if (!payload.businessContractId) {
+    return { status: 400, message: "businessContractId là bắt buộc" };
+  }
+  if (!payload.assignedAt) {
+    return { status: 400, message: "assignedAt là bắt buộc" };
+  }
+  if (!payload.dueAt) {
+    return { status: 400, message: "dueAt là bắt buộc" };
+  }
+  if (!PROCESSING_STATUS_OPTIONS.includes(payload.processingStatus)) {
     return {
       status: 400,
-      message:
-        "module, durationValue, durationUnit, assigner, assignee, contractName, contractCode, selectedSalesStaff, salesReceiverName, salesReceiverEmail là bắt buộc",
+      message: `processingStatus không hợp lệ. Giá trị cho phép: ${PROCESSING_STATUS_OPTIONS.join(", ")}`,
     };
   }
 
   if (!MODULE_OPTIONS.includes(module)) {
-    return {
-      status: 400,
-      message: `module không hợp lệ. Giá trị cho phép: ${MODULE_OPTIONS.join(", ")}`,
-    };
+    return { status: 400, message: `module không hợp lệ. Giá trị cho phép: ${MODULE_OPTIONS.join(", ")}` };
   }
-
   if (durationValue <= 0) {
     return { status: 400, message: "Thời gian phải là số lớn hơn 0" };
   }
-
   if (!DURATION_UNITS.includes(durationUnit)) {
-    return {
-      status: 400,
-      message: `durationUnit không hợp lệ. Giá trị cho phép: ${DURATION_UNITS.join(", ")}`,
-    };
+    return { status: 400, message: `durationUnit không hợp lệ. Giá trị cho phép: ${DURATION_UNITS.join(", ")}` };
   }
-
   if (!convert) {
     return { status: 400, message: "Không thể quy đổi thời gian" };
   }
-
   if (design === null || visible === null) {
     return { status: 400, message: "design và visible phải là kiểu boolean" };
   }
 
-  if (contractName.length < CONTRACT_NAME_MIN_LENGTH) {
-    return { status: 400, message: `Tên hợp đồng phải tối thiểu ${CONTRACT_NAME_MIN_LENGTH} ký tự` };
+  if (!mongoose.isValidObjectId(payload.businessContractId)) {
+    return { status: 400, message: "businessContractId không hợp lệ" };
+  }
+  const businessContract = await BusinessContract.findOne({
+    _id: payload.businessContractId,
+    isDeleted: false,
+  }).lean();
+  if (!businessContract) {
+    return { status: 404, message: "Không tìm thấy hợp đồng kinh doanh hợp lệ" };
   }
 
-  if (contractCode.length < CONTRACT_CODE_MIN_LENGTH) {
-    return { status: 400, message: `Số hợp đồng phải tối thiểu ${CONTRACT_CODE_MIN_LENGTH} ký tự` };
+  if (!EMAIL_REGEX.test(businessContract.salesReceiverEmail || "")) {
+    return { status: 400, message: "Hợp đồng kinh doanh chưa có salesReceiverEmail hợp lệ" };
   }
-
-  if (salesReceiverName.length < SALES_RECEIVER_NAME_MIN_LENGTH) {
-    return {
-      status: 400,
-      message: `Họ tên kinh doanh nhận mail phải tối thiểu ${SALES_RECEIVER_NAME_MIN_LENGTH} ký tự`,
-    };
-  }
-
-  if (!NAME_REGEX.test(salesReceiverName)) {
-    return {
-      status: 400,
-      message: "Họ tên kinh doanh nhận mail chỉ được chứa chữ và khoảng trắng",
-    };
-  }
-
-  if (!STATUS_OPTIONS.includes(status)) {
-    return {
-      status: 400,
-      message: `status không hợp lệ. Giá trị cho phép: ${STATUS_OPTIONS.join(", ")}`,
-    };
-  }
-
-  if (!MAIL_STATUS_OPTIONS.includes(mailStatus)) {
-    return {
-      status: 400,
-      message: `mailStatus không hợp lệ. Giá trị cho phép: ${MAIL_STATUS_OPTIONS.join(", ")}`,
-    };
-  }
-
-  if (!EMAIL_REGEX.test(salesReceiverEmail)) {
-    return { status: 400, message: "salesReceiverEmail không đúng định dạng email" };
-  }
-
-  if (!hasValidEmailLocalPart(salesReceiverEmail)) {
+  if (!hasValidEmailLocalPart(businessContract.salesReceiverEmail || "")) {
     return {
       status: 400,
       message: `Phần trước @ của salesReceiverEmail phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
     };
   }
 
+  const ccEmails = parseCcEmails(businessContract.ccEmails);
   const invalidCcEmail = ccEmails.find((email) => !EMAIL_REGEX.test(email));
   if (invalidCcEmail) {
-    return {
-      status: 400,
-      message: `ccEmails chứa email không hợp lệ: ${invalidCcEmail}`,
-    };
+    return { status: 400, message: `ccEmails chứa email không hợp lệ: ${invalidCcEmail}` };
   }
-
   const invalidCcLocalPart = ccEmails.find((email) => !hasValidEmailLocalPart(email));
   if (invalidCcLocalPart) {
     return {
       status: 400,
       message: `Phần trước @ của email cc phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
     };
+  }
+
+  payload.contractSnapshot = {
+    contractName: businessContract.contractName || "",
+    contractCode: businessContract.contractCode || "",
+    contractImages: Array.isArray(businessContract.contractImages) ? businessContract.contractImages : [],
+    status: businessContract.status || "Đã nhận",
+    mailStatus: businessContract.mailStatus || "Mail nhận",
+    selectedSalesStaff: businessContract.selectedSalesStaff || "",
+    salesReceiverName: businessContract.salesReceiverName || "",
+    salesReceiverEmail: businessContract.salesReceiverEmail || "",
+    ccEmails,
+  };
+
+  if (payload.processingStatus !== "Hoàn thành") {
+    payload.completedAt = null;
   }
 
   if (design) {
@@ -282,15 +220,34 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
 
   if (checkDuplicate) {
     const existingProgram = await Program.findOne({
-      contractCode: { $regex: `^${escapeRegex(contractCode)}$`, $options: "i" },
+      isDeleted: false,
+      businessContractId: payload.businessContractId,
+      $or: [{ type: "program" }, { type: { $exists: false } }],
     });
     if (existingProgram && toObjectIdString(existingProgram._id) !== excludeProgramId) {
-      return { status: 409, message: "Số hợp đồng đã tồn tại" };
+      return { status: 409, message: "Hợp đồng đã có phiếu gốc lập trình" };
     }
   }
 
   return null;
 };
+
+const toMailPayload = (payload) => ({
+  module: payload.module,
+  time: payload.time,
+  convert: payload.convert,
+  design: payload.design,
+  display: payload.visible,
+  contractName: payload.contractSnapshot?.contractName || "",
+  contractCode: payload.contractSnapshot?.contractCode || "",
+  contractImages: payload.contractSnapshot?.contractImages || [],
+  status: payload.contractSnapshot?.status || "",
+  mailStatus: payload.contractSnapshot?.mailStatus || "",
+  selectedSalesStaff: payload.contractSnapshot?.selectedSalesStaff || "",
+  salesReceiverName: payload.contractSnapshot?.salesReceiverName || "",
+  salesReceiverEmail: payload.contractSnapshot?.salesReceiverEmail || "",
+  ccEmails: payload.contractSnapshot?.ccEmails || [],
+});
 
 export const validateProgram = async (req, res) => {
   const payload = normalizeProgramPayload(req.body);
@@ -315,14 +272,39 @@ export const createProgram = async (req, res) => {
 
   const createdProgram = await Program.create({
     type: "program",
-    ...payload,
+    module: payload.module,
+    time: payload.time,
+    durationValue: payload.durationValue,
+    durationUnit: payload.durationUnit,
+    convert: payload.convert,
+    assigner: payload.assigner,
+    assignee: payload.assignee,
+    businessContractId: payload.businessContractId,
+    designTaskId: payload.designTaskId || null,
+    designTaskTitle: payload.designTaskTitle || "",
+    assignedAt: payload.assignedAt,
+    receivedAt: payload.receivedAt || null,
+    dueAt: payload.dueAt,
+    completedAt: payload.completedAt || null,
+    processingStatus: payload.processingStatus,
+    design: payload.design,
+    visible: payload.visible,
+    contractName: payload.contractSnapshot.contractName,
+    contractCode: payload.contractSnapshot.contractCode,
+    contractImages: payload.contractSnapshot.contractImages,
+    status: payload.contractSnapshot.status,
+    mailStatus: payload.contractSnapshot.mailStatus,
+    selectedSalesStaff: payload.contractSnapshot.selectedSalesStaff,
+    salesReceiverName: payload.contractSnapshot.salesReceiverName,
+    salesReceiverEmail: payload.contractSnapshot.salesReceiverEmail,
+    ccEmails: payload.contractSnapshot.ccEmails,
     createdBy: req.user.sub,
   });
 
   if (shouldSendMail) {
     try {
       await sendProgramMail({
-        program: payload,
+        program: toMailPayload(payload),
         actionLabel: "Lưu gửi mail",
       });
     } catch (error) {
@@ -340,7 +322,6 @@ export const createProgram = async (req, res) => {
 
 export const listPrograms = async (req, res) => {
   const selectedModule = normalizeString(req.query.module);
-
   const filters = {
     isDeleted: false,
     $or: [{ type: "program" }, { type: { $exists: false } }],
@@ -351,7 +332,7 @@ export const listPrograms = async (req, res) => {
 
   const programs = await Program.find(filters)
     .sort({ programCreatedAt: 1, createdAt: 1 })
-    .select("module time convert assigner assignee designTaskTitle programCreatedAt design visible")
+    .select("module time convert assigner assignee designTaskTitle processingStatus assignedAt receivedAt dueAt completedAt design visible")
     .lean();
 
   return res.json({
@@ -363,7 +344,15 @@ export const listPrograms = async (req, res) => {
       assigner: item.assigner || "",
       assignee: item.assignee || "",
       designTaskTitle: item.designTaskTitle || "",
-      createdAt: formatDateTime(item.programCreatedAt || item.createdAt),
+      processingStatus: item.processingStatus || PROCESSING_STATUS_OPTIONS[0],
+      assignedAt: toIsoString(item.assignedAt),
+      assignedAtLabel: formatDateTime(item.assignedAt),
+      receivedAt: toIsoString(item.receivedAt),
+      receivedAtLabel: formatDateTime(item.receivedAt),
+      dueAt: toIsoString(item.dueAt),
+      dueAtLabel: formatDateTime(item.dueAt),
+      completedAt: toIsoString(item.completedAt),
+      completedAtLabel: formatDateTime(item.completedAt),
       design: item.design,
       visible: item.visible,
     })),
@@ -376,12 +365,13 @@ export const listProgramReferences = async (req, res) => {
     $or: [{ type: "program" }, { type: { $exists: false } }],
   })
     .sort({ programCreatedAt: 1, createdAt: 1 })
-    .select("contractCode module contractName time convert durationValue durationUnit salesReceiverEmail ccEmails")
+    .select("businessContractId contractCode module contractName time convert durationValue durationUnit salesReceiverEmail ccEmails")
     .lean();
 
   return res.json({
     programs: programs.map((item) => ({
       id: item._id,
+      businessContractId: toObjectIdString(item.businessContractId),
       contractCode: item.contractCode,
       contractName: item.contractName,
       module: item.module,
@@ -411,8 +401,14 @@ export const getProgramById = async (req, res) => {
       convert: program.convert,
       assigner: program.assigner || "",
       assignee: program.assignee || "",
+      businessContractId: toObjectIdString(program.businessContractId),
       designTaskId: toObjectIdString(program.designTaskId),
       designTaskTitle: program.designTaskTitle || "",
+      assignedAt: toIsoString(program.assignedAt),
+      receivedAt: toIsoString(program.receivedAt),
+      dueAt: toIsoString(program.dueAt),
+      completedAt: toIsoString(program.completedAt),
+      processingStatus: program.processingStatus || PROCESSING_STATUS_OPTIONS[0],
       design: program.design,
       visible: program.visible,
       contractName: program.contractName,
@@ -452,26 +448,32 @@ export const updateProgram = async (req, res) => {
   existingProgram.convert = payload.convert;
   existingProgram.assigner = payload.assigner;
   existingProgram.assignee = payload.assignee;
+  existingProgram.businessContractId = payload.businessContractId;
   existingProgram.designTaskId = payload.designTaskId || null;
   existingProgram.designTaskTitle = payload.designTaskTitle || "";
+  existingProgram.assignedAt = payload.assignedAt;
+  existingProgram.receivedAt = payload.receivedAt || null;
+  existingProgram.dueAt = payload.dueAt;
+  existingProgram.completedAt = payload.completedAt || null;
+  existingProgram.processingStatus = payload.processingStatus;
   existingProgram.design = payload.design;
   existingProgram.visible = payload.visible;
-  existingProgram.contractName = payload.contractName;
-  existingProgram.contractCode = payload.contractCode;
-  existingProgram.contractImages = payload.contractImages;
-  existingProgram.status = payload.status;
-  existingProgram.mailStatus = payload.mailStatus;
-  existingProgram.selectedSalesStaff = payload.selectedSalesStaff;
-  existingProgram.salesReceiverName = payload.salesReceiverName;
-  existingProgram.salesReceiverEmail = payload.salesReceiverEmail;
-  existingProgram.ccEmails = payload.ccEmails;
+  existingProgram.contractName = payload.contractSnapshot.contractName;
+  existingProgram.contractCode = payload.contractSnapshot.contractCode;
+  existingProgram.contractImages = payload.contractSnapshot.contractImages;
+  existingProgram.status = payload.contractSnapshot.status;
+  existingProgram.mailStatus = payload.contractSnapshot.mailStatus;
+  existingProgram.selectedSalesStaff = payload.contractSnapshot.selectedSalesStaff;
+  existingProgram.salesReceiverName = payload.contractSnapshot.salesReceiverName;
+  existingProgram.salesReceiverEmail = payload.contractSnapshot.salesReceiverEmail;
+  existingProgram.ccEmails = payload.contractSnapshot.ccEmails;
 
   await existingProgram.save();
 
   if (shouldSendMail) {
     try {
       await sendProgramMail({
-        program: payload,
+        program: toMailPayload(payload),
         actionLabel: "Cập nhật gửi mail",
       });
     } catch (error) {

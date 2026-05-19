@@ -69,7 +69,7 @@ function ProgramPointManagement() {
       toast.error("Không có dữ liệu để xuất");
       return;
     }
-    const header = ["Nguồn điểm", "Phiếu gốc", "Module", "Mô tả", "Trạng thái", "Lập trình", "Điểm", "Ngày"];
+    const header = ["Nguồn điểm", "Phiếu gốc (HĐ)", "Module", "Mô tả", "Trạng thái", "Lập trình", "Điểm", "Ngày"];
     const rows = detailRows.map((item) => [
       item.source,
       item.contractCode,
@@ -231,7 +231,7 @@ function ProgramPointManagement() {
                 Nguồn điểm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Phiếu gốc
+                Phiếu gốc (HĐ)
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Module
