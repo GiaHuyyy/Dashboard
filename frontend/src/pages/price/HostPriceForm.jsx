@@ -33,7 +33,9 @@ const defaultValues = {
 };
 
 const parseStorage = (storage = "") => {
-  const match = String(storage).trim().match(/^(\d+(?:\.\d+)?)\s*(MB|GB|TB)$/i);
+  const match = String(storage)
+    .trim()
+    .match(/^(\d+(?:\.\d+)?)\s*(MB|GB|TB)$/i);
   if (!match) return { storageValue: 1, storageUnit: "GB" };
   return {
     storageValue: Number(match[1]) || 1,
@@ -169,7 +171,9 @@ function HostPriceForm() {
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Thông tin bảng giá host</div>
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
+          Thông tin bảng giá host
+        </div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
           <FormField
             label="Tên hosting"

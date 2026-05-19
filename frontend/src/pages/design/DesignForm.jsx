@@ -14,6 +14,11 @@ const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao"];
 const STATUS_OPTIONS = ["Mới tạo", "Đã nhận", "Đang xử lý", "Hoàn thành"];
 const DURATION_UNITS = ["h", "ngày"];
+const isValidDateValue = (value) => {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime());
+};
 
 const formatNumber = (value) => {
   const parsed = Number(value);
@@ -40,10 +45,17 @@ const schema = z.object({
   convert: z.coerce.number().gte(0, "Quy đổi không hợp lệ"),
   bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
   status: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
-  handoverDate: z.string().optional(),
-  receiveDate: z.string().optional(),
-  expectedDate: z.string().optional(),
-  completedDate: z.string().optional(),
+  handoverDate: z.string().trim().min(1, "Vui lòng nhập ngày giao").refine(isValidDateValue, "Ngày giao không hợp lệ"),
+  receiveDate: z.string().trim().min(1, "Vui lòng nhập ngày nhận").refine(isValidDateValue, "Ngày nhận không hợp lệ"),
+  expectedDate: z
+    .string()
+    .trim()
+    .min(1, "Vui lòng nhập ngày dự kiến")
+    .refine(isValidDateValue, "Ngày dự kiến không hợp lệ"),
+  completedDate: z
+    .string()
+    .optional()
+    .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
   visible: z.boolean(),
   note: z.string().optional(),
 });

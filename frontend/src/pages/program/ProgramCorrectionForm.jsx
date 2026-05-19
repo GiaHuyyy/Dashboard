@@ -13,6 +13,12 @@ import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 
+const isValidDateValue = (value) => {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime());
+};
+
 const schema = z.object({
   programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
   issueContent: z.string().trim().min(5, "Vui lòng nhập mô tả lỗi/chỉnh sửa"),
@@ -23,10 +29,13 @@ const schema = z.object({
   bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
   assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
-  assignedAt: z.string().trim().min(1, "Vui lòng nhập ngày giao"),
-  receivedAt: z.string().optional(),
-  dueAt: z.string().trim().min(1, "Vui lòng nhập ngày dự kiến"),
-  completedAt: z.string().optional(),
+  assignedAt: z.string().trim().min(1, "Vui lòng nhập ngày giao").refine(isValidDateValue, "Ngày giao không hợp lệ"),
+  receivedAt: z.string().trim().min(1, "Vui lòng nhập ngày nhận").refine(isValidDateValue, "Ngày nhận không hợp lệ"),
+  dueAt: z.string().trim().min(1, "Vui lòng nhập ngày dự kiến").refine(isValidDateValue, "Ngày dự kiến không hợp lệ"),
+  completedAt: z
+    .string()
+    .optional()
+    .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
   status: z.enum(CORRECTION_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái" }),
   visible: z.boolean(),
   note: z.string().optional(),
