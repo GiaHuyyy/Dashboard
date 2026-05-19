@@ -222,7 +222,7 @@ function ProgramUpgradeForm() {
     if (mode === "save-stay") {
       if (!isEditMode && savedUpgrade?.id) {
         toast.success("Đã tạo yêu cầu nâng cấp tại trang");
-        navigate(`/lap-trinh/nang-cap/${savedUpgrade.id}`, { replace: true });
+        navigate(`/lap-trinh/nang-cap/chinh-sua/${savedUpgrade.id}`, { replace: true });
         return;
       }
       toast.success("Đã cập nhật yêu cầu nâng cấp tại trang");

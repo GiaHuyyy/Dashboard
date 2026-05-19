@@ -301,7 +301,7 @@ function ProgramUpgradeManagement() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => navigate(`/lap-trinh/nang-cap/${row.id}`)}
+                  onClick={() => navigate(`/lap-trinh/nang-cap/chinh-sua/${row.id}`)}
                 >
                   <TableCell className="border border-slate-200 p-4">
                     <input
@@ -373,7 +373,7 @@ function ProgramUpgradeManagement() {
                         icon={SquarePen}
                         onClick={(event) => {
                           event.stopPropagation();
-                          navigate(`/lap-trinh/nang-cap/${row.id}`);
+                          navigate(`/lap-trinh/nang-cap/chinh-sua/${row.id}`);
                         }}
                         variant="primary-outline"
                         iconOnly

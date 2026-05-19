@@ -98,7 +98,7 @@ function ProgramEditManagement() {
   };
 
   const openEditForm = (row) => {
-    navigate(`/lap-trinh/quan-ly-chinh-sua/${row.id}`);
+    navigate(`/lap-trinh/quan-ly-chinh-sua/chinh-sua/${row.id}`);
   };
 
   const handleInlineUpdate = async (rowId, patch) => {

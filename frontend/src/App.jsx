@@ -14,6 +14,18 @@ import ProgramForm from "./pages/program/ProgramForm";
 import ProgramPointManagement from "./pages/program/ProgramPointManagement";
 import ProgramUpgradeForm from "./pages/program/ProgramUpgradeForm";
 import ProgramUpgradeManagement from "./pages/program/ProgramUpgradeManagement";
+import HostPriceManagement from "./pages/price/HostPriceManagement";
+import HostPriceForm from "./pages/price/HostPriceForm";
+import SslPriceManagement from "./pages/price/SslPriceManagement";
+import SslPriceForm from "./pages/price/SslPriceForm";
+import DomainPriceManagement from "./pages/price/DomainPriceManagement";
+import DomainPriceForm from "./pages/price/DomainPriceForm";
+import PackagePriceManagement from "./pages/price/PackagePriceManagement";
+import PackagePriceForm from "./pages/price/PackagePriceForm";
+import AdministrationPriceManagement from "./pages/price/AdministrationPriceManagement";
+import AdministrationPriceForm from "./pages/price/AdministrationPriceForm";
+import AdvertisingPriceManagement from "./pages/price/AdvertisingPriceManagement";
+import AdvertisingPriceForm from "./pages/price/AdvertisingPriceForm";
 import StaffForm from "./pages/staff/StaffForm";
 import StaffManagement from "./pages/staff/StaffManagement";
 import SourceForm from "./pages/system/SourceForm";
@@ -120,17 +132,35 @@ function App() {
           <Route path="he-thong/source/them-moi" element={<SourceForm />} />
           <Route path="he-thong/source/chinh-sua/:id" element={<SourceForm />} />
           <Route path="he-thong/server" element={<ServerManagement />} />
-          <Route path="bang-gia" element={<Placeholder title="Quản lý bảng giá" />} />
+          <Route path="bang-gia" element={<Navigate to="/bang-gia/host" replace />} />
+          <Route path="bang-gia/host" element={<HostPriceManagement />} />
+          <Route path="bang-gia/host/them-moi" element={<HostPriceForm />} />
+          <Route path="bang-gia/host/chinh-sua/:id" element={<HostPriceForm />} />
+          <Route path="bang-gia/ssl" element={<SslPriceManagement />} />
+          <Route path="bang-gia/ssl/them-moi" element={<SslPriceForm />} />
+          <Route path="bang-gia/ssl/chinh-sua/:id" element={<SslPriceForm />} />
+          <Route path="bang-gia/ten-mien" element={<DomainPriceManagement />} />
+          <Route path="bang-gia/ten-mien/them-moi" element={<DomainPriceForm />} />
+          <Route path="bang-gia/ten-mien/chinh-sua/:id" element={<DomainPriceForm />} />
+          <Route path="bang-gia/tron-goi" element={<PackagePriceManagement />} />
+          <Route path="bang-gia/tron-goi/them-moi" element={<PackagePriceForm />} />
+          <Route path="bang-gia/tron-goi/chinh-sua/:id" element={<PackagePriceForm />} />
+          <Route path="bang-gia/quan-tri" element={<AdministrationPriceManagement />} />
+          <Route path="bang-gia/quan-tri/them-moi" element={<AdministrationPriceForm />} />
+          <Route path="bang-gia/quan-tri/chinh-sua/:id" element={<AdministrationPriceForm />} />
+          <Route path="bang-gia/quang-cao" element={<AdvertisingPriceManagement />} />
+          <Route path="bang-gia/quang-cao/them-moi" element={<AdvertisingPriceForm />} />
+          <Route path="bang-gia/quang-cao/chinh-sua/:id" element={<AdvertisingPriceForm />} />
           <Route path="lap-trinh" element={<Navigate to="/lap-trinh/danh-sach" replace />} />
           <Route path="lap-trinh/danh-sach" element={<ListProgram />} />
           <Route path="lap-trinh/them-moi" element={<ProgramForm />} />
           <Route path="lap-trinh/chinh-sua/:id" element={<ProgramForm />} />
           <Route path="lap-trinh/nang-cap" element={<ProgramUpgradeManagement />} />
           <Route path="lap-trinh/nang-cap/them-moi" element={<ProgramUpgradeForm />} />
-          <Route path="lap-trinh/nang-cap/:id" element={<ProgramUpgradeForm />} />
+          <Route path="lap-trinh/nang-cap/chinh-sua/:id" element={<ProgramUpgradeForm />} />
           <Route path="lap-trinh/chinh-sua" element={<ProgramEditManagement />} />
           <Route path="lap-trinh/quan-ly-chinh-sua/them-moi" element={<ProgramCorrectionForm />} />
-          <Route path="lap-trinh/quan-ly-chinh-sua/:id" element={<ProgramCorrectionForm />} />
+          <Route path="lap-trinh/quan-ly-chinh-sua/chinh-sua/:id" element={<ProgramCorrectionForm />} />
           <Route path="lap-trinh/quan-ly-diem" element={<ProgramPointManagement />} />
           <Route path="nhan-su" element={<Navigate to="/nhan-su/danh-sach" replace />} />
           <Route path="nhan-su/danh-sach" element={<StaffManagement />} />

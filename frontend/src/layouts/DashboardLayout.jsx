@@ -21,7 +21,19 @@ const navItems = [
       { label: "Quản lý server", path: "/he-thong/server" },
     ],
   },
-  { label: "Quản lý bảng giá", path: "/bang-gia", icon: FileText },
+  {
+    label: "Quản lý bảng giá",
+    path: "/bang-gia",
+    icon: FileText,
+    children: [
+      { label: "Bảng giá host", path: "/bang-gia/host", activePathPrefixes: ["/bang-gia/host/"] },
+      { label: "Bảng giá ssl", path: "/bang-gia/ssl", activePathPrefixes: ["/bang-gia/ssl/"] },
+      { label: "Bảng giá tên miền", path: "/bang-gia/ten-mien", activePathPrefixes: ["/bang-gia/ten-mien/"] },
+      { label: "Bảng giá trọn gói", path: "/bang-gia/tron-goi", activePathPrefixes: ["/bang-gia/tron-goi/"] },
+      { label: "Bảng giá quản trị", path: "/bang-gia/quan-tri", activePathPrefixes: ["/bang-gia/quan-tri/"] },
+      { label: "Bảng giá quảng cáo", path: "/bang-gia/quang-cao", activePathPrefixes: ["/bang-gia/quang-cao/"] },
+    ],
+  },
   {
     label: "Quản lý lập trình",
     path: "/lap-trinh",

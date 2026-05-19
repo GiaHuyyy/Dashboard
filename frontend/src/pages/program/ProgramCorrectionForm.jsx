@@ -250,7 +250,7 @@ function ProgramCorrectionForm() {
     if (mode === "save-stay") {
       if (!isEditMode && savedCorrection?.id) {
         toast.success("Đã tạo yêu cầu chỉnh sửa tại trang");
-        navigate(`/lap-trinh/quan-ly-chinh-sua/${savedCorrection.id}`, { replace: true });
+        navigate(`/lap-trinh/quan-ly-chinh-sua/chinh-sua/${savedCorrection.id}`, { replace: true });
         return;
       }
       toast.success("Đã cập nhật yêu cầu chỉnh sửa tại trang");
