@@ -37,6 +37,7 @@ const buildHtml = ({ program, source, actionLabel }) => {
       <table style="border-collapse: collapse; width: 100%; max-width: 720px;">
         <tr><td style="padding: 6px 0; width: 180px;"><strong>Số hợp đồng</strong></td><td style="padding: 6px 0;">${program.contractCode || ""}</td></tr>
         <tr><td style="padding: 6px 0;"><strong>Module</strong></td><td style="padding: 6px 0;">${program.module || ""}</td></tr>
+        <tr><td style="padding: 6px 0;"><strong>Domain</strong></td><td style="padding: 6px 0;">${source.domain || ""}</td></tr>
         <tr><td style="padding: 6px 0;"><strong>Link source</strong></td><td style="padding: 6px 0;"><a href="${source.sourceLink}" target="_blank" rel="noopener noreferrer">${source.sourceLink}</a></td></tr>
         <tr><td style="padding: 6px 0;"><strong>Ngày hết hạn tải</strong></td><td style="padding: 6px 0;">${formatDateTime(source.expiresAt) || "-"}</td></tr>
         <tr><td style="padding: 6px 0;"><strong>Trạng thái tải</strong></td><td style="padding: 6px 0;">${source.downloadStatus || "Chưa tải"}</td></tr>

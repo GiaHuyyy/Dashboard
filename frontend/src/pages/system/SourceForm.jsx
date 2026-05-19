@@ -12,6 +12,7 @@ import { programApi, sourceApi } from "@/lib/api-client";
 
 const schema = z.object({
   programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
+  domain: z.string().trim().min(1, "Vui lòng nhập Domain"),
   sourceLink: z.string().trim().url("Link source không hợp lệ"),
   expiresAt: z.string().trim().min(1, "Vui lòng chọn ngày hết hạn tải"),
   sendStatus: z.enum(SOURCE_SEND_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái gửi" }),
@@ -24,6 +25,7 @@ const schema = z.object({
 
 const defaultValues = {
   programId: "",
+  domain: "",
   sourceLink: "",
   expiresAt: "",
   sendStatus: SOURCE_SEND_STATUS_OPTIONS[0],
@@ -45,6 +47,7 @@ const toDateTimeLocal = (value) => {
 
 const mapSourceToForm = (source) => ({
   programId: source.programId || "",
+  domain: source.domain || "",
   sourceLink: source.sourceLink || "",
   expiresAt: toDateTimeLocal(source.expiresAt),
   sendStatus: source.sendStatus || SOURCE_SEND_STATUS_OPTIONS[0],
@@ -144,6 +147,7 @@ function SourceForm() {
   const persistSource = async (values, mode) => {
     const payload = {
       programId: values.programId,
+      domain: values.domain,
       sourceLink: values.sourceLink,
       expiresAt: values.expiresAt,
       sendStatus: values.sendStatus,
@@ -249,6 +253,13 @@ function SourceForm() {
                 readOnly: true,
                 placeholder: "Tự động theo phiếu gốc",
               }}
+            />
+
+            <FormField
+              label="Domain"
+              type="text"
+              inputProps={{ ...register("domain"), placeholder: "example.com" }}
+              error={errors.domain?.message}
             />
 
             <FormField

@@ -13,6 +13,11 @@ const programSourceSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    domain: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     sentAt: {
       type: Date,
       default: null,

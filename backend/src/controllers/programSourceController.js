@@ -60,6 +60,7 @@ const isValidHttpUrl = (value) => {
 
 const normalizePayload = (body = {}) => ({
   programId: normalizeString(body.programId),
+  domain: normalizeString(body.domain),
   sourceLink: normalizeString(body.sourceLink),
   expiresAt: normalizeDate(body.expiresAt),
   sendStatus: normalizeString(body.sendStatus),
@@ -91,6 +92,9 @@ const validatePayload = async (payload) => {
 
   if (!payload.sourceLink) {
     return { status: 400, message: "sourceLink là bắt buộc" };
+  }
+  if (!payload.domain) {
+    return { status: 400, message: "domain là bắt buộc" };
   }
   if (!isValidHttpUrl(payload.sourceLink)) {
     return { status: 400, message: "Link source không hợp lệ (chỉ chấp nhận http/https)" };
@@ -134,6 +138,7 @@ const toResponseItem = (doc) => ({
   programId: doc.programId?._id || doc.programId,
   contractCode: doc.programId?.contractCode || "",
   module: doc.programId?.module || "",
+  domain: doc.domain || "",
   sourceLink: doc.sourceLink || "",
   sendStatus: doc.sendStatus || "Chưa gửi",
   sentAt: toIsoString(doc.sentAt),
@@ -226,6 +231,7 @@ export const listProgramSources = async (req, res) => {
     const programIds = matchingPrograms.map((item) => item._id);
 
     filters.$or = [
+      { domain: { $regex: keyword, $options: "i" } },
       { sourceLink: { $regex: keyword, $options: "i" } },
       { note: { $regex: keyword, $options: "i" } },
       { programId: { $in: programIds } },
@@ -273,6 +279,7 @@ export const updateProgramSource = async (req, res) => {
   const normalizedInput = normalizePayload(req.body);
   const mergedPayload = {
     programId: normalizedInput.programId || String(existing.programId),
+    domain: normalizedInput.domain || existing.domain,
     sourceLink: normalizedInput.sourceLink || existing.sourceLink,
     expiresAt: normalizedInput.expiresAt || existing.expiresAt,
     sendStatus: normalizedInput.sendStatus || existing.sendStatus,
@@ -289,6 +296,7 @@ export const updateProgramSource = async (req, res) => {
   }
 
   existing.programId = mergedPayload.programId;
+  existing.domain = mergedPayload.domain;
   existing.sourceLink = mergedPayload.sourceLink;
   existing.expiresAt = mergedPayload.expiresAt;
   existing.sendStatus = mergedPayload.sendStatus;

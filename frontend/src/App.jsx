@@ -18,6 +18,7 @@ import StaffForm from "./pages/staff/StaffForm";
 import StaffManagement from "./pages/staff/StaffManagement";
 import SourceForm from "./pages/system/SourceForm";
 import SourceManagement from "./pages/system/SourceManagement";
+import ServerManagement from "./pages/system/ServerManagement";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import { fetchCurrentUser, logoutUser } from "./store/auth-slice";
@@ -118,7 +119,7 @@ function App() {
           <Route path="he-thong/source" element={<SourceManagement />} />
           <Route path="he-thong/source/them-moi" element={<SourceForm />} />
           <Route path="he-thong/source/chinh-sua/:id" element={<SourceForm />} />
-          <Route path="he-thong/server" element={<Placeholder title="Quản lý server" />} />
+          <Route path="he-thong/server" element={<ServerManagement />} />
           <Route path="bang-gia" element={<Placeholder title="Quản lý bảng giá" />} />
           <Route path="lap-trinh" element={<Navigate to="/lap-trinh/danh-sach" replace />} />
           <Route path="lap-trinh/danh-sach" element={<ListProgram />} />

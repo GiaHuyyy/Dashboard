@@ -20,6 +20,7 @@ function SourceManagement() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
+  const [sendingRowId, setSendingRowId] = useState(null);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -94,6 +95,8 @@ function SourceManagement() {
   };
 
   const handleSendAgain = async (rowId) => {
+    if (sendingRowId === rowId) return;
+    setSendingRowId(rowId);
     try {
       const response = await sourceApi.sendMail(rowId);
       const updated = response?.source;
@@ -103,6 +106,8 @@ function SourceManagement() {
       toast.success(response?.message || "Gửi lại mail thành công");
     } catch (error) {
       toast.error(error?.message || "Gửi lại mail thất bại");
+    } finally {
+      setSendingRowId(null);
     }
   };
 
@@ -160,6 +165,9 @@ function SourceManagement() {
                 Module
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Domain
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Link source
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -194,13 +202,13 @@ function SourceManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -222,8 +230,19 @@ function SourceManagement() {
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.contractCode || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.module || "-"}</TableCell>
+                    <TableCell className="border border-slate-200 p-4 font-bold text-sky-700">{row.contractCode}</TableCell>
+                    <TableCell className="border border-slate-200 p-4">{row.module}</TableCell>
+                    <TableCell className="max-w-52 border border-slate-200 p-4 text-left">
+                      <a
+                      href={row.domain}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block overflow-x-auto text-sky-700 underline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {row.domain || "-"}
+                    </a>
+                    </TableCell>
                   <TableCell className="max-w-60 border border-slate-200 p-4 text-left">
                     <a
                       href={row.sourceLink}
@@ -232,7 +251,7 @@ function SourceManagement() {
                       className="block overflow-x-auto text-sky-700 underline"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      {row.sourceLink}
+                      {row.sourceLink || "-"}
                     </a>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.createdAtLabel || "-"}</TableCell>
@@ -242,9 +261,10 @@ function SourceManagement() {
                       <span>{row.expiresAtLabel || "-"}</span>
                       <Button
                         icon={RotateCw}
-                        label="Gửi lại"
+                        label={sendingRowId === row.id ? "Đang gửi" : "Gửi lại"}
                         variant="info"
                         size="sm"
+                        disabled={sendingRowId === row.id}
                         onClick={(event) => {
                           event.stopPropagation();
                           void handleSendAgain(row.id);
