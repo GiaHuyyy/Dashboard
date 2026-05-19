@@ -54,8 +54,9 @@ const schema = z.object({
     .refine(isValidDateValue, "Ngày dự kiến không hợp lệ"),
   completedDate: z
     .string()
-    .optional()
-    .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
+    .trim()
+    .min(1, "Vui lòng nhập ngày hoàn thành")
+    .refine(isValidDateValue, "Ngày hoàn thành không hợp lệ"),
   visible: z.boolean(),
   note: z.string().optional(),
 });

@@ -34,8 +34,9 @@ const schema = z.object({
   dueAt: z.string().trim().min(1, "Vui lòng nhập ngày dự kiến").refine(isValidDateValue, "Ngày dự kiến không hợp lệ"),
   completedAt: z
     .string()
-    .optional()
-    .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
+    .trim()
+    .min(1, "Vui lòng nhập ngày hoàn thành")
+    .refine(isValidDateValue, "Ngày hoàn thành không hợp lệ"),
   status: z.enum(CORRECTION_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái" }),
   visible: z.boolean(),
   note: z.string().optional(),
@@ -239,6 +240,7 @@ function ProgramCorrectionForm() {
       note: values.note || "",
     };
 
+    // eslint-disable-next-line no-useless-assignment
     let savedCorrection = null;
     try {
       if (isEditMode) {
