@@ -65,6 +65,22 @@ const programUpgradeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    assignedAt: {
+      type: Date,
+      default: null,
+    },
+    receivedAt: {
+      type: Date,
+      default: null,
+    },
+    dueAt: {
+      type: Date,
+      default: null,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
     visible: {
       type: Boolean,
       required: true,

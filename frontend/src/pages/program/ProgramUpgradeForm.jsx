@@ -24,6 +24,10 @@ const schema = z.object({
   status: z.enum(UPGRADE_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái" }),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
   assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
+  assignedAt: z.string().trim().min(1, "Vui lòng nhập ngày giao"),
+  receivedAt: z.string().optional(),
+  dueAt: z.string().trim().min(1, "Vui lòng nhập ngày dự kiến"),
+  completedAt: z.string().optional(),
   visible: z.boolean(),
   note: z.string().optional(),
 });
@@ -39,8 +43,19 @@ const defaultValues = {
   status: UPGRADE_STATUS_OPTIONS[0],
   assigner: "",
   assignee: "",
+  assignedAt: "",
+  receivedAt: "",
+  dueAt: "",
+  completedAt: "",
   visible: true,
   note: "",
+};
+
+const toDateTimeLocal = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 16);
 };
 
 const mapUpgradeToForm = (item) => ({
@@ -54,6 +69,10 @@ const mapUpgradeToForm = (item) => ({
   status: item.status || UPGRADE_STATUS_OPTIONS[0],
   assigner: item.assigner || "",
   assignee: item.assignee || "",
+  assignedAt: toDateTimeLocal(item.assignedAt),
+  receivedAt: toDateTimeLocal(item.receivedAt),
+  dueAt: toDateTimeLocal(item.dueAt),
+  completedAt: toDateTimeLocal(item.completedAt),
   visible: Boolean(item.visible ?? true),
   note: item.note || "",
 });
@@ -200,6 +219,10 @@ function ProgramUpgradeForm() {
       status: values.status,
       assigner: values.assigner,
       assignee: values.assignee,
+      assignedAt: values.assignedAt,
+      receivedAt: values.receivedAt || null,
+      dueAt: values.dueAt,
+      completedAt: values.completedAt || null,
       visible: values.visible,
       note: values.note || "",
     };
@@ -393,16 +416,44 @@ function ProgramUpgradeForm() {
                error={errors.assignee?.message}
              />
 
-            <FormField
-              label="Trạng thái"
-              type="select"
-              options={UPGRADE_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
-              selectProps={register("status")}
-              error={errors.status?.message}
-            />
+             <FormField
+               label="Trạng thái"
+               type="select"
+               options={UPGRADE_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+               selectProps={register("status")}
+               error={errors.status?.message}
+             />
 
-                <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                  <input type="checkbox" {...register("visible")} />
+             <FormField
+               label="Ngày giao"
+               type="datetime-local"
+               inputProps={{ ...register("assignedAt") }}
+               error={errors.assignedAt?.message}
+             />
+
+             <FormField
+               label="Ngày nhận"
+               type="datetime-local"
+               inputProps={{ ...register("receivedAt") }}
+               error={errors.receivedAt?.message}
+             />
+
+             <FormField
+               label="Ngày dự kiến"
+               type="datetime-local"
+               inputProps={{ ...register("dueAt") }}
+               error={errors.dueAt?.message}
+             />
+
+             <FormField
+               label="Ngày hoàn thành"
+               type="datetime-local"
+               inputProps={{ ...register("completedAt") }}
+               error={errors.completedAt?.message}
+             />
+
+                 <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                   <input type="checkbox" {...register("visible")} />
                   Hiển thị
                 </label>
               </div>

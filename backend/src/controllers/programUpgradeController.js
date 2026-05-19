@@ -21,6 +21,11 @@ const normalizeNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
+const normalizeDate = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 const parsePositiveInteger = (value) => {
   const parsed = Number.parseInt(String(value), 10);
@@ -68,6 +73,10 @@ const normalizePayload = (body = {}) => ({
   status: normalizeString(body.status),
   assigner: normalizeString(body.assigner),
   assignee: normalizeString(body.assignee),
+  assignedAt: body.assignedAt ? normalizeDate(body.assignedAt) : null,
+  receivedAt: body.receivedAt ? normalizeDate(body.receivedAt) : null,
+  dueAt: body.dueAt ? normalizeDate(body.dueAt) : null,
+  completedAt: body.completedAt ? normalizeDate(body.completedAt) : null,
   visible: normalizeBoolean(body.visible),
   note: normalizeString(body.note),
 });
@@ -106,6 +115,12 @@ const validatePayload = async (payload) => {
   if (!payload.assignee) {
     return { status: 400, message: "assignee là bắt buộc" };
   }
+  if (!payload.assignedAt) {
+    return { status: 400, message: "assignedAt là bắt buộc" };
+  }
+  if (!payload.dueAt) {
+    return { status: 400, message: "dueAt là bắt buộc" };
+  }
   if (payload.bonusPoint === null || payload.bonusPoint < 0) {
     return { status: 400, message: "bonusPoint không hợp lệ" };
   }
@@ -141,6 +156,14 @@ const toResponseItem = (doc) => ({
   status: doc.status,
   assigner: doc.assigner,
   assignee: doc.assignee,
+  assignedAt: toIsoString(doc.assignedAt),
+  assignedAtLabel: formatDateTime(doc.assignedAt),
+  receivedAt: toIsoString(doc.receivedAt),
+  receivedAtLabel: formatDateTime(doc.receivedAt),
+  dueAt: toIsoString(doc.dueAt),
+  dueAtLabel: formatDateTime(doc.dueAt),
+  completedAt: toIsoString(doc.completedAt),
+  completedAtLabel: formatDateTime(doc.completedAt),
   visible: doc.visible,
   note: doc.note || "",
   createdAt: toIsoString(doc.createdAt),
@@ -152,6 +175,12 @@ export const createProgramUpgrade = async (req, res) => {
   const validationResult = await validatePayload(payload);
   if (validationResult.status) {
     return res.status(validationResult.status).json({ message: validationResult.message });
+  }
+  if (payload.status === "Hoàn thành" && !payload.completedAt) {
+    payload.completedAt = new Date();
+  }
+  if (payload.status !== "Hoàn thành") {
+    payload.completedAt = null;
   }
 
   const createdUpgrade = await ProgramUpgrade.create({
@@ -259,9 +288,19 @@ export const updateProgramUpgrade = async (req, res) => {
     status: normalizedInput.status || existing.status,
     assigner: normalizedInput.assigner || existing.assigner,
     assignee: normalizedInput.assignee || existing.assignee,
+    assignedAt: req.body.assignedAt === null ? null : normalizedInput.assignedAt || existing.assignedAt,
+    receivedAt: req.body.receivedAt === null ? null : normalizedInput.receivedAt || existing.receivedAt,
+    dueAt: req.body.dueAt === null ? null : normalizedInput.dueAt || existing.dueAt,
+    completedAt: req.body.completedAt === null ? null : normalizedInput.completedAt || existing.completedAt,
     visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
+  if (mergedPayload.status === "Hoàn thành" && !mergedPayload.completedAt) {
+    mergedPayload.completedAt = new Date();
+  }
+  if (mergedPayload.status !== "Hoàn thành") {
+    mergedPayload.completedAt = null;
+  }
 
   const validationResult = await validatePayload(mergedPayload);
   if (validationResult.status) {
@@ -279,6 +318,10 @@ export const updateProgramUpgrade = async (req, res) => {
   existing.status = mergedPayload.status;
   existing.assigner = mergedPayload.assigner;
   existing.assignee = mergedPayload.assignee;
+  existing.assignedAt = mergedPayload.assignedAt;
+  existing.receivedAt = mergedPayload.receivedAt;
+  existing.dueAt = mergedPayload.dueAt;
+  existing.completedAt = mergedPayload.completedAt;
   existing.visible = mergedPayload.visible;
   existing.note = mergedPayload.note;
   await existing.save();

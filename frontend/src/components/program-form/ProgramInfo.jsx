@@ -70,8 +70,8 @@ export function ProgramInfo({
         <FormField
           label="Thiết kế tham chiếu"
           type="select"
-          options={designTaskOptions}
-          selectProps={register("designTaskId")}
+          options={designTaskOptions.length > 0 ? designTaskOptions : [{ label: "Chưa có dữ liệu design", value: "" }]}
+          selectProps={{ ...register("designTaskId"), disabled: designTaskOptions.length === 0 }}
           error={errors.designTaskId?.message}
         />
       ) : null}

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { designApi } from "@/lib/api-client";
 
 const DESIGN_TYPES = ["all", "Logo", "Banner", "Landing page", "UI/UX", "Social post"];
-const STATUS_OPTIONS = ["all", "Đã nhận", "Đang xử lý", "Hoàn thành"];
+const STATUS_OPTIONS = ["all", "Mới tạo", "Đã nhận", "Đang xử lý", "Hoàn thành"];
 
 function DesignManagement() {
   const navigate = useNavigate();
@@ -239,9 +239,6 @@ function DesignManagement() {
                 Ngày hoàn thành
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày tạo
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Hiển thị
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -252,13 +249,13 @@ function DesignManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={17} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={17} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -312,7 +309,6 @@ function DesignManagement() {
                   <TableCell className="border border-slate-200 p-4">{row.receiveDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.expectedDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.completedDateLabel || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.createdAt}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <input
                       type="checkbox"

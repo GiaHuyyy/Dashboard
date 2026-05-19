@@ -4,7 +4,7 @@ import DesignTask from "../models/DesignTask.js";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao"];
-const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
+const STATUS_OPTIONS = ["Mới tạo", "Đã nhận", "Đang xử lý", "Hoàn thành"];
 const DURATION_UNITS = ["h", "ngày"];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
@@ -156,10 +156,9 @@ export const listDesignTasks = async (req, res) => {
 export const listDesignReferences = async (req, res) => {
   const items = await DesignTask.find({
     isDeleted: false,
-    status: "Hoàn thành",
   })
     .sort({ createdAt: 1 })
-    .select("title designType assignee expectedDate")
+    .select("title designType assignee status expectedDate")
     .lean();
 
   return res.json({
@@ -168,9 +167,12 @@ export const listDesignReferences = async (req, res) => {
       title: item.title || "",
       designType: item.designType || "",
       assignee: item.assignee || "",
+      status: item.status || "Mới tạo",
       expectedDate: item.expectedDate ? new Date(item.expectedDate).toISOString() : null,
       expectedDateLabel: item.expectedDate ? formatDateTime(item.expectedDate) : "",
-      label: `${item.title || "Design"} - ${item.designType || "N/A"} - ${item.assignee || "N/A"}`,
+      label: `${item.title || "Design"} - ${item.designType || "N/A"} - ${item.assignee || "N/A"} - ${
+        item.status || "Mới tạo"
+      }`,
     })),
   });
 };

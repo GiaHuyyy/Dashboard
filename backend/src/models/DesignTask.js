@@ -56,8 +56,8 @@ const designTaskSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Đã nhận", "Đang xử lý", "Hoàn thành"],
-      default: "Đã nhận",
+      enum: ["Mới tạo", "Đã nhận", "Đang xử lý", "Hoàn thành"],
+      default: "Mới tạo",
       index: true,
     },
     handoverDate: {

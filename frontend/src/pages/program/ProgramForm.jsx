@@ -170,6 +170,7 @@ function ProgramForm() {
   const selectedDurationValue = useWatch({ control, name: "durationValue" });
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
   const selectedDesign = useWatch({ control, name: "design" });
+  const selectedDesignTaskId = useWatch({ control, name: "designTaskId" });
   const isReadOnlyMode = isEditMode && initialSnapshot.values.status === "Hoàn thành";
 
   useEffect(() => {
@@ -217,6 +218,13 @@ function ProgramForm() {
       setValue("designTaskId", "", { shouldValidate: true });
     }
   }, [selectedDesign, setValue]);
+
+  useEffect(() => {
+    if (!selectedDesign) return;
+    if (selectedDesignTaskId) return;
+    if (designReferences.length === 0) return;
+    setValue("designTaskId", designReferences[0].id, { shouldValidate: true });
+  }, [designReferences, selectedDesign, selectedDesignTaskId, setValue]);
 
   useEffect(() => {
     contractImagesRef.current = contractImages;

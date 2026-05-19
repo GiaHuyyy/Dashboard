@@ -12,7 +12,7 @@ import { designApi, staffApi } from "@/lib/api-client";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao"];
-const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
+const STATUS_OPTIONS = ["Mới tạo", "Đã nhận", "Đang xử lý", "Hoàn thành"];
 const DURATION_UNITS = ["h", "ngày"];
 
 const formatNumber = (value) => {
@@ -58,7 +58,7 @@ const defaultValues = {
   durationUnit: "h",
   convert: 0.125,
   bonusPoint: 0,
-  status: STATUS_OPTIONS[0],
+  status: "Mới tạo",
   handoverDate: "",
   receiveDate: "",
   expectedDate: "",
@@ -99,7 +99,6 @@ function DesignForm() {
 
   const durationValue = useWatch({ control, name: "durationValue" });
   const durationUnit = useWatch({ control, name: "durationUnit" });
-  const selectedStatus = useWatch({ control, name: "status" });
 
   useEffect(() => {
     const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
@@ -243,12 +242,6 @@ function DesignForm() {
       () => toast.error("Vui lòng kiểm tra lại thông tin form"),
     )();
 
-  useEffect(() => {
-    if (selectedStatus !== "Hoàn thành") {
-      setValue("completedDate", "", { shouldValidate: false });
-    }
-  }, [selectedStatus, setValue]);
-
   if (isLoadingReference || isLoadingDetail) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
@@ -273,112 +266,120 @@ function DesignForm() {
         <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
           Thông tin công việc design
         </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
-          <FormField
-            label="Hạng mục design"
-            type="text"
-            inputProps={{ ...register("title"), placeholder: "Ví dụ: Thiết kế landing page sản phẩm A" }}
-            error={errors.title?.message}
-          />
-          <FormField
-            label="Loại design"
-            type="select"
-            options={DESIGN_TYPES.map((item) => ({ label: item, value: item }))}
-            selectProps={register("designType")}
-            error={errors.designType?.message}
-          />
-          <FormField
-            label="Mức ưu tiên"
-            type="select"
-            options={PRIORITY_OPTIONS.map((item) => ({ label: item, value: item }))}
-            selectProps={register("priority")}
-            error={errors.priority?.message}
-          />
-          <FormField
-            label="Trạng thái"
-            type="select"
-            options={STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
-            selectProps={register("status")}
-            error={errors.status?.message}
-          />
-          <FormField
-            label="Người giao"
-            type="select"
-            options={managerOptions.length > 0 ? managerOptions : [{ label: "Không có dữ liệu", value: "" }]}
-            selectProps={{ ...register("assigner"), disabled: managerOptions.length === 0 }}
-            error={errors.assigner?.message}
-          />
-          <FormField
-            label="Người nhận (Design)"
-            type="select"
-            options={designerOptions.length > 0 ? designerOptions : [{ label: "Không có dữ liệu", value: "" }]}
-            selectProps={{ ...register("assignee"), disabled: designerOptions.length === 0 }}
-            error={errors.assignee?.message}
-          />
-          <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+        <div className="grid gap-5 p-5">
+          <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
+            <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
+
             <FormField
-              label="Thời gian"
-              type="number"
-              inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1" }}
-              error={errors.durationValue?.message}
+              label="Hạng mục design"
+              type="text"
+              inputProps={{ ...register("title"), placeholder: "Ví dụ: Thiết kế landing page sản phẩm A" }}
+              error={errors.title?.message}
             />
             <FormField
-              label="Đơn vị"
+              label="Loại design"
               type="select"
-              options={DURATION_UNITS.map((item) => ({ label: item, value: item }))}
-              selectProps={register("durationUnit")}
-              error={errors.durationUnit?.message}
+              options={DESIGN_TYPES.map((item) => ({ label: item, value: item }))}
+              selectProps={register("designType")}
+              error={errors.designType?.message}
             />
-          </div>
-          <FormField
-            label="Quy đổi"
-            type="number"
-            inputProps={{ ...register("convert"), readOnly: true }}
-            inputClassName="bg-slate-50"
-            error={errors.convert?.message}
-          />
-          <FormField
-            label="Điểm cộng thêm"
-            type="number"
-            inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001" }}
-            error={errors.bonusPoint?.message}
-          />
-          <FormField
-            label="Ngày giao"
-            type="date"
-            inputProps={{ ...register("handoverDate") }}
-            error={errors.handoverDate?.message}
-          />
-          <FormField
-            label="Ngày nhận"
-            type="date"
-            inputProps={{ ...register("receiveDate") }}
-            error={errors.receiveDate?.message}
-          />
-          <FormField
-            label="Ngày dự kiến"
-            type="date"
-            inputProps={{ ...register("expectedDate") }}
-            error={errors.expectedDate?.message}
-          />
-          <FormField
-            label="Ngày hoàn thành"
-            type="date"
-            inputProps={{ ...register("completedDate"), readOnly: selectedStatus !== "Hoàn thành" }}
-            inputClassName={selectedStatus === "Hoàn thành" ? "" : "bg-slate-50"}
-            error={errors.completedDate?.message}
-          />
-          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <input type="checkbox" {...register("visible")} />
-            Hiển thị
-          </label>
-          <div className="lg:col-span-2">
+            <FormField
+              label="Mức ưu tiên"
+              type="select"
+              options={PRIORITY_OPTIONS.map((item) => ({ label: item, value: item }))}
+              selectProps={register("priority")}
+              error={errors.priority?.message}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                label="Thời gian"
+                type="number"
+                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1" }}
+                error={errors.durationValue?.message}
+              />
+              <FormField
+                label="Đơn vị"
+                type="select"
+                options={DURATION_UNITS.map((item) => ({ label: item, value: item }))}
+                selectProps={register("durationUnit")}
+                error={errors.durationUnit?.message}
+              />
+            </div>
+
+            <FormField
+              label="Quy đổi"
+              type="number"
+              inputProps={{ ...register("convert"), readOnly: true }}
+              inputClassName="bg-slate-50"
+              error={errors.convert?.message}
+            />
+            <FormField
+              label="Điểm cộng thêm"
+              type="number"
+              inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001" }}
+              error={errors.bonusPoint?.message}
+            />
             <FormField
               label="Ghi chú"
               type="textarea"
               inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)" }}
               error={errors.note?.message}
             />
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
+            <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
+
+            <FormField
+              label="Người giao"
+              type="select"
+              options={managerOptions.length > 0 ? managerOptions : [{ label: "Không có dữ liệu", value: "" }]}
+              selectProps={{ ...register("assigner"), disabled: managerOptions.length === 0 }}
+              error={errors.assigner?.message}
+            />
+            <FormField
+              label="Người nhận (Design)"
+              type="select"
+              options={designerOptions.length > 0 ? designerOptions : [{ label: "Không có dữ liệu", value: "" }]}
+              selectProps={{ ...register("assignee"), disabled: designerOptions.length === 0 }}
+              error={errors.assignee?.message}
+            />
+            <FormField
+              label="Trạng thái"
+              type="select"
+              options={STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+              selectProps={register("status")}
+              error={errors.status?.message}
+            />
+            <FormField
+              label="Ngày giao"
+              type="date"
+              inputProps={{ ...register("handoverDate") }}
+              error={errors.handoverDate?.message}
+            />
+            <FormField
+              label="Ngày nhận"
+              type="date"
+              inputProps={{ ...register("receiveDate") }}
+              error={errors.receiveDate?.message}
+            />
+            <FormField
+              label="Ngày dự kiến"
+              type="date"
+              inputProps={{ ...register("expectedDate") }}
+              error={errors.expectedDate?.message}
+            />
+            <FormField
+              label="Ngày hoàn thành"
+              type="date"
+              inputProps={{ ...register("completedDate") }}
+              error={errors.completedDate?.message}
+            />
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <input type="checkbox" {...register("visible")} />
+              Hiển thị
+            </label>
           </div>
         </div>
       </div>

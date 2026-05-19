@@ -21,6 +21,17 @@ const PRIORITY_COLORS = {
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
+const formatDateTime = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
 function ProgramUpgradeManagement() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -117,6 +128,10 @@ function ProgramUpgradeManagement() {
       status: target.status,
       assigner: target.assigner,
       assignee: target.assignee,
+      assignedAt: target.assignedAt || new Date().toISOString(),
+      receivedAt: target.receivedAt || null,
+      dueAt: target.dueAt || new Date().toISOString(),
+      completedAt: target.completedAt || null,
       visible: target.visible,
       note: target.note || "",
       ...patch,
@@ -276,6 +291,18 @@ function ProgramUpgradeManagement() {
                 Người nhận
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày giao
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày nhận
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày dự kiến
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày hoàn thành
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Hiển thị
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -355,6 +382,18 @@ function ProgramUpgradeManagement() {
                         </option>
                       ))}
                     </select>
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                    {formatDateTime(row.assignedAt)}
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                    {formatDateTime(row.receivedAt)}
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                    {formatDateTime(row.dueAt)}
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                    {formatDateTime(row.completedAt)}
                   </TableCell>
                   <TableCell
                     className="border border-slate-200 p-4 text-center"
