@@ -62,6 +62,7 @@ const validatePayload = async (payload, excludeId = "") => {
 
   const existing = await HostPrice.findOne({
     name: { $regex: `^${payload.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+    isDeleted: false,
   }).lean();
   if (existing && String(existing._id) !== excludeId) {
     return { status: 409, message: "Tên hosting đã tồn tại" };

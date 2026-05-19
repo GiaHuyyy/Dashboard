@@ -1,0 +1,344 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { FormActions } from "@/components/program-form/FormActions";
+import FormField from "@/components/ui/form-field";
+import { designApi, staffApi } from "@/lib/api-client";
+
+const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
+const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao"];
+const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
+const DURATION_UNITS = ["h", "ngày"];
+
+const formatNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return Number(parsed.toFixed(3));
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  const numeric = Number(durationValue);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  if (durationUnit === "ngày") return formatNumber(numeric);
+  if (durationUnit === "h") return formatNumber(numeric / 8);
+  return 0;
+};
+
+const schema = z.object({
+  title: z.string().trim().min(1, "Vui lòng nhập hạng mục design"),
+  designType: z.enum(DESIGN_TYPES, { message: "Vui lòng chọn loại design hợp lệ" }),
+  priority: z.enum(PRIORITY_OPTIONS, { message: "Vui lòng chọn mức ưu tiên hợp lệ" }),
+  assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
+  assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
+  durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
+  durationUnit: z.enum(DURATION_UNITS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
+  convert: z.coerce.number().gte(0, "Quy đổi không hợp lệ"),
+  bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
+  status: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+  deadline: z.string().optional(),
+  visible: z.boolean(),
+  note: z.string().optional(),
+});
+
+const defaultValues = {
+  title: "",
+  designType: DESIGN_TYPES[0],
+  priority: PRIORITY_OPTIONS[1],
+  assigner: "",
+  assignee: "",
+  durationValue: 1,
+  durationUnit: "h",
+  convert: 0.125,
+  bonusPoint: 0,
+  status: STATUS_OPTIONS[0],
+  deadline: "",
+  visible: true,
+  note: "",
+};
+
+const toDateTimeLocal = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60000);
+  return localDate.toISOString().slice(0, 16);
+};
+
+function DesignForm() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
+  const [staffReferences, setStaffReferences] = useState([]);
+  const [isLoadingReference, setIsLoadingReference] = useState(true);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues,
+  });
+
+  const durationValue = useWatch({ control, name: "durationValue" });
+  const durationUnit = useWatch({ control, name: "durationUnit" });
+
+  useEffect(() => {
+    const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
+    setValue("convert", nextConvert, { shouldValidate: true });
+  }, [durationUnit, durationValue, setValue]);
+
+  useEffect(() => {
+    const fetchStaffReferences = async () => {
+      setIsLoadingReference(true);
+      try {
+        const response = await staffApi.references();
+        const staffs = Array.isArray(response?.staffs) ? response.staffs : [];
+        setStaffReferences(staffs);
+
+        if (!isEditMode) {
+          const manager = staffs.find((item) => item.role === "Quản lý");
+          const designer =
+            staffs.find((item) => item.role === "Thiết kế") ||
+            staffs.find((item) => item.role === "Thiết kế viên") ||
+            staffs.find((item) => item.role === "Lập trình viên");
+          const nextDefault = {
+            ...defaultValues,
+            assigner: manager?.fullName || "",
+            assignee: designer?.fullName || "",
+          };
+          reset(nextDefault);
+          setInitialSnapshot(nextDefault);
+        }
+      } catch (error) {
+        toast.error(error?.message || "Không thể tải danh sách nhân sự");
+      } finally {
+        setIsLoadingReference(false);
+      }
+    };
+    void fetchStaffReferences();
+  }, [isEditMode, reset]);
+
+  useEffect(() => {
+    if (!isEditMode) return;
+    const fetchDetail = async () => {
+      setIsLoadingDetail(true);
+      try {
+        const response = await designApi.detail(id);
+        const task = response?.designTask;
+        if (!task) {
+          toast.error("Không tìm thấy công việc design");
+          navigate("/design/danh-sach");
+          return;
+        }
+        const mapped = {
+          title: task.title || "",
+          designType: task.designType || DESIGN_TYPES[0],
+          priority: task.priority || PRIORITY_OPTIONS[1],
+          assigner: task.assigner || "",
+          assignee: task.assignee || "",
+          durationValue: Number(task.durationValue) || 1,
+          durationUnit: task.durationUnit || "h",
+          convert: Number(task.convert) || 0,
+          bonusPoint: Number(task.bonusPoint) || 0,
+          status: task.status || STATUS_OPTIONS[0],
+          deadline: toDateTimeLocal(task.deadline),
+          visible: Boolean(task.visible ?? true),
+          note: task.note || "",
+        };
+        reset(mapped);
+        setInitialSnapshot(mapped);
+      } catch (error) {
+        toast.error(error?.message || "Không thể tải chi tiết công việc design");
+        navigate("/design/danh-sach");
+      } finally {
+        setIsLoadingDetail(false);
+      }
+    };
+    void fetchDetail();
+  }, [id, isEditMode, navigate, reset]);
+
+  const managerOptions = useMemo(
+    () =>
+      staffReferences
+        .filter((item) => item.role === "Quản lý")
+        .map((item) => ({ label: item.fullName, value: item.fullName })),
+    [staffReferences],
+  );
+  const designerOptions = useMemo(
+    () =>
+      staffReferences
+        .filter((item) => item.role === "Thiết kế" || item.role === "Thiết kế viên" || item.role === "Lập trình viên")
+        .map((item) => ({ label: item.fullName, value: item.fullName })),
+    [staffReferences],
+  );
+
+  const persist = async (values, mode) => {
+    const payload = {
+      ...values,
+      convert: Number(values.convert),
+      durationValue: Number(values.durationValue),
+      bonusPoint: Number(values.bonusPoint),
+      deadline: values.deadline || null,
+      note: values.note || "",
+    };
+
+    try {
+      if (isEditMode) {
+        const response = await designApi.update(id, payload);
+        toast.success(response?.message || "Đã cập nhật công việc design");
+      } else {
+        const response = await designApi.create(payload);
+        toast.success(response?.message || "Đã thêm công việc design");
+        if (mode === "save-stay" && response?.designTask?.id) {
+          navigate(`/design/chinh-sua/${response.designTask.id}`, { replace: true });
+          return;
+        }
+      }
+
+      if (mode === "save-stay" && isEditMode) {
+        setInitialSnapshot(values);
+        reset(values);
+        return;
+      }
+      if (mode !== "save-stay") navigate("/design/danh-sach");
+    } catch (error) {
+      toast.error(error?.message || "Không thể lưu công việc design");
+    }
+  };
+
+  const submitWithMode = (mode) =>
+    handleSubmit(
+      (values) => void persist(values, mode),
+      () => toast.error("Vui lòng kiểm tra lại thông tin form"),
+    )();
+
+  if (isLoadingReference || isLoadingDetail) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
+    );
+  }
+
+  return (
+    <form className="space-y-4">
+      <FormActions
+        onSave={() => submitWithMode("save")}
+        onSaveStay={() => submitWithMode("save-stay")}
+        onSaveMail={() => null}
+        onReset={() => reset(initialSnapshot)}
+        isSubmitting={isSubmitting}
+        isUploading={false}
+        isEditMode={isEditMode}
+        exitPath="/design/danh-sach"
+        showSaveMail={false}
+      />
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
+          Thông tin công việc design
+        </div>
+        <div className="grid gap-5 p-5 lg:grid-cols-2">
+          <FormField
+            label="Hạng mục design"
+            type="text"
+            inputProps={{ ...register("title"), placeholder: "Ví dụ: Thiết kế landing page sản phẩm A" }}
+            error={errors.title?.message}
+          />
+          <FormField
+            label="Loại design"
+            type="select"
+            options={DESIGN_TYPES.map((item) => ({ label: item, value: item }))}
+            selectProps={register("designType")}
+            error={errors.designType?.message}
+          />
+          <FormField
+            label="Mức ưu tiên"
+            type="select"
+            options={PRIORITY_OPTIONS.map((item) => ({ label: item, value: item }))}
+            selectProps={register("priority")}
+            error={errors.priority?.message}
+          />
+          <FormField
+            label="Trạng thái"
+            type="select"
+            options={STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+            selectProps={register("status")}
+            error={errors.status?.message}
+          />
+          <FormField
+            label="Người giao"
+            type="select"
+            options={managerOptions.length > 0 ? managerOptions : [{ label: "Không có dữ liệu", value: "" }]}
+            selectProps={{ ...register("assigner"), disabled: managerOptions.length === 0 }}
+            error={errors.assigner?.message}
+          />
+          <FormField
+            label="Người nhận"
+            type="select"
+            options={designerOptions.length > 0 ? designerOptions : [{ label: "Không có dữ liệu", value: "" }]}
+            selectProps={{ ...register("assignee"), disabled: designerOptions.length === 0 }}
+            error={errors.assignee?.message}
+          />
+          <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+            <FormField
+              label="Thời gian"
+              type="number"
+              inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1" }}
+              error={errors.durationValue?.message}
+            />
+            <FormField
+              label="Đơn vị"
+              type="select"
+              options={DURATION_UNITS.map((item) => ({ label: item, value: item }))}
+              selectProps={register("durationUnit")}
+              error={errors.durationUnit?.message}
+            />
+          </div>
+          <FormField
+            label="Quy đổi"
+            type="number"
+            inputProps={{ ...register("convert"), readOnly: true }}
+            inputClassName="bg-slate-50"
+            error={errors.convert?.message}
+          />
+          <FormField
+            label="Điểm cộng thêm"
+            type="number"
+            inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001" }}
+            error={errors.bonusPoint?.message}
+          />
+          <FormField
+            label="Deadline"
+            type="datetime-local"
+            inputProps={{ ...register("deadline") }}
+            error={errors.deadline?.message}
+          />
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+            <input type="checkbox" {...register("visible")} />
+            Hiển thị
+          </label>
+          <div className="lg:col-span-2">
+            <FormField
+              label="Ghi chú"
+              type="textarea"
+              inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)" }}
+              error={errors.note?.message}
+            />
+          </div>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+export default DesignForm;

@@ -16,7 +16,7 @@ import {
   MODULE_OPTIONS,
   STATUS_OPTIONS,
 } from "@/constants/program";
-import { programApi, staffApi } from "@/lib/api-client";
+import { designApi, programApi, staffApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { uploadApi } from "@/lib/upload";
 
@@ -56,6 +56,7 @@ const programSchema = z.object({
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
   assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
+  designTaskId: z.string().trim().min(1, "Vui lòng chọn thiết kế tham chiếu"),
   design: z.boolean(),
   visible: z.boolean(),
   contractImages: z.array(z.any()).optional(),
@@ -114,6 +115,7 @@ const defaultValues = {
   convert: "1",
   assigner: "",
   assignee: "",
+  designTaskId: "",
   design: false,
   visible: true,
   contractImages: [],
@@ -138,6 +140,7 @@ function ProgramForm() {
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isLoadingProgram, setIsLoadingProgram] = useState(false);
   const [staffReferences, setStaffReferences] = useState([]);
+  const [designReferences, setDesignReferences] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
@@ -162,9 +165,11 @@ function ProgramForm() {
   useEffect(() => {
     const fetchStaffs = async () => {
       try {
-        const response = await staffApi.references();
-        const nextReferences = Array.isArray(response?.staffs) ? response.staffs : [];
+        const [staffResponse, designResponse] = await Promise.all([staffApi.references(), designApi.references()]);
+        const nextReferences = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
+        const nextDesignReferences = Array.isArray(designResponse?.designTasks) ? designResponse.designTasks : [];
         setStaffReferences(nextReferences);
+        setDesignReferences(nextDesignReferences);
         const managerOptions = getStaffNamesByRole(nextReferences, "Quản lý");
         const programmerOptions = getStaffNamesByRole(nextReferences, "Lập trình viên");
         const salesOptions = getStaffNamesByRole(nextReferences, "Nhân viên kinh doanh");
@@ -177,8 +182,11 @@ function ProgramForm() {
         if (!isEditMode && salesOptions.length > 0) {
           setValue("selectedSalesStaff", salesOptions[0], { shouldValidate: true });
         }
+        if (!isEditMode && nextDesignReferences.length > 0) {
+          setValue("designTaskId", nextDesignReferences[0].id, { shouldValidate: true });
+        }
       } catch (error) {
-        toast.error(error?.message || "Không thể tải danh sách nhân sự");
+        toast.error(error?.message || "Không thể tải dữ liệu tham chiếu");
       }
     };
     void fetchStaffs();
@@ -187,6 +195,10 @@ function ProgramForm() {
   const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
   const salesOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh"));
+  const designTaskOptions = designReferences.map((item) => ({
+    label: item?.label || item?.title || "Design",
+    value: item?.id,
+  }));
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
@@ -231,6 +243,7 @@ function ProgramForm() {
           convert: program.convert || "1",
           assigner: program.assigner || "",
           assignee: program.assignee || "",
+          designTaskId: program.designTaskId || "",
           design: Boolean(program.design),
           visible: Boolean(program.visible),
           contractImages: [],
@@ -438,6 +451,7 @@ function ProgramForm() {
               isUploading={isUploadingImages}
               assignerOptions={assignerOptions}
               assigneeOptions={assigneeOptions}
+              designTaskOptions={designTaskOptions}
             />
 
             <ContractInfo register={register} errors={errors} salesOptions={salesOptions} />

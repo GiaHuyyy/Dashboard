@@ -7,6 +7,7 @@ const ROLE_DEPARTMENT_MAP = {
   "Lập trình viên": "Lập trình",
   "Nhân viên kinh doanh": "Kinh doanh",
   "Quản lý": "Quản lý",
+  "Thiết kế": "Design",
 };
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");

@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import { advertisingPriceApi } from "@/lib/api-client";
 
 const PLATFORM_OPTIONS = ["Google", "Facebook", "TikTok", "Zalo"];
+const formSchema = z.object({
+  platform: z.enum(PLATFORM_OPTIONS, { message: "Vui lòng chọn nền tảng hợp lệ" }),
+  packageName: z.string().trim().min(1, "Vui lòng nhập tên gói quảng cáo"),
+  minimumBudget: z.coerce.number().gte(0, "Ngân sách tối thiểu không hợp lệ"),
+  serviceFeePercent: z.coerce.number().gte(0, "Phí dịch vụ không hợp lệ").lte(100, "Phí dịch vụ tối đa 100%"),
+  setupFee: z.coerce.number().gte(0, "Phí setup không hợp lệ"),
+  visible: z.boolean(),
+  note: z.string().optional(),
+});
+
 const defaultValues = {
   platform: "Google",
   packageName: "",
@@ -25,6 +36,7 @@ function AdvertisingPriceForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const mapResponseToForm = (item) => ({
     platform: item?.platform || "Google",
@@ -59,24 +71,31 @@ function AdvertisingPriceForm() {
     void fetchDetail();
   }, [fetchDetail]);
 
-  const buildPayload = () => ({
-    platform: formData.platform,
-    packageName: formData.packageName.trim(),
-    minimumBudget: Number(formData.minimumBudget),
-    serviceFeePercent: Number(formData.serviceFeePercent),
-    setupFee: Number(formData.setupFee),
-    visible: Boolean(formData.visible),
-    note: formData.note.trim(),
+  const buildPayload = (values) => ({
+    platform: values.platform,
+    packageName: values.packageName.trim(),
+    minimumBudget: Number(values.minimumBudget),
+    serviceFeePercent: Number(values.serviceFeePercent),
+    setupFee: Number(values.setupFee),
+    visible: Boolean(values.visible),
+    note: values.note?.trim() || "",
   });
 
   const persist = async (mode) => {
-    if (!formData.packageName.trim()) {
-      toast.error("Vui lòng nhập tên gói quảng cáo");
+    const parsed = formSchema.safeParse(formData);
+    if (!parsed.success) {
+      const nextErrors = {};
+      parsed.error.issues.forEach((issue) => {
+        const key = issue.path?.[0];
+        if (key && !nextErrors[key]) nextErrors[key] = issue.message;
+      });
+      setFieldErrors(nextErrors);
       return;
     }
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
-      const payload = buildPayload();
+      const payload = buildPayload(parsed.data);
       if (isEditMode) {
         const response = await advertisingPriceApi.update(id, payload);
         toast.success(response?.message || "Đã cập nhật bảng giá quảng cáo");
@@ -89,7 +108,7 @@ function AdvertisingPriceForm() {
         }
       }
       if (mode === "save-stay" && isEditMode) {
-        const nextSnapshot = buildPayload();
+        const nextSnapshot = parsed.data;
         setInitialSnapshot(nextSnapshot);
         setFormData(nextSnapshot);
         return;
@@ -114,7 +133,10 @@ function AdvertisingPriceForm() {
         onSave={() => void persist("save")}
         onSaveStay={() => void persist("save-stay")}
         onSaveMail={() => null}
-        onReset={() => setFormData(initialSnapshot)}
+        onReset={() => {
+          setFormData(initialSnapshot);
+          setFieldErrors({});
+        }}
         isSubmitting={isSubmitting}
         isUploading={false}
         isEditMode={isEditMode}
@@ -133,16 +155,25 @@ function AdvertisingPriceForm() {
             options={PLATFORM_OPTIONS.map((item) => ({ label: item, value: item }))}
             selectProps={{
               value: formData.platform,
-              onChange: (event) => setFormData((prev) => ({ ...prev, platform: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, platform: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, platform: undefined }));
+              },
             }}
+            error={fieldErrors.platform}
           />
           <FormField
             label="Tên gói"
             type="text"
             inputProps={{
               value: formData.packageName,
-              onChange: (event) => setFormData((prev) => ({ ...prev, packageName: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, packageName: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, packageName: undefined }));
+              },
+              placeholder: "Ví dụ: Gói tăng đơn cơ bản",
             }}
+            error={fieldErrors.packageName}
           />
           <FormField
             label="Ngân sách tối thiểu"
@@ -150,8 +181,12 @@ function AdvertisingPriceForm() {
             inputProps={{
               min: 0,
               value: formData.minimumBudget,
-              onChange: (event) => setFormData((prev) => ({ ...prev, minimumBudget: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, minimumBudget: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, minimumBudget: undefined }));
+              },
             }}
+            error={fieldErrors.minimumBudget}
           />
           <FormField
             label="Phí dịch vụ (%)"
@@ -160,8 +195,12 @@ function AdvertisingPriceForm() {
               min: 0,
               max: 100,
               value: formData.serviceFeePercent,
-              onChange: (event) => setFormData((prev) => ({ ...prev, serviceFeePercent: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, serviceFeePercent: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, serviceFeePercent: undefined }));
+              },
             }}
+            error={fieldErrors.serviceFeePercent}
           />
           <FormField
             label="Phí setup"
@@ -169,8 +208,12 @@ function AdvertisingPriceForm() {
             inputProps={{
               min: 0,
               value: formData.setupFee,
-              onChange: (event) => setFormData((prev) => ({ ...prev, setupFee: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, setupFee: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, setupFee: undefined }));
+              },
             }}
+            error={fieldErrors.setupFee}
           />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input

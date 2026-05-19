@@ -1,10 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import { packagePriceApi } from "@/lib/api-client";
+
+const formSchema = z.object({
+  name: z.string().trim().min(1, "Vui lòng nhập tên gói"),
+  includesHosting: z.boolean(),
+  includesDomain: z.boolean(),
+  designPages: z.coerce.number().int("Số trang phải là số nguyên").gt(0, "Số trang phải lớn hơn 0"),
+  monthlyPrice: z.coerce.number().gte(0, "Giá tháng không hợp lệ"),
+  yearlyPrice: z.coerce.number().gte(0, "Giá năm không hợp lệ"),
+  visible: z.boolean(),
+  note: z.string().optional(),
+});
 
 const defaultValues = {
   name: "",
@@ -25,6 +37,7 @@ function PackagePriceForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const mapResponseToForm = (item) => ({
     name: item?.name || "",
@@ -60,25 +73,32 @@ function PackagePriceForm() {
     void fetchDetail();
   }, [fetchDetail]);
 
-  const buildPayload = () => ({
-    name: formData.name.trim(),
-    includesHosting: Boolean(formData.includesHosting),
-    includesDomain: Boolean(formData.includesDomain),
-    designPages: Number(formData.designPages),
-    monthlyPrice: Number(formData.monthlyPrice),
-    yearlyPrice: Number(formData.yearlyPrice),
-    visible: Boolean(formData.visible),
-    note: formData.note.trim(),
+  const buildPayload = (values) => ({
+    name: values.name.trim(),
+    includesHosting: Boolean(values.includesHosting),
+    includesDomain: Boolean(values.includesDomain),
+    designPages: Number(values.designPages),
+    monthlyPrice: Number(values.monthlyPrice),
+    yearlyPrice: Number(values.yearlyPrice),
+    visible: Boolean(values.visible),
+    note: values.note?.trim() || "",
   });
 
   const persist = async (mode) => {
-    if (!formData.name.trim()) {
-      toast.error("Vui lòng nhập tên gói trọn gói");
+    const parsed = formSchema.safeParse(formData);
+    if (!parsed.success) {
+      const nextErrors = {};
+      parsed.error.issues.forEach((issue) => {
+        const key = issue.path?.[0];
+        if (key && !nextErrors[key]) nextErrors[key] = issue.message;
+      });
+      setFieldErrors(nextErrors);
       return;
     }
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
-      const payload = buildPayload();
+      const payload = buildPayload(parsed.data);
       if (isEditMode) {
         const response = await packagePriceApi.update(id, payload);
         toast.success(response?.message || "Đã cập nhật bảng giá trọn gói");
@@ -91,7 +111,7 @@ function PackagePriceForm() {
         }
       }
       if (mode === "save-stay" && isEditMode) {
-        const nextSnapshot = buildPayload();
+        const nextSnapshot = parsed.data;
         setInitialSnapshot(nextSnapshot);
         setFormData(nextSnapshot);
         return;
@@ -116,7 +136,10 @@ function PackagePriceForm() {
         onSave={() => void persist("save")}
         onSaveStay={() => void persist("save-stay")}
         onSaveMail={() => null}
-        onReset={() => setFormData(initialSnapshot)}
+        onReset={() => {
+          setFormData(initialSnapshot);
+          setFieldErrors({});
+        }}
         isSubmitting={isSubmitting}
         isUploading={false}
         isEditMode={isEditMode}
@@ -134,8 +157,13 @@ function PackagePriceForm() {
             type="text"
             inputProps={{
               value: formData.name,
-              onChange: (event) => setFormData((prev) => ({ ...prev, name: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, name: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, name: undefined }));
+              },
+              placeholder: "Ví dụ: Gói Business",
             }}
+            error={fieldErrors.name}
           />
           <FormField
             label="Số trang thiết kế"
@@ -143,8 +171,12 @@ function PackagePriceForm() {
             inputProps={{
               min: 1,
               value: formData.designPages,
-              onChange: (event) => setFormData((prev) => ({ ...prev, designPages: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, designPages: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, designPages: undefined }));
+              },
             }}
+            error={fieldErrors.designPages}
           />
           <FormField
             label="Giá tháng"
@@ -152,8 +184,12 @@ function PackagePriceForm() {
             inputProps={{
               min: 0,
               value: formData.monthlyPrice,
-              onChange: (event) => setFormData((prev) => ({ ...prev, monthlyPrice: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, monthlyPrice: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, monthlyPrice: undefined }));
+              },
             }}
+            error={fieldErrors.monthlyPrice}
           />
           <FormField
             label="Giá năm"
@@ -161,8 +197,12 @@ function PackagePriceForm() {
             inputProps={{
               min: 0,
               value: formData.yearlyPrice,
-              onChange: (event) => setFormData((prev) => ({ ...prev, yearlyPrice: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, yearlyPrice: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, yearlyPrice: undefined }));
+              },
             }}
+            error={fieldErrors.yearlyPrice}
           />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input

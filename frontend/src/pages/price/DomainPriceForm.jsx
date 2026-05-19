@@ -1,14 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import { domainPriceApi } from "@/lib/api-client";
 
+const PROVIDER_OPTIONS = ["Cloudflare", "GoDaddy", "P.A Việt Nam", "Namecheap", "Khác"];
+const formSchema = z.object({
+  extension: z
+    .string()
+    .trim()
+    .min(2, "Vui lòng nhập đuôi tên miền")
+    .regex(/^\.[a-z0-9-]+$/i, "Đuôi tên miền phải theo dạng .com, .vn, ..."),
+  provider: z.string().trim().min(1, "Vui lòng chọn nhà cung cấp"),
+  registerPrice: z.coerce.number().gte(0, "Giá đăng ký không hợp lệ"),
+  renewalPrice: z.coerce.number().gte(0, "Giá gia hạn không hợp lệ"),
+  transferPrice: z.coerce.number().gte(0, "Giá chuyển về không hợp lệ"),
+  visible: z.boolean(),
+  note: z.string().optional(),
+});
+
 const defaultValues = {
   extension: "",
-  provider: "",
+  provider: "Cloudflare",
   registerPrice: 0,
   renewalPrice: 0,
   transferPrice: 0,
@@ -24,10 +40,11 @@ function DomainPriceForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const mapResponseToForm = (item) => ({
     extension: item?.extension || "",
-    provider: item?.provider || "",
+    provider: item?.provider || "Cloudflare",
     registerPrice: Number(item?.registerPrice) || 0,
     renewalPrice: Number(item?.renewalPrice) || 0,
     transferPrice: Number(item?.transferPrice) || 0,
@@ -58,24 +75,31 @@ function DomainPriceForm() {
     void fetchDetail();
   }, [fetchDetail]);
 
-  const buildPayload = () => ({
-    extension: formData.extension.trim(),
-    provider: formData.provider.trim(),
-    registerPrice: Number(formData.registerPrice),
-    renewalPrice: Number(formData.renewalPrice),
-    transferPrice: Number(formData.transferPrice),
-    visible: Boolean(formData.visible),
-    note: formData.note.trim(),
+  const buildPayload = (values) => ({
+    extension: values.extension.trim().toLowerCase(),
+    provider: values.provider.trim(),
+    registerPrice: Number(values.registerPrice),
+    renewalPrice: Number(values.renewalPrice),
+    transferPrice: Number(values.transferPrice),
+    visible: Boolean(values.visible),
+    note: values.note?.trim() || "",
   });
 
   const persist = async (mode) => {
-    if (!formData.extension.trim() || !formData.provider.trim()) {
-      toast.error("Vui lòng nhập đầy đủ đuôi tên miền và nhà cung cấp");
+    const parsed = formSchema.safeParse(formData);
+    if (!parsed.success) {
+      const nextErrors = {};
+      parsed.error.issues.forEach((issue) => {
+        const key = issue.path?.[0];
+        if (key && !nextErrors[key]) nextErrors[key] = issue.message;
+      });
+      setFieldErrors(nextErrors);
       return;
     }
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
-      const payload = buildPayload();
+      const payload = buildPayload(parsed.data);
       if (isEditMode) {
         const response = await domainPriceApi.update(id, payload);
         toast.success(response?.message || "Đã cập nhật bảng giá tên miền");
@@ -88,7 +112,7 @@ function DomainPriceForm() {
         }
       }
       if (mode === "save-stay" && isEditMode) {
-        const nextSnapshot = buildPayload();
+        const nextSnapshot = parsed.data;
         setInitialSnapshot(nextSnapshot);
         setFormData(nextSnapshot);
         return;
@@ -113,7 +137,10 @@ function DomainPriceForm() {
         onSave={() => void persist("save")}
         onSaveStay={() => void persist("save-stay")}
         onSaveMail={() => null}
-        onReset={() => setFormData(initialSnapshot)}
+        onReset={() => {
+          setFormData(initialSnapshot);
+          setFieldErrors({});
+        }}
         isSubmitting={isSubmitting}
         isUploading={false}
         isEditMode={isEditMode}
@@ -131,17 +158,26 @@ function DomainPriceForm() {
             type="text"
             inputProps={{
               value: formData.extension,
-              onChange: (event) => setFormData((prev) => ({ ...prev, extension: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, extension: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, extension: undefined }));
+              },
               placeholder: "Ví dụ: .com",
             }}
+            error={fieldErrors.extension}
           />
           <FormField
             label="Nhà cung cấp"
-            type="text"
-            inputProps={{
+            type="select"
+            options={PROVIDER_OPTIONS.map((item) => ({ label: item, value: item }))}
+            selectProps={{
               value: formData.provider,
-              onChange: (event) => setFormData((prev) => ({ ...prev, provider: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, provider: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, provider: undefined }));
+              },
             }}
+            error={fieldErrors.provider}
           />
           <FormField
             label="Giá đăng ký"
@@ -149,8 +185,12 @@ function DomainPriceForm() {
             inputProps={{
               min: 0,
               value: formData.registerPrice,
-              onChange: (event) => setFormData((prev) => ({ ...prev, registerPrice: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, registerPrice: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, registerPrice: undefined }));
+              },
             }}
+            error={fieldErrors.registerPrice}
           />
           <FormField
             label="Giá gia hạn"
@@ -158,8 +198,12 @@ function DomainPriceForm() {
             inputProps={{
               min: 0,
               value: formData.renewalPrice,
-              onChange: (event) => setFormData((prev) => ({ ...prev, renewalPrice: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, renewalPrice: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, renewalPrice: undefined }));
+              },
             }}
+            error={fieldErrors.renewalPrice}
           />
           <FormField
             label="Giá chuyển về"
@@ -167,8 +211,12 @@ function DomainPriceForm() {
             inputProps={{
               min: 0,
               value: formData.transferPrice,
-              onChange: (event) => setFormData((prev) => ({ ...prev, transferPrice: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, transferPrice: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, transferPrice: undefined }));
+              },
             }}
+            error={fieldErrors.transferPrice}
           />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input

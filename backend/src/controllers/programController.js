@@ -1,3 +1,6 @@
+import mongoose from "mongoose";
+
+import DesignTask from "../models/DesignTask.js";
 import Program from "../models/Program.js";
 import { sendProgramMail } from "../services/programMailService.js";
 
@@ -99,6 +102,7 @@ const normalizeProgramPayload = (body) => {
   const salesReceiverName = normalizeString(body.salesReceiverName);
   const salesReceiverEmail = normalizeString(body.salesReceiverEmail).toLowerCase();
   const ccEmails = parseCcEmails(body.ccEmails);
+  const designTaskId = normalizeString(body.designTaskId) || null;
 
   return {
     module,
@@ -119,6 +123,8 @@ const normalizeProgramPayload = (body) => {
     salesReceiverName,
     salesReceiverEmail,
     ccEmails,
+    designTaskId,
+    designTaskTitle: "",
   };
 };
 
@@ -140,6 +146,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     salesReceiverName,
     salesReceiverEmail,
     ccEmails,
+    designTaskId,
   } = payload;
 
   if (
@@ -250,6 +257,25 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     };
   }
 
+  if (designTaskId) {
+    if (!mongoose.isValidObjectId(designTaskId)) {
+      return { status: 400, message: "Thiết kế tham chiếu không hợp lệ" };
+    }
+    const designTask = await DesignTask.findOne({
+      _id: designTaskId,
+      isDeleted: false,
+      status: "Hoàn thành",
+    })
+      .select("title")
+      .lean();
+    if (!designTask) {
+      return { status: 400, message: "Thiết kế tham chiếu không tồn tại hoặc chưa hoàn thành" };
+    }
+    payload.designTaskTitle = designTask.title || "";
+  } else {
+    payload.designTaskTitle = "";
+  }
+
   if (checkDuplicate) {
     const existingProgram = await Program.findOne({
       contractCode: { $regex: `^${escapeRegex(contractCode)}$`, $options: "i" },
@@ -321,7 +347,7 @@ export const listPrograms = async (req, res) => {
 
   const programs = await Program.find(filters)
     .sort({ programCreatedAt: 1, createdAt: 1 })
-    .select("module time convert assigner assignee programCreatedAt design visible")
+    .select("module time convert assigner assignee designTaskTitle programCreatedAt design visible")
     .lean();
 
   return res.json({
@@ -332,6 +358,7 @@ export const listPrograms = async (req, res) => {
       convert: item.convert,
       assigner: item.assigner || "",
       assignee: item.assignee || "",
+      designTaskTitle: item.designTaskTitle || "",
       createdAt: formatDateTime(item.programCreatedAt || item.createdAt),
       design: item.design,
       visible: item.visible,
@@ -380,6 +407,8 @@ export const getProgramById = async (req, res) => {
       convert: program.convert,
       assigner: program.assigner || "",
       assignee: program.assignee || "",
+      designTaskId: toObjectIdString(program.designTaskId),
+      designTaskTitle: program.designTaskTitle || "",
       design: program.design,
       visible: program.visible,
       contractName: program.contractName,
@@ -419,6 +448,8 @@ export const updateProgram = async (req, res) => {
   existingProgram.convert = payload.convert;
   existingProgram.assigner = payload.assigner;
   existingProgram.assignee = payload.assignee;
+  existingProgram.designTaskId = payload.designTaskId || null;
+  existingProgram.designTaskTitle = payload.designTaskTitle || "";
   existingProgram.design = payload.design;
   existingProgram.visible = payload.visible;
   existingProgram.contractName = payload.contractName;

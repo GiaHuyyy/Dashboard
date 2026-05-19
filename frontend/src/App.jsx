@@ -14,6 +14,9 @@ import ProgramForm from "./pages/program/ProgramForm";
 import ProgramPointManagement from "./pages/program/ProgramPointManagement";
 import ProgramUpgradeForm from "./pages/program/ProgramUpgradeForm";
 import ProgramUpgradeManagement from "./pages/program/ProgramUpgradeManagement";
+import DesignForm from "./pages/design/DesignForm";
+import DesignManagement from "./pages/design/DesignManagement";
+import DesignPointManagement from "./pages/design/DesignPointManagement";
 import HostPriceManagement from "./pages/price/HostPriceManagement";
 import HostPriceForm from "./pages/price/HostPriceForm";
 import SslPriceManagement from "./pages/price/SslPriceManagement";
@@ -167,8 +170,10 @@ function App() {
           <Route path="nhan-su/them-moi" element={<StaffForm />} />
           <Route path="nhan-su/chinh-sua/:id" element={<StaffForm />} />
           <Route path="design" element={<Navigate to="/design/danh-sach" replace />} />
-          <Route path="design/danh-sach" element={<Placeholder title="Danh sách design" />} />
-          <Route path="design/quan-ly-diem" element={<Placeholder title="Quản lý điểm" />} />
+          <Route path="design/danh-sach" element={<DesignManagement />} />
+          <Route path="design/them-moi" element={<DesignForm />} />
+          <Route path="design/chinh-sua/:id" element={<DesignForm />} />
+          <Route path="design/quan-ly-diem" element={<DesignPointManagement />} />
           <Route path="kinh-doanh" element={<Placeholder title="Quản lý kinh doanh" />} />
           <Route path="cau-hinh" element={<Placeholder title="Quản lý cấu hình" />} />
           <Route path="bieu-mau" element={<Placeholder title="Biểu mẫu" />} />

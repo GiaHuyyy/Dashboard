@@ -12,6 +12,7 @@ export function ProgramInfo({
   isUploading,
   assignerOptions = [],
   assigneeOptions = [],
+  designTaskOptions = [],
 }) {
   return (
     <div className="space-y-4 gap-1 flex flex-col rounded-xl border border-slate-100 p-4">
@@ -62,6 +63,14 @@ export function ProgramInfo({
         options={assigneeOptions}
         selectProps={register("assignee")}
         error={errors.assignee?.message}
+      />
+
+      <FormField
+        label="Thiết kế tham chiếu"
+        type="select"
+        options={designTaskOptions}
+        selectProps={register("designTaskId")}
+        error={errors.designTaskId?.message}
       />
 
       <div className="grid grid-cols-2 gap-4">

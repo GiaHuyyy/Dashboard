@@ -38,6 +38,17 @@ const programSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    designTaskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DesignTask",
+      default: null,
+      index: true,
+    },
+    designTaskTitle: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     type: {
       type: String,
       required: true,

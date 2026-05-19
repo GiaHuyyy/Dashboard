@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
@@ -8,6 +9,16 @@ import { administrationPriceApi } from "@/lib/api-client";
 
 const SCOPE_OPTIONS = ["Website", "Hệ thống", "Server"];
 const FREQUENCY_OPTIONS = ["Tháng", "Quý", "Năm", "Theo yêu cầu"];
+const formSchema = z.object({
+  serviceName: z.string().trim().min(1, "Vui lòng nhập tên dịch vụ"),
+  scope: z.enum(SCOPE_OPTIONS, { message: "Vui lòng chọn phạm vi hợp lệ" }),
+  frequency: z.enum(FREQUENCY_OPTIONS, { message: "Vui lòng chọn chu kỳ hợp lệ" }),
+  price: z.coerce.number().gte(0, "Giá không hợp lệ"),
+  slaHours: z.coerce.number().int("SLA phải là số nguyên").gte(0, "SLA không hợp lệ"),
+  visible: z.boolean(),
+  note: z.string().optional(),
+});
+
 const defaultValues = {
   serviceName: "",
   scope: "Website",
@@ -26,6 +37,7 @@ function AdministrationPriceForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const mapResponseToForm = (item) => ({
     serviceName: item?.serviceName || "",
@@ -60,24 +72,31 @@ function AdministrationPriceForm() {
     void fetchDetail();
   }, [fetchDetail]);
 
-  const buildPayload = () => ({
-    serviceName: formData.serviceName.trim(),
-    scope: formData.scope,
-    frequency: formData.frequency,
-    price: Number(formData.price),
-    slaHours: Number(formData.slaHours),
-    visible: Boolean(formData.visible),
-    note: formData.note.trim(),
+  const buildPayload = (values) => ({
+    serviceName: values.serviceName.trim(),
+    scope: values.scope,
+    frequency: values.frequency,
+    price: Number(values.price),
+    slaHours: Number(values.slaHours),
+    visible: Boolean(values.visible),
+    note: values.note?.trim() || "",
   });
 
   const persist = async (mode) => {
-    if (!formData.serviceName.trim()) {
-      toast.error("Vui lòng nhập tên dịch vụ quản trị");
+    const parsed = formSchema.safeParse(formData);
+    if (!parsed.success) {
+      const nextErrors = {};
+      parsed.error.issues.forEach((issue) => {
+        const key = issue.path?.[0];
+        if (key && !nextErrors[key]) nextErrors[key] = issue.message;
+      });
+      setFieldErrors(nextErrors);
       return;
     }
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
-      const payload = buildPayload();
+      const payload = buildPayload(parsed.data);
       if (isEditMode) {
         const response = await administrationPriceApi.update(id, payload);
         toast.success(response?.message || "Đã cập nhật bảng giá quản trị");
@@ -90,7 +109,7 @@ function AdministrationPriceForm() {
         }
       }
       if (mode === "save-stay" && isEditMode) {
-        const nextSnapshot = buildPayload();
+        const nextSnapshot = parsed.data;
         setInitialSnapshot(nextSnapshot);
         setFormData(nextSnapshot);
         return;
@@ -115,7 +134,10 @@ function AdministrationPriceForm() {
         onSave={() => void persist("save")}
         onSaveStay={() => void persist("save-stay")}
         onSaveMail={() => null}
-        onReset={() => setFormData(initialSnapshot)}
+        onReset={() => {
+          setFormData(initialSnapshot);
+          setFieldErrors({});
+        }}
         isSubmitting={isSubmitting}
         isUploading={false}
         isEditMode={isEditMode}
@@ -133,8 +155,13 @@ function AdministrationPriceForm() {
             type="text"
             inputProps={{
               value: formData.serviceName,
-              onChange: (event) => setFormData((prev) => ({ ...prev, serviceName: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, serviceName: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, serviceName: undefined }));
+              },
+              placeholder: "Ví dụ: Quản trị nội dung website",
             }}
+            error={fieldErrors.serviceName}
           />
           <FormField
             label="Phạm vi"
@@ -142,8 +169,12 @@ function AdministrationPriceForm() {
             options={SCOPE_OPTIONS.map((item) => ({ label: item, value: item }))}
             selectProps={{
               value: formData.scope,
-              onChange: (event) => setFormData((prev) => ({ ...prev, scope: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, scope: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, scope: undefined }));
+              },
             }}
+            error={fieldErrors.scope}
           />
           <FormField
             label="Chu kỳ"
@@ -151,8 +182,12 @@ function AdministrationPriceForm() {
             options={FREQUENCY_OPTIONS.map((item) => ({ label: item, value: item }))}
             selectProps={{
               value: formData.frequency,
-              onChange: (event) => setFormData((prev) => ({ ...prev, frequency: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, frequency: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, frequency: undefined }));
+              },
             }}
+            error={fieldErrors.frequency}
           />
           <FormField
             label="SLA (giờ)"
@@ -160,8 +195,12 @@ function AdministrationPriceForm() {
             inputProps={{
               min: 0,
               value: formData.slaHours,
-              onChange: (event) => setFormData((prev) => ({ ...prev, slaHours: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, slaHours: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, slaHours: undefined }));
+              },
             }}
+            error={fieldErrors.slaHours}
           />
           <FormField
             label="Giá"
@@ -169,8 +208,12 @@ function AdministrationPriceForm() {
             inputProps={{
               min: 0,
               value: formData.price,
-              onChange: (event) => setFormData((prev) => ({ ...prev, price: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, price: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, price: undefined }));
+              },
             }}
+            error={fieldErrors.price}
           />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input

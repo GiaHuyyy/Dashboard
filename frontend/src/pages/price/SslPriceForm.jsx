@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import { sslPriceApi } from "@/lib/api-client";
 
 const SSL_TYPES = ["DV", "OV", "EV", "Wildcard"];
+const VALIDITY_OPTIONS = ["3", "6", "12", "24", "36"];
+const formSchema = z.object({
+  name: z.string().trim().min(1, "Vui lòng nhập Tên gói SSL"),
+  sslType: z.enum(SSL_TYPES, { message: "Vui lòng chọn Loại SSL hợp lệ" }),
+  validityMonths: z.coerce.number().int("Thời hạn phải là số nguyên").gt(0, "Thời hạn phải lớn hơn 0"),
+  warrantyAmount: z.coerce.number().gte(0, "Mức bảo hiểm không hợp lệ"),
+  price: z.coerce.number().gte(0, "Giá không hợp lệ"),
+  visible: z.boolean(),
+  note: z.string().optional(),
+});
 const defaultValues = {
   name: "",
   sslType: "DV",
@@ -25,6 +36,7 @@ function SslPriceForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const mapResponseToForm = (item) => ({
     name: item?.name || "",
@@ -59,24 +71,31 @@ function SslPriceForm() {
     void fetchDetail();
   }, [fetchDetail]);
 
-  const buildPayload = () => ({
-    name: formData.name.trim(),
-    sslType: formData.sslType,
-    validityMonths: Number(formData.validityMonths),
-    warrantyAmount: Number(formData.warrantyAmount),
-    price: Number(formData.price),
-    visible: Boolean(formData.visible),
-    note: formData.note.trim(),
+  const buildPayload = (values) => ({
+    name: values.name.trim(),
+    sslType: values.sslType,
+    validityMonths: Number(values.validityMonths),
+    warrantyAmount: Number(values.warrantyAmount),
+    price: Number(values.price),
+    visible: Boolean(values.visible),
+    note: values.note?.trim() || "",
   });
 
   const persist = async (mode) => {
-    if (!formData.name.trim()) {
-      toast.error("Vui lòng nhập Tên gói SSL");
+    const parsed = formSchema.safeParse(formData);
+    if (!parsed.success) {
+      const nextErrors = {};
+      parsed.error.issues.forEach((issue) => {
+        const key = issue.path?.[0];
+        if (key && !nextErrors[key]) nextErrors[key] = issue.message;
+      });
+      setFieldErrors(nextErrors);
       return;
     }
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
-      const payload = buildPayload();
+      const payload = buildPayload(parsed.data);
       if (isEditMode) {
         const response = await sslPriceApi.update(id, payload);
         toast.success(response?.message || "Đã cập nhật bảng giá SSL");
@@ -89,7 +108,7 @@ function SslPriceForm() {
         }
       }
       if (mode === "save-stay" && isEditMode) {
-        const nextSnapshot = buildPayload();
+        const nextSnapshot = parsed.data;
         setInitialSnapshot(nextSnapshot);
         setFormData(nextSnapshot);
         return;
@@ -114,7 +133,10 @@ function SslPriceForm() {
         onSave={() => void persist("save")}
         onSaveStay={() => void persist("save-stay")}
         onSaveMail={() => null}
-        onReset={() => setFormData(initialSnapshot)}
+        onReset={() => {
+          setFormData(initialSnapshot);
+          setFieldErrors({});
+        }}
         isSubmitting={isSubmitting}
         isUploading={false}
         isEditMode={isEditMode}
@@ -132,8 +154,13 @@ function SslPriceForm() {
             type="text"
             inputProps={{
               value: formData.name,
-              onChange: (event) => setFormData((prev) => ({ ...prev, name: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, name: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, name: undefined }));
+              },
+              placeholder: "Nhập tên gói SSL",
             }}
+            error={fieldErrors.name}
           />
           <FormField
             label="Loại SSL"
@@ -141,17 +168,25 @@ function SslPriceForm() {
             options={SSL_TYPES.map((item) => ({ label: item, value: item }))}
             selectProps={{
               value: formData.sslType,
-              onChange: (event) => setFormData((prev) => ({ ...prev, sslType: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, sslType: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, sslType: undefined }));
+              },
             }}
+            error={fieldErrors.sslType}
           />
           <FormField
             label="Thời hạn (tháng)"
-            type="number"
-            inputProps={{
-              min: 1,
-              value: formData.validityMonths,
-              onChange: (event) => setFormData((prev) => ({ ...prev, validityMonths: event.target.value })),
+            type="select"
+            options={VALIDITY_OPTIONS.map((item) => ({ label: `${item} tháng`, value: item }))}
+            selectProps={{
+              value: String(formData.validityMonths),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, validityMonths: Number(event.target.value) }));
+                setFieldErrors((prev) => ({ ...prev, validityMonths: undefined }));
+              },
             }}
+            error={fieldErrors.validityMonths}
           />
           <FormField
             label="Giá"
@@ -159,8 +194,12 @@ function SslPriceForm() {
             inputProps={{
               min: 0,
               value: formData.price,
-              onChange: (event) => setFormData((prev) => ({ ...prev, price: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, price: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, price: undefined }));
+              },
             }}
+            error={fieldErrors.price}
           />
           <FormField
             label="Mức bảo hiểm"
@@ -168,8 +207,12 @@ function SslPriceForm() {
             inputProps={{
               min: 0,
               value: formData.warrantyAmount,
-              onChange: (event) => setFormData((prev) => ({ ...prev, warrantyAmount: event.target.value })),
+              onChange: (event) => {
+                setFormData((prev) => ({ ...prev, warrantyAmount: event.target.value }));
+                setFieldErrors((prev) => ({ ...prev, warrantyAmount: undefined }));
+              },
             }}
+            error={fieldErrors.warrantyAmount}
           />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input

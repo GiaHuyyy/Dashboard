@@ -63,7 +63,7 @@ const navItems = [
     path: "/design",
     icon: FileText,
     children: [
-      { label: "Danh sách design", path: "/design/danh-sach" },
+      { label: "Danh sách design", path: "/design/danh-sach", activePathPrefixes: ["/design/them-moi", "/design/chinh-sua/"] },
       { label: "Quản lý điểm", path: "/design/quan-ly-diem" },
     ],
   },
