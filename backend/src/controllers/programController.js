@@ -257,7 +257,10 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     };
   }
 
-  if (designTaskId) {
+  if (design) {
+    if (!designTaskId) {
+      return { status: 400, message: "Vui lòng chọn thiết kế tham chiếu" };
+    }
     if (!mongoose.isValidObjectId(designTaskId)) {
       return { status: 400, message: "Thiết kế tham chiếu không hợp lệ" };
     }
@@ -273,6 +276,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     }
     payload.designTaskTitle = designTask.title || "";
   } else {
+    payload.designTaskId = null;
     payload.designTaskTitle = "";
   }
 

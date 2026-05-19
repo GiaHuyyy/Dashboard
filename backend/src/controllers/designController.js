@@ -53,7 +53,10 @@ const normalizePayload = (body = {}) => ({
   convert: normalizeNumber(body.convert),
   bonusPoint: normalizeNumber(body.bonusPoint),
   status: normalizeString(body.status),
-  deadline: body.deadline ? normalizeDate(body.deadline) : null,
+  handoverDate: body.handoverDate ? normalizeDate(body.handoverDate) : null,
+  receiveDate: body.receiveDate ? normalizeDate(body.receiveDate) : null,
+  expectedDate: body.expectedDate ? normalizeDate(body.expectedDate) : body.deadline ? normalizeDate(body.deadline) : null,
+  completedDate: body.completedDate ? normalizeDate(body.completedDate) : null,
   visible: normalizeBoolean(body.visible),
   note: normalizeString(body.note),
 });
@@ -100,8 +103,16 @@ const toResponseItem = (doc) => ({
   bonusPoint: Number(doc.bonusPoint || 0),
   totalPoint: Number((Number(doc.convert || 0) + Number(doc.bonusPoint || 0)).toFixed(3)),
   status: doc.status,
-  deadline: doc.deadline ? new Date(doc.deadline).toISOString() : null,
-  deadlineLabel: doc.deadline ? formatDateTime(doc.deadline) : "",
+  handoverDate: doc.handoverDate ? new Date(doc.handoverDate).toISOString() : null,
+  handoverDateLabel: doc.handoverDate ? formatDateTime(doc.handoverDate) : "",
+  receiveDate: doc.receiveDate ? new Date(doc.receiveDate).toISOString() : null,
+  receiveDateLabel: doc.receiveDate ? formatDateTime(doc.receiveDate) : "",
+  expectedDate: doc.expectedDate ? new Date(doc.expectedDate).toISOString() : null,
+  expectedDateLabel: doc.expectedDate ? formatDateTime(doc.expectedDate) : "",
+  completedDate: doc.completedDate ? new Date(doc.completedDate).toISOString() : null,
+  completedDateLabel: doc.completedDate ? formatDateTime(doc.completedDate) : "",
+  deadline: doc.expectedDate ? new Date(doc.expectedDate).toISOString() : doc.deadline ? new Date(doc.deadline).toISOString() : null,
+  deadlineLabel: doc.expectedDate ? formatDateTime(doc.expectedDate) : doc.deadline ? formatDateTime(doc.deadline) : "",
   visible: Boolean(doc.visible),
   note: doc.note || "",
   createdAt: formatDateTime(doc.createdAt),
@@ -148,7 +159,7 @@ export const listDesignReferences = async (req, res) => {
     status: "Hoàn thành",
   })
     .sort({ createdAt: 1 })
-    .select("title designType assignee deadline")
+    .select("title designType assignee expectedDate")
     .lean();
 
   return res.json({
@@ -157,8 +168,8 @@ export const listDesignReferences = async (req, res) => {
       title: item.title || "",
       designType: item.designType || "",
       assignee: item.assignee || "",
-      deadline: item.deadline ? new Date(item.deadline).toISOString() : null,
-      deadlineLabel: item.deadline ? formatDateTime(item.deadline) : "",
+      expectedDate: item.expectedDate ? new Date(item.expectedDate).toISOString() : null,
+      expectedDateLabel: item.expectedDate ? formatDateTime(item.expectedDate) : "",
       label: `${item.title || "Design"} - ${item.designType || "N/A"} - ${item.assignee || "N/A"}`,
     })),
   });
@@ -172,6 +183,13 @@ export const getDesignTaskById = async (req, res) => {
 
 export const createDesignTask = async (req, res) => {
   const payload = normalizePayload(req.body);
+  if (payload.status === "Hoàn thành" && !payload.completedDate) {
+    payload.completedDate = new Date();
+  }
+  if (payload.status !== "Hoàn thành") {
+    payload.completedDate = null;
+  }
+  payload.deadline = payload.expectedDate;
   const validationError = await validatePayload(payload);
   if (validationError) return res.status(validationError.status).json({ message: validationError.message });
 
@@ -202,10 +220,20 @@ export const updateDesignTask = async (req, res) => {
     convert: normalizedInput.convert === null ? existing.convert : normalizedInput.convert,
     bonusPoint: normalizedInput.bonusPoint === null ? existing.bonusPoint : normalizedInput.bonusPoint,
     status: normalizedInput.status || existing.status,
-    deadline: req.body.deadline === null ? null : normalizedInput.deadline || existing.deadline,
+    handoverDate: req.body.handoverDate === null ? null : normalizedInput.handoverDate || existing.handoverDate,
+    receiveDate: req.body.receiveDate === null ? null : normalizedInput.receiveDate || existing.receiveDate,
+    expectedDate: req.body.expectedDate === null ? null : normalizedInput.expectedDate || existing.expectedDate,
+    completedDate: req.body.completedDate === null ? null : normalizedInput.completedDate || existing.completedDate,
     visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
+  if (mergedPayload.status === "Hoàn thành" && !mergedPayload.completedDate) {
+    mergedPayload.completedDate = new Date();
+  }
+  if (mergedPayload.status !== "Hoàn thành") {
+    mergedPayload.completedDate = null;
+  }
+  mergedPayload.deadline = mergedPayload.expectedDate;
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));
   if (validationError) return res.status(validationError.status).json({ message: validationError.message });
@@ -220,6 +248,10 @@ export const updateDesignTask = async (req, res) => {
   existing.convert = mergedPayload.convert;
   existing.bonusPoint = mergedPayload.bonusPoint;
   existing.status = mergedPayload.status;
+  existing.handoverDate = mergedPayload.handoverDate;
+  existing.receiveDate = mergedPayload.receiveDate;
+  existing.expectedDate = mergedPayload.expectedDate;
+  existing.completedDate = mergedPayload.completedDate;
   existing.deadline = mergedPayload.deadline;
   existing.visible = mergedPayload.visible;
   existing.note = mergedPayload.note;

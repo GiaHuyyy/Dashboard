@@ -21,6 +21,9 @@ function DesignManagement() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
+  const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
+  const [pendingStatusUpdate, setPendingStatusUpdate] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedAssignee, setSelectedAssignee] = useState("all");
@@ -97,6 +100,34 @@ function DesignManagement() {
       setDeleteRow(null);
       setSelectedIds([]);
     }
+  };
+
+  const applyStatusUpdate = async (row, nextStatus) => {
+    setUpdatingStatusId(row.id);
+    try {
+      const payload = {
+        status: nextStatus,
+        completedDate: nextStatus === "Hoàn thành" ? row.completedDate || new Date().toISOString() : null,
+      };
+      const response = await designApi.update(row.id, payload);
+      const nextRow = response?.designTask;
+      setRows((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...(nextRow || {}), status: nextStatus } : item)));
+      toast.success("Đã cập nhật trạng thái");
+    } catch (error) {
+      toast.error(error?.message || "Không thể cập nhật trạng thái");
+    } finally {
+      setUpdatingStatusId("");
+    }
+  };
+
+  const handleStatusChange = (row, nextStatus) => {
+    if (nextStatus === row.status) return;
+    if (nextStatus === "Hoàn thành" && row.status !== "Hoàn thành") {
+      setPendingStatusUpdate({ row, nextStatus });
+      setStatusConfirmOpen(true);
+      return;
+    }
+    void applyStatusUpdate(row, nextStatus);
   };
 
   return (
@@ -196,6 +227,18 @@ function DesignManagement() {
                 Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày giao
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày nhận
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày dự kiến
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày hoàn thành
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Ngày tạo
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -209,13 +252,13 @@ function DesignManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -247,7 +290,28 @@ function DesignManagement() {
                   <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.status}</TableCell>
+                  <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
+                    <select
+                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
+                      value={row.status}
+                      disabled={updatingStatusId === row.id}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => {
+                        event.stopPropagation();
+                        handleStatusChange(row, event.target.value);
+                      }}
+                    >
+                      {STATUS_OPTIONS.filter((item) => item !== "all").map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.handoverDateLabel || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.receiveDateLabel || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.expectedDateLabel || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.completedDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.createdAt}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <input
@@ -313,6 +377,49 @@ function DesignManagement() {
         <p className="text-sm text-slate-600">
           Bạn có chắc muốn xóa công việc design{" "}
           <span className="font-semibold text-slate-800">{deleteRow?.title || "đang chọn"}</span>?
+        </p>
+      </Modal>
+
+      <Modal
+        open={statusConfirmOpen}
+        onClose={() => {
+          setStatusConfirmOpen(false);
+          setPendingStatusUpdate(null);
+        }}
+        title="Xác nhận hoàn thành"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusConfirmOpen(false);
+                setPendingStatusUpdate(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const current = pendingStatusUpdate;
+                setStatusConfirmOpen(false);
+                setPendingStatusUpdate(null);
+                if (current) {
+                  void applyStatusUpdate(current.row, current.nextStatus);
+                }
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xác nhận
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Bạn đang chuyển trạng thái sang
+          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
         </p>
       </Modal>
     </>

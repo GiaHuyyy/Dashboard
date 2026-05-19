@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
+import Modal from "@/components/ui/modal";
 import { designApi, staffApi } from "@/lib/api-client";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
@@ -39,7 +40,10 @@ const schema = z.object({
   convert: z.coerce.number().gte(0, "Quy đổi không hợp lệ"),
   bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
   status: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
-  deadline: z.string().optional(),
+  handoverDate: z.string().optional(),
+  receiveDate: z.string().optional(),
+  expectedDate: z.string().optional(),
+  completedDate: z.string().optional(),
   visible: z.boolean(),
   note: z.string().optional(),
 });
@@ -55,18 +59,19 @@ const defaultValues = {
   convert: 0.125,
   bonusPoint: 0,
   status: STATUS_OPTIONS[0],
-  deadline: "",
+  handoverDate: "",
+  receiveDate: "",
+  expectedDate: "",
+  completedDate: "",
   visible: true,
   note: "",
 };
 
-const toDateTimeLocal = (value) => {
+const toDateInput = (value) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset();
-  const localDate = new Date(date.getTime() - offset * 60000);
-  return localDate.toISOString().slice(0, 16);
+  return date.toISOString().slice(0, 10);
 };
 
 function DesignForm() {
@@ -77,6 +82,8 @@ function DesignForm() {
   const [isLoadingReference, setIsLoadingReference] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(null);
 
   const {
     control,
@@ -92,6 +99,7 @@ function DesignForm() {
 
   const durationValue = useWatch({ control, name: "durationValue" });
   const durationUnit = useWatch({ control, name: "durationUnit" });
+  const selectedStatus = useWatch({ control, name: "status" });
 
   useEffect(() => {
     const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
@@ -108,10 +116,7 @@ function DesignForm() {
 
         if (!isEditMode) {
           const manager = staffs.find((item) => item.role === "Quản lý");
-          const designer =
-            staffs.find((item) => item.role === "Thiết kế") ||
-            staffs.find((item) => item.role === "Thiết kế viên") ||
-            staffs.find((item) => item.role === "Lập trình viên");
+          const designer = staffs.find((item) => item.role === "Thiết kế") || staffs.find((item) => item.role === "Thiết kế viên");
           const nextDefault = {
             ...defaultValues,
             assigner: manager?.fullName || "",
@@ -152,7 +157,10 @@ function DesignForm() {
           convert: Number(task.convert) || 0,
           bonusPoint: Number(task.bonusPoint) || 0,
           status: task.status || STATUS_OPTIONS[0],
-          deadline: toDateTimeLocal(task.deadline),
+          handoverDate: toDateInput(task.handoverDate),
+          receiveDate: toDateInput(task.receiveDate),
+          expectedDate: toDateInput(task.expectedDate || task.deadline),
+          completedDate: toDateInput(task.completedDate),
           visible: Boolean(task.visible ?? true),
           note: task.note || "",
         };
@@ -178,7 +186,7 @@ function DesignForm() {
   const designerOptions = useMemo(
     () =>
       staffReferences
-        .filter((item) => item.role === "Thiết kế" || item.role === "Thiết kế viên" || item.role === "Lập trình viên")
+        .filter((item) => item.role === "Thiết kế" || item.role === "Thiết kế viên")
         .map((item) => ({ label: item.fullName, value: item.fullName })),
     [staffReferences],
   );
@@ -189,7 +197,10 @@ function DesignForm() {
       convert: Number(values.convert),
       durationValue: Number(values.durationValue),
       bonusPoint: Number(values.bonusPoint),
-      deadline: values.deadline || null,
+      handoverDate: values.handoverDate || null,
+      receiveDate: values.receiveDate || null,
+      expectedDate: values.expectedDate || null,
+      completedDate: values.status === "Hoàn thành" ? values.completedDate || new Date().toISOString().slice(0, 10) : null,
       note: values.note || "",
     };
 
@@ -217,11 +228,26 @@ function DesignForm() {
     }
   };
 
+  const onSubmit = async (values, mode) => {
+    if (values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
+      setPendingSubmit({ values, mode });
+      setCompleteConfirmOpen(true);
+      return;
+    }
+    await persist(values, mode);
+  };
+
   const submitWithMode = (mode) =>
     handleSubmit(
-      (values) => void persist(values, mode),
+      (values) => void onSubmit(values, mode),
       () => toast.error("Vui lòng kiểm tra lại thông tin form"),
     )();
+
+  useEffect(() => {
+    if (selectedStatus !== "Hoàn thành") {
+      setValue("completedDate", "", { shouldValidate: false });
+    }
+  }, [selectedStatus, setValue]);
 
   if (isLoadingReference || isLoadingDetail) {
     return (
@@ -283,7 +309,7 @@ function DesignForm() {
             error={errors.assigner?.message}
           />
           <FormField
-            label="Người nhận"
+            label="Người nhận (Design)"
             type="select"
             options={designerOptions.length > 0 ? designerOptions : [{ label: "Không có dữ liệu", value: "" }]}
             selectProps={{ ...register("assignee"), disabled: designerOptions.length === 0 }}
@@ -318,10 +344,29 @@ function DesignForm() {
             error={errors.bonusPoint?.message}
           />
           <FormField
-            label="Deadline"
-            type="datetime-local"
-            inputProps={{ ...register("deadline") }}
-            error={errors.deadline?.message}
+            label="Ngày giao"
+            type="date"
+            inputProps={{ ...register("handoverDate") }}
+            error={errors.handoverDate?.message}
+          />
+          <FormField
+            label="Ngày nhận"
+            type="date"
+            inputProps={{ ...register("receiveDate") }}
+            error={errors.receiveDate?.message}
+          />
+          <FormField
+            label="Ngày dự kiến"
+            type="date"
+            inputProps={{ ...register("expectedDate") }}
+            error={errors.expectedDate?.message}
+          />
+          <FormField
+            label="Ngày hoàn thành"
+            type="date"
+            inputProps={{ ...register("completedDate"), readOnly: selectedStatus !== "Hoàn thành" }}
+            inputClassName={selectedStatus === "Hoàn thành" ? "" : "bg-slate-50"}
+            error={errors.completedDate?.message}
           />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input type="checkbox" {...register("visible")} />
@@ -337,6 +382,49 @@ function DesignForm() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={completeConfirmOpen}
+        onClose={() => {
+          setCompleteConfirmOpen(false);
+          setPendingSubmit(null);
+        }}
+        title="Xác nhận hoàn thành"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCompleteConfirmOpen(false);
+                setPendingSubmit(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const current = pendingSubmit;
+                setCompleteConfirmOpen(false);
+                setPendingSubmit(null);
+                if (current) {
+                  void persist(current.values, current.mode);
+                }
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xác nhận
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Bạn đang chuyển trạng thái sang
+          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
+        </p>
+      </Modal>
     </form>
   );
 }

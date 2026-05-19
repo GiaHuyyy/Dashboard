@@ -13,6 +13,7 @@ export function ProgramInfo({
   assignerOptions = [],
   assigneeOptions = [],
   designTaskOptions = [],
+  designEnabled = false,
 }) {
   return (
     <div className="space-y-4 gap-1 flex flex-col rounded-xl border border-slate-100 p-4">
@@ -58,20 +59,22 @@ export function ProgramInfo({
       />
 
       <FormField
-        label="Người nhận"
+        label="Người nhận (lập trình)"
         type="select"
         options={assigneeOptions}
         selectProps={register("assignee")}
         error={errors.assignee?.message}
       />
 
-      <FormField
-        label="Thiết kế tham chiếu"
-        type="select"
-        options={designTaskOptions}
-        selectProps={register("designTaskId")}
-        error={errors.designTaskId?.message}
-      />
+      {designEnabled ? (
+        <FormField
+          label="Thiết kế tham chiếu"
+          type="select"
+          options={designTaskOptions}
+          selectProps={register("designTaskId")}
+          error={errors.designTaskId?.message}
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">

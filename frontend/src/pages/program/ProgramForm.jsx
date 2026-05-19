@@ -56,7 +56,7 @@ const programSchema = z.object({
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
   assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
-  designTaskId: z.string().trim().min(1, "Vui lòng chọn thiết kế tham chiếu"),
+  designTaskId: z.string().trim().optional(),
   design: z.boolean(),
   visible: z.boolean(),
   contractImages: z.array(z.any()).optional(),
@@ -106,7 +106,16 @@ const programSchema = z.object({
         .filter(Boolean)
         .every((email) => hasValidEmailLocalPart(email));
     }, `Email cc: phần trước @ tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`),
-});
+})
+  .superRefine((values, ctx) => {
+    if (values.design && !values.designTaskId?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["designTaskId"],
+        message: "Vui lòng chọn thiết kế tham chiếu",
+      });
+    }
+  });
 
 const defaultValues = {
   module: MODULE_OPTIONS[0],
@@ -160,6 +169,7 @@ function ProgramForm() {
 
   const selectedDurationValue = useWatch({ control, name: "durationValue" });
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
+  const selectedDesign = useWatch({ control, name: "design" });
   const isReadOnlyMode = isEditMode && initialSnapshot.values.status === "Hoàn thành";
 
   useEffect(() => {
@@ -182,9 +192,6 @@ function ProgramForm() {
         if (!isEditMode && salesOptions.length > 0) {
           setValue("selectedSalesStaff", salesOptions[0], { shouldValidate: true });
         }
-        if (!isEditMode && nextDesignReferences.length > 0) {
-          setValue("designTaskId", nextDesignReferences[0].id, { shouldValidate: true });
-        }
       } catch (error) {
         toast.error(error?.message || "Không thể tải dữ liệu tham chiếu");
       }
@@ -204,6 +211,12 @@ function ProgramForm() {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
   }, [selectedDurationUnit, selectedDurationValue, setValue]);
+
+  useEffect(() => {
+    if (!selectedDesign) {
+      setValue("designTaskId", "", { shouldValidate: true });
+    }
+  }, [selectedDesign, setValue]);
 
   useEffect(() => {
     contractImagesRef.current = contractImages;
@@ -243,7 +256,7 @@ function ProgramForm() {
           convert: program.convert || "1",
           assigner: program.assigner || "",
           assignee: program.assignee || "",
-          designTaskId: program.designTaskId || "",
+          designTaskId: Boolean(program.design) ? program.designTaskId || "" : "",
           design: Boolean(program.design),
           visible: Boolean(program.visible),
           contractImages: [],
@@ -452,6 +465,7 @@ function ProgramForm() {
               assignerOptions={assignerOptions}
               assigneeOptions={assigneeOptions}
               designTaskOptions={designTaskOptions}
+              designEnabled={Boolean(selectedDesign)}
             />
 
             <ContractInfo register={register} errors={errors} salesOptions={salesOptions} />

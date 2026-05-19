@@ -60,6 +60,22 @@ const designTaskSchema = new mongoose.Schema(
       default: "Đã nhận",
       index: true,
     },
+    handoverDate: {
+      type: Date,
+      default: null,
+    },
+    receiveDate: {
+      type: Date,
+      default: null,
+    },
+    expectedDate: {
+      type: Date,
+      default: null,
+    },
+    completedDate: {
+      type: Date,
+      default: null,
+    },
     deadline: {
       type: Date,
       default: null,

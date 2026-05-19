@@ -425,7 +425,7 @@ function ProgramCorrectionForm() {
             />
 
             <FormField
-              label="Người nhận"
+              label="Người nhận (lập trình)"
               type="select"
               options={assigneeOptions}
               selectProps={register("assignee")}
