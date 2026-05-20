@@ -27,6 +27,12 @@ const programSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    bonusPoint: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+    },
     assigner: {
       type: String,
       required: true,

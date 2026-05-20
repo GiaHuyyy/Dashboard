@@ -49,6 +49,7 @@ const programSchema = z
     durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
     durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
     convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
+    bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
     assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
     assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
     designTaskId: z.string().trim().optional(),
@@ -76,6 +77,7 @@ const defaultValues = {
   durationValue: 1,
   durationUnit: "ngày",
   convert: "1",
+  bonusPoint: 0,
   assigner: "",
   assignee: "",
   designTaskId: "",
@@ -260,6 +262,7 @@ function ProgramForm() {
           durationValue: safeDuration,
           durationUnit: program.durationUnit || "ngày",
           convert: program.convert || "1",
+          bonusPoint: Number(program.bonusPoint) || 0,
           assigner: program.assigner || "",
           assignee: program.assignee || "",
           // eslint-disable-next-line no-extra-boolean-cast
@@ -290,6 +293,7 @@ function ProgramForm() {
     const payload = {
       ...values,
       convert: calculateConvertByDuration(values.durationValue, values.durationUnit),
+      bonusPoint: values.bonusPoint,
       sendMail: shouldSendMail,
       receivedAt: values.receivedAt || null,
       completedAt: values.processingStatus === COMPLETED_STATUS ? values.completedAt || null : null,

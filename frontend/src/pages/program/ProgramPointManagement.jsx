@@ -69,7 +69,18 @@ function ProgramPointManagement() {
       toast.error("Không có dữ liệu để xuất");
       return;
     }
-    const header = ["Nguồn điểm", "Phiếu gốc (HĐ)", "Module", "Mô tả", "Trạng thái", "Lập trình", "Điểm", "Ngày"];
+    const header = [
+      "Nguồn điểm",
+      "Phiếu gốc (HĐ)",
+      "Module",
+      "Mô tả",
+      "Trạng thái",
+      "Lập trình",
+      "Điểm quy đổi",
+      "Điểm cộng thêm",
+      "Tổng điểm",
+      "Ngày",
+    ];
     const rows = detailRows.map((item) => [
       item.source,
       item.contractCode,
@@ -77,6 +88,8 @@ function ProgramPointManagement() {
       item.description,
       item.status,
       item.assignee,
+      item.convertPoint ?? "",
+      item.bonusPoint ?? "",
       item.point,
       item.createdAtLabel,
     ]);
@@ -246,7 +259,13 @@ function ProgramPointManagement() {
                 Lập trình
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm
+                Điểm quy đổi
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Điểm cộng thêm
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Tổng điểm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Ngày
@@ -256,13 +275,13 @@ function ProgramPointManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={11} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : detailRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={11} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -280,6 +299,8 @@ function ProgramPointManagement() {
                   <TableCell className="border border-slate-200 p-4 text-left">{row.description}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.status}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.convertPoint ?? 0}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint ?? 0}</TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.point}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.createdAtLabel}</TableCell>
                 </TableRow>

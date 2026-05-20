@@ -91,6 +91,7 @@ const normalizeProgramPayload = (body = {}) => {
   const durationUnit = normalizeString(body.durationUnit);
   const time = durationValue !== null ? `${formatNumber(durationValue)} ${durationUnit}` : "";
   const convert = durationValue !== null ? calculateConvertByDuration(durationValue, durationUnit) : "";
+  const bonusPoint = normalizeNumber(body.bonusPoint);
 
   return {
     module,
@@ -98,6 +99,7 @@ const normalizeProgramPayload = (body = {}) => {
     durationUnit,
     time,
     convert,
+    bonusPoint,
     assigner: normalizeString(body.assigner),
     assignee: normalizeString(body.assignee),
     businessContractId: normalizeString(body.businessContractId),
@@ -115,7 +117,18 @@ const normalizeProgramPayload = (body = {}) => {
 };
 
 const validateProgramPayload = async (payload, { checkDuplicate = true, excludeProgramId = "" } = {}) => {
-  const { module, durationValue, durationUnit, convert, assigner, assignee, design, visible, designTaskId } = payload;
+  const {
+    module,
+    durationValue,
+    durationUnit,
+    convert,
+    bonusPoint,
+    assigner,
+    assignee,
+    design,
+    visible,
+    designTaskId,
+  } = payload;
 
   if (!module || durationValue === null || !durationUnit || !assigner || !assignee) {
     return { status: 400, message: "module, durationValue, durationUnit, assigner, assignee là bắt buộc" };
@@ -147,6 +160,9 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
   }
   if (!convert) {
     return { status: 400, message: "Không thể quy đổi thời gian" };
+  }
+  if (bonusPoint === null || bonusPoint < 0) {
+    return { status: 400, message: "bonusPoint không hợp lệ" };
   }
   if (design === null || visible === null) {
     return { status: 400, message: "design và visible phải là kiểu boolean" };
@@ -284,6 +300,7 @@ export const createProgram = async (req, res) => {
     durationValue: payload.durationValue,
     durationUnit: payload.durationUnit,
     convert: payload.convert,
+    bonusPoint: payload.bonusPoint,
     assigner: payload.assigner,
     assignee: payload.assignee,
     businessContractId: payload.businessContractId,
@@ -352,6 +369,7 @@ export const listPrograms = async (req, res) => {
       module: item.module,
       time: item.time,
       convert: item.convert,
+      bonusPoint: Number(item.bonusPoint || 0),
       assigner: item.assigner || "",
       assignee: item.assignee || "",
       designTaskTitle: item.designTaskTitle || "",
@@ -376,7 +394,9 @@ export const listProgramReferences = async (req, res) => {
     $or: [{ type: "program" }, { type: { $exists: false } }],
   })
     .sort({ programCreatedAt: 1, createdAt: 1 })
-    .select("businessContractId contractCode module contractName time convert durationValue durationUnit salesReceiverEmail ccEmails")
+    .select(
+      "businessContractId contractCode module contractName time convert bonusPoint durationValue durationUnit salesReceiverEmail ccEmails",
+    )
     .lean();
 
   return res.json({
@@ -388,6 +408,7 @@ export const listProgramReferences = async (req, res) => {
       module: item.module,
       time: item.time || "",
       convert: item.convert || "",
+      bonusPoint: Number(item.bonusPoint || 0),
       durationValue: item.durationValue ?? null,
       durationUnit: item.durationUnit || "",
       salesReceiverEmail: item.salesReceiverEmail || "",
@@ -410,6 +431,7 @@ export const getProgramById = async (req, res) => {
       durationValue: program.durationValue,
       durationUnit: program.durationUnit,
       convert: program.convert,
+      bonusPoint: Number(program.bonusPoint || 0),
       assigner: program.assigner || "",
       assignee: program.assignee || "",
       businessContractId: toObjectIdString(program.businessContractId),
@@ -457,6 +479,7 @@ export const updateProgram = async (req, res) => {
   existingProgram.durationUnit = payload.durationUnit;
   existingProgram.time = payload.time;
   existingProgram.convert = payload.convert;
+  existingProgram.bonusPoint = payload.bonusPoint;
   existingProgram.assigner = payload.assigner;
   existingProgram.assignee = payload.assignee;
   existingProgram.businessContractId = payload.businessContractId;

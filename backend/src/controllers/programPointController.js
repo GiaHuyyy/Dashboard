@@ -49,7 +49,7 @@ export const listProgramPoints = async (req, res) => {
       isDeleted: false,
       $or: [{ type: "program" }, { type: { $exists: false } }],
     })
-      .select("contractCode module time convert status programCreatedAt createdAt assignee")
+      .select("contractCode module time convert bonusPoint status programCreatedAt createdAt assignee")
       .lean(),
     ProgramUpgrade.find({ isDeleted: false })
       .populate({ path: "programId", select: "contractCode module" })
@@ -81,7 +81,9 @@ export const listProgramPoints = async (req, res) => {
       description,
       status: item.status || "",
       assignee: ownerName,
-      point: parsePoint(item.convert),
+      point: parsePoint(item.convert) + parsePoint(item.bonusPoint),
+      convertPoint: parsePoint(item.convert),
+      bonusPoint: parsePoint(item.bonusPoint),
       createdAt,
       createdAtLabel: formatDateTime(createdAt),
     });
@@ -181,6 +183,8 @@ export const listProgramPoints = async (req, res) => {
     details: sortedDetails.map((item) => ({
       ...item,
       point: Number(item.point.toFixed(3)),
+      convertPoint: item.convertPoint !== undefined ? Number(item.convertPoint.toFixed(3)) : undefined,
+      bonusPoint: item.bonusPoint !== undefined ? Number(item.bonusPoint.toFixed(3)) : undefined,
       createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
     })),
     assigneeOptions: Array.from(assigneeSet).sort((a, b) => a.localeCompare(b)),

@@ -1,13 +1,7 @@
 import FormField from "@/components/ui/form-field";
 import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS } from "@/constants/program";
 
-export function ProgramInfo({
-  register,
-  errors,
-  contractOptions = [],
-  designTaskOptions = [],
-  designEnabled = false,
-}) {
+export function ProgramInfo({ register, errors, contractOptions = [], designTaskOptions = [], designEnabled = false }) {
   return (
     <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
       <p className="text-md font-semibold text-slate-700">Thông tin lập trình</p>
@@ -49,6 +43,13 @@ export function ProgramInfo({
         type="text"
         inputProps={{ ...register("convert"), readOnly: true, placeholder: "Tự động" }}
         error={errors.convert?.message}
+      />
+
+      <FormField
+        label="Điểm cộng thêm"
+        type="number"
+        inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125", placeholder: "Nhập điểm cộng thêm" }}
+        error={errors.bonusPoint?.message}
       />
 
       {designEnabled ? (
