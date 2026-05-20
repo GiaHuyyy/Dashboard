@@ -13,6 +13,12 @@ const businessContractSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    contractValue: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
     customerName: {
       type: String,
       required: true,

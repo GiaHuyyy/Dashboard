@@ -18,6 +18,31 @@ const programSourceSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    hostPriceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "HostPrice",
+      default: null,
+    },
+    sslPriceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SslPrice",
+      default: null,
+    },
+    packagePriceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PackagePrice",
+      default: null,
+    },
+    administrationPriceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AdministrationPrice",
+      default: null,
+    },
+    advertisingPriceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AdvertisingPrice",
+      default: null,
+    },
     sentAt: {
       type: Date,
       default: null,

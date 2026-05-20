@@ -18,6 +18,7 @@ import { uploadApi } from "@/lib/upload";
 const schema = z.object({
   contractCode: z.string().trim().min(1, "Vui lòng nhập số hợp đồng"),
   contractName: z.string().trim().min(1, "Vui lòng nhập tên hợp đồng"),
+  contractValue: z.coerce.number().gte(0, "Giá trị hợp đồng không hợp lệ"),
   customerName: z.string().trim().min(1, "Vui lòng nhập tên khách hàng"),
   customerPhone: z.string().optional(),
   customerEmail: z.string().trim().email("Email khách hàng không hợp lệ"),
@@ -43,6 +44,7 @@ const schema = z.object({
 const defaultValues = {
   contractCode: "",
   contractName: "",
+  contractValue: 0,
   customerName: "",
   customerPhone: "",
   customerEmail: "",
@@ -67,6 +69,7 @@ const toDateTimeLocal = (value) => {
 const mapDetailToForm = (contract) => ({
   contractCode: contract.contractCode || "",
   contractName: contract.contractName || "",
+  contractValue: Number(contract.contractValue) || 0,
   customerName: contract.customerName || "",
   customerPhone: contract.customerPhone || "",
   customerEmail: contract.customerEmail || "",
@@ -269,7 +272,9 @@ function BusinessForm() {
   };
 
   if (isLoading) {
-    return <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>;
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
+    );
   }
 
   return (
@@ -295,7 +300,9 @@ function BusinessForm() {
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Thông tin hợp đồng kinh doanh</div>
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
+          Thông tin hợp đồng kinh doanh
+        </div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
           <FormField
             label="Số hợp đồng"
@@ -308,6 +315,12 @@ function BusinessForm() {
             type="text"
             inputProps={{ ...register("contractName"), placeholder: "Website" }}
             error={errors.contractName?.message}
+          />
+          <FormField
+            label="Giá trị hợp đồng"
+            type="number"
+            inputProps={{ ...register("contractValue"), min: "0", step: "1000" }}
+            error={errors.contractValue?.message}
           />
           <FormField
             label="Tên khách hàng"
@@ -384,7 +397,12 @@ function BusinessForm() {
           </div>
 
           <div className="lg:col-span-2">
-            <FormField label="Ghi chú" type="textarea" inputProps={{ ...register("note"), rows: 3 }} error={errors.note?.message} />
+            <FormField
+              label="Ghi chú"
+              type="textarea"
+              inputProps={{ ...register("note"), rows: 3 }}
+              error={errors.note?.message}
+            />
           </div>
         </div>
       </div>

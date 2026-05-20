@@ -60,6 +60,7 @@ function DesignPointManagement() {
   }, [searchText, selectedAssignee, selectedMonth, selectedYear, selectedStatus]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchPoints();
   }, [fetchPoints]);
 

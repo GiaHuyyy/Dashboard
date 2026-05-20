@@ -8,13 +8,27 @@ import { z } from "zod";
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import { SOURCE_DOWNLOAD_STATUS_OPTIONS, SOURCE_SEND_STATUS_OPTIONS } from "@/constants/program-source";
-import { programApi, sourceApi } from "@/lib/api-client";
+import {
+  administrationPriceApi,
+  advertisingPriceApi,
+  domainPriceApi,
+  hostPriceApi,
+  packagePriceApi,
+  programApi,
+  sourceApi,
+  sslPriceApi,
+} from "@/lib/api-client";
 
 const schema = z.object({
   programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc (HĐ)"),
-  domain: z.string().trim().min(1, "Vui lòng nhập Domain"),
+  domain: z.string().trim().min(1, "Vui lòng chọn Domain"),
   sourceLink: z.string().trim().url("Link source không hợp lệ"),
   expiresAt: z.string().trim().min(1, "Vui lòng chọn ngày hết hạn tải"),
+  hostPriceId: z.string().optional(),
+  sslPriceId: z.string().optional(),
+  packagePriceId: z.string().optional(),
+  administrationPriceId: z.string().optional(),
+  advertisingPriceId: z.string().optional(),
   sendStatus: z.enum(SOURCE_SEND_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái gửi" }),
   downloadStatus: z.enum(SOURCE_DOWNLOAD_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái tải" }),
   downloadedAt: z.string().optional(),
@@ -28,6 +42,11 @@ const defaultValues = {
   domain: "",
   sourceLink: "",
   expiresAt: "",
+  hostPriceId: "",
+  sslPriceId: "",
+  packagePriceId: "",
+  administrationPriceId: "",
+  advertisingPriceId: "",
   sendStatus: SOURCE_SEND_STATUS_OPTIONS[0],
   downloadStatus: SOURCE_DOWNLOAD_STATUS_OPTIONS[0],
   downloadedAt: "",
@@ -50,6 +69,11 @@ const mapSourceToForm = (source) => ({
   domain: source.domain || "",
   sourceLink: source.sourceLink || "",
   expiresAt: toDateTimeLocal(source.expiresAt),
+  hostPriceId: source.hostPriceId || "",
+  sslPriceId: source.sslPriceId || "",
+  packagePriceId: source.packagePriceId || "",
+  administrationPriceId: source.administrationPriceId || "",
+  advertisingPriceId: source.advertisingPriceId || "",
   sendStatus: source.sendStatus || SOURCE_SEND_STATUS_OPTIONS[0],
   downloadStatus: source.downloadStatus || SOURCE_DOWNLOAD_STATUS_OPTIONS[0],
   downloadedAt: toDateTimeLocal(source.downloadedAt),
@@ -65,6 +89,12 @@ function SourceForm() {
   const isEditMode = Boolean(id);
   const returnPath = location.state?.sourcePath || "/he-thong/source";
   const [programReferences, setProgramReferences] = useState([]);
+  const [domainPriceReferences, setDomainPriceReferences] = useState([]);
+  const [hostPriceReferences, setHostPriceReferences] = useState([]);
+  const [sslPriceReferences, setSslPriceReferences] = useState([]);
+  const [packagePriceReferences, setPackagePriceReferences] = useState([]);
+  const [administrationPriceReferences, setAdministrationPriceReferences] = useState([]);
+  const [advertisingPriceReferences, setAdvertisingPriceReferences] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
@@ -98,14 +128,51 @@ function SourceForm() {
     const fetchProgramReferences = async () => {
       setIsLoadingSources(true);
       try {
-        const response = await programApi.references();
-        const programs = Array.isArray(response?.programs) ? response.programs : [];
+        const [
+          programResponse,
+          domainResponse,
+          hostResponse,
+          sslResponse,
+          packageResponse,
+          administrationResponse,
+          advertisingResponse,
+        ] = await Promise.all([
+          programApi.references(),
+          domainPriceApi.list(),
+          hostPriceApi.list(),
+          sslPriceApi.list(),
+          packagePriceApi.list(),
+          administrationPriceApi.list(),
+          advertisingPriceApi.list(),
+        ]);
+
+        const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
+        const domainPrices = Array.isArray(domainResponse?.domainPrices) ? domainResponse.domainPrices : [];
+        const hostPrices = Array.isArray(hostResponse?.hostPrices) ? hostResponse.hostPrices : [];
+        const sslPrices = Array.isArray(sslResponse?.sslPrices) ? sslResponse.sslPrices : [];
+        const packagePrices = Array.isArray(packageResponse?.packagePrices) ? packageResponse.packagePrices : [];
+        const administrationPrices = Array.isArray(administrationResponse?.administrationPrices)
+          ? administrationResponse.administrationPrices
+          : [];
+        const advertisingPrices = Array.isArray(advertisingResponse?.advertisingPrices)
+          ? advertisingResponse.advertisingPrices
+          : [];
+
         setProgramReferences(programs);
+        setDomainPriceReferences(domainPrices);
+        setHostPriceReferences(hostPrices);
+        setSslPriceReferences(sslPrices);
+        setPackagePriceReferences(packagePrices);
+        setAdministrationPriceReferences(administrationPrices);
+        setAdvertisingPriceReferences(advertisingPrices);
+
         if (!isEditMode) {
           const first = programs[0];
+          const firstDomain = domainPrices[0];
           const nextDefault = {
             ...defaultValues,
             programId: first?.id || "",
+            domain: firstDomain?.extension || "",
           };
           reset(nextDefault);
           setInitialSnapshot(nextDefault);
@@ -150,6 +217,11 @@ function SourceForm() {
       domain: values.domain,
       sourceLink: values.sourceLink,
       expiresAt: values.expiresAt,
+      hostPriceId: values.hostPriceId || null,
+      sslPriceId: values.sslPriceId || null,
+      packagePriceId: values.packagePriceId || null,
+      administrationPriceId: values.administrationPriceId || null,
+      advertisingPriceId: values.advertisingPriceId || null,
       sendStatus: values.sendStatus,
       downloadStatus: values.downloadStatus,
       downloadedAt: values.downloadStatus === "Đã tải" ? values.downloadedAt || null : null,
@@ -234,7 +306,7 @@ function SourceForm() {
                 programReferences.length === 0
                   ? [{ label: "Không có dữ liệu", value: "" }]
                   : programReferences.map((item) => ({
-                      label: `${item.contractCode} - ${item.contractName || ""}`.trim(),
+                      label: `${item.contractCode} - ${item.contractName} - ${item.customerName}`.trim(),
                       value: item.id,
                     }))
               }
@@ -253,13 +325,6 @@ function SourceForm() {
                 readOnly: true,
                 placeholder: "Tự động theo phiếu gốc",
               }}
-            />
-
-            <FormField
-              label="Domain"
-              type="text"
-              inputProps={{ ...register("domain"), placeholder: "example.com" }}
-              error={errors.domain?.message}
             />
 
             <FormField
@@ -345,6 +410,121 @@ function SourceForm() {
               }}
             />
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
+          Tham chiếu bảng giá
+        </div>
+        <div className="grid gap-5 p-5 lg:grid-cols-2">
+          <FormField
+            label="Bảng giá domain"
+            type="select"
+            options={
+              domainPriceReferences.length === 0
+                ? [{ label: "Không có dữ liệu", value: "" }]
+                : domainPriceReferences.map((item) => ({
+                    label: `${item.extension} - ${item.provider}`.trim(),
+                    value: item.extension,
+                  }))
+            }
+            selectProps={{
+              ...register("domain"),
+              disabled: domainPriceReferences.length === 0,
+            }}
+            error={errors.domain?.message}
+          />
+
+          <FormField
+            label="Bảng giá host"
+            type="select"
+            options={
+              hostPriceReferences.length === 0
+                ? [{ label: "Không có dữ liệu", value: "" }]
+                : hostPriceReferences.map((item) => ({
+                    label: `${item.name} - ${item.storage}`.trim(),
+                    value: item.id,
+                  }))
+            }
+            selectProps={{
+              ...register("hostPriceId"),
+              disabled: hostPriceReferences.length === 0,
+            }}
+            error={errors.hostPriceId?.message}
+          />
+
+          <FormField
+            label="Bảng giá SSL"
+            type="select"
+            options={
+              sslPriceReferences.length === 0
+                ? [{ label: "Không có dữ liệu", value: "" }]
+                : sslPriceReferences.map((item) => ({
+                    label: `${item.name} - ${item.sslType} - ${item.validityMonths} tháng`.trim(),
+                    value: item.id,
+                  }))
+            }
+            selectProps={{
+              ...register("sslPriceId"),
+              disabled: sslPriceReferences.length === 0,
+            }}
+            error={errors.sslPriceId?.message}
+          />
+
+          <FormField
+            label="Bảng giá trọn gói"
+            type="select"
+            options={
+              packagePriceReferences.length === 0
+                ? [{ label: "Không có dữ liệu", value: "" }]
+                : packagePriceReferences.map((item) => ({
+                    label: item.name || "Gói trọn gói",
+                    value: item.id,
+                  }))
+            }
+            selectProps={{
+              ...register("packagePriceId"),
+              disabled: packagePriceReferences.length === 0,
+            }}
+            error={errors.packagePriceId?.message}
+          />
+
+          <FormField
+            label="Bảng giá quản trị"
+            type="select"
+            options={
+              administrationPriceReferences.length === 0
+                ? [{ label: "Không có dữ liệu", value: "" }]
+                : administrationPriceReferences.map((item) => ({
+                    label: `${item.serviceName} - ${item.scope} - ${item.frequency}`.trim(),
+                    value: item.id,
+                  }))
+            }
+            selectProps={{
+              ...register("administrationPriceId"),
+              disabled: administrationPriceReferences.length === 0,
+            }}
+            error={errors.administrationPriceId?.message}
+          />
+
+          <FormField
+            label="Bảng giá quảng cáo"
+            type="select"
+            options={
+              advertisingPriceReferences.length === 0
+                ? [{ label: "Không có dữ liệu", value: "" }]
+                : advertisingPriceReferences.map((item) => ({
+                    label: `${item.platform} - ${item.packageName}`.trim(),
+                    value: item.id,
+                  }))
+            }
+            selectProps={{
+              ...register("advertisingPriceId"),
+              disabled: advertisingPriceReferences.length === 0,
+            }}
+            error={errors.advertisingPriceId?.message}
+          />
         </div>
       </div>
     </form>

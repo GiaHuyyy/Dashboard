@@ -18,6 +18,10 @@ const normalizeBoolean = (value) => {
   }
   return null;
 };
+const normalizeNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 const normalizeDate = (value) => {
   if (!value) return null;
   const date = new Date(value);
@@ -64,6 +68,7 @@ const normalizePayload = (body = {}) => {
   return {
     contractCode: normalizeString(body.contractCode),
     contractName: normalizeString(body.contractName),
+    contractValue: normalizeNumber(body.contractValue),
     customerName: normalizeString(body.customerName),
     customerPhone: normalizeString(body.customerPhone),
     customerEmail: normalizeString(body.customerEmail).toLowerCase(),
@@ -85,6 +90,8 @@ const normalizePayload = (body = {}) => {
 const validatePayload = async (payload, { excludeId = "" } = {}) => {
   if (!payload.contractCode) return { status: 400, message: "contractCode là bắt buộc" };
   if (!payload.contractName) return { status: 400, message: "contractName là bắt buộc" };
+  if (payload.contractValue === null || payload.contractValue < 0)
+    return { status: 400, message: "contractValue không hợp lệ" };
   if (!payload.customerName) return { status: 400, message: "customerName là bắt buộc" };
   if (!payload.customerEmail) return { status: 400, message: "customerEmail là bắt buộc" };
   if (!payload.selectedSalesStaff) return { status: 400, message: "selectedSalesStaff là bắt buộc" };
@@ -128,6 +135,7 @@ const toResponseItem = (doc) => ({
   id: doc._id,
   contractCode: doc.contractCode,
   contractName: doc.contractName,
+  contractValue: Number(doc.contractValue) || 0,
   customerName: doc.customerName,
   customerPhone: doc.customerPhone || "",
   customerEmail: doc.customerEmail || "",
@@ -151,6 +159,7 @@ export const createBusinessContract = async (req, res) => {
   const shouldSendMail = normalizeFlag(req.body.sendMail);
   const payload = normalizePayload({
     ...req.body,
+    contractValue: req.body.contractValue ?? 0,
     visible: req.body.visible ?? true,
   });
   payload.salesReceiverName = payload.customerName;
@@ -233,7 +242,7 @@ export const listBusinessContractReferences = async (req, res) => {
   const items = await BusinessContract.find({ isDeleted: false, visible: true })
     .sort({ createdAt: 1 })
     .select(
-      "contractCode contractName customerName status mailStatus selectedSalesStaff salesReceiverName salesReceiverEmail ccEmails contractImages handoverStatus",
+      "contractCode contractName contractValue customerName status mailStatus selectedSalesStaff salesReceiverName salesReceiverEmail ccEmails contractImages handoverStatus",
     )
     .lean();
 
@@ -242,6 +251,7 @@ export const listBusinessContractReferences = async (req, res) => {
       id: item._id,
       contractCode: item.contractCode || "",
       contractName: item.contractName || "",
+      contractValue: Number(item.contractValue) || 0,
       customerName: item.customerName || "",
       status: item.status || STATUS_OPTIONS[0],
       mailStatus: item.mailStatus || MAIL_STATUS_OPTIONS[0],
@@ -273,6 +283,7 @@ export const updateBusinessContract = async (req, res) => {
   const mergedPayload = {
     contractCode: input.contractCode || existing.contractCode,
     contractName: input.contractName || existing.contractName,
+    contractValue: input.contractValue === null ? Number(existing.contractValue ?? 0) : input.contractValue,
     customerName: input.customerName || existing.customerName,
     customerPhone: typeof req.body.customerPhone === "string" ? input.customerPhone : existing.customerPhone,
     customerEmail: typeof req.body.customerEmail === "string" ? input.customerEmail : existing.customerEmail,
@@ -300,6 +311,7 @@ export const updateBusinessContract = async (req, res) => {
 
   existing.contractCode = mergedPayload.contractCode;
   existing.contractName = mergedPayload.contractName;
+  existing.contractValue = mergedPayload.contractValue;
   existing.customerName = mergedPayload.customerName;
   existing.customerPhone = mergedPayload.customerPhone;
   existing.customerEmail = mergedPayload.customerEmail;

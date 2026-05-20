@@ -20,6 +20,11 @@ const normalizeNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
+const normalizeObjectId = (value) => {
+  const normalized = normalizeString(value);
+  if (!normalized) return null;
+  return mongoose.isValidObjectId(normalized) ? normalized : null;
+};
 const normalizeDate = (value) => {
   if (value === null || value === undefined || value === "") return null;
   const date = new Date(value);
@@ -62,6 +67,11 @@ const normalizePayload = (body = {}) => ({
   programId: normalizeString(body.programId),
   domain: normalizeString(body.domain),
   sourceLink: normalizeString(body.sourceLink),
+  hostPriceId: normalizeObjectId(body.hostPriceId),
+  sslPriceId: normalizeObjectId(body.sslPriceId),
+  packagePriceId: normalizeObjectId(body.packagePriceId),
+  administrationPriceId: normalizeObjectId(body.administrationPriceId),
+  advertisingPriceId: normalizeObjectId(body.advertisingPriceId),
   expiresAt: normalizeDate(body.expiresAt),
   sendStatus: normalizeString(body.sendStatus),
   downloadStatus: normalizeString(body.downloadStatus),
@@ -140,6 +150,11 @@ const toResponseItem = (doc) => ({
   module: doc.programId?.module || "",
   domain: doc.domain || "",
   sourceLink: doc.sourceLink || "",
+  hostPriceId: doc.hostPriceId || null,
+  sslPriceId: doc.sslPriceId || null,
+  packagePriceId: doc.packagePriceId || null,
+  administrationPriceId: doc.administrationPriceId || null,
+  advertisingPriceId: doc.advertisingPriceId || null,
   sendStatus: doc.sendStatus || "Chưa gửi",
   sentAt: toIsoString(doc.sentAt),
   sentAtLabel: formatDateTime(doc.sentAt),
@@ -281,6 +296,15 @@ export const updateProgramSource = async (req, res) => {
     programId: normalizedInput.programId || String(existing.programId),
     domain: normalizedInput.domain || existing.domain,
     sourceLink: normalizedInput.sourceLink || existing.sourceLink,
+    hostPriceId: req.body.hostPriceId !== undefined ? normalizedInput.hostPriceId : existing.hostPriceId,
+    sslPriceId: req.body.sslPriceId !== undefined ? normalizedInput.sslPriceId : existing.sslPriceId,
+    packagePriceId: req.body.packagePriceId !== undefined ? normalizedInput.packagePriceId : existing.packagePriceId,
+    administrationPriceId:
+      req.body.administrationPriceId !== undefined
+        ? normalizedInput.administrationPriceId
+        : existing.administrationPriceId,
+    advertisingPriceId:
+      req.body.advertisingPriceId !== undefined ? normalizedInput.advertisingPriceId : existing.advertisingPriceId,
     expiresAt: normalizedInput.expiresAt || existing.expiresAt,
     sendStatus: normalizedInput.sendStatus || existing.sendStatus,
     downloadStatus: normalizedInput.downloadStatus || existing.downloadStatus,
@@ -298,6 +322,11 @@ export const updateProgramSource = async (req, res) => {
   existing.programId = mergedPayload.programId;
   existing.domain = mergedPayload.domain;
   existing.sourceLink = mergedPayload.sourceLink;
+  existing.hostPriceId = mergedPayload.hostPriceId;
+  existing.sslPriceId = mergedPayload.sslPriceId;
+  existing.packagePriceId = mergedPayload.packagePriceId;
+  existing.administrationPriceId = mergedPayload.administrationPriceId;
+  existing.advertisingPriceId = mergedPayload.advertisingPriceId;
   existing.expiresAt = mergedPayload.expiresAt;
   existing.sendStatus = mergedPayload.sendStatus;
   existing.downloadStatus = mergedPayload.downloadStatus;
