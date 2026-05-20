@@ -116,7 +116,6 @@ function ProgramCorrectionForm() {
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
@@ -145,27 +144,6 @@ function ProgramCorrectionForm() {
   const statusOptions = isEditMode ? CORRECTION_STATUS_OPTIONS_WITH_COMPLETED : CORRECTION_STATUS_OPTIONS;
   const businessContractRegister = register("businessContractId");
 
-  useEffect(() => {
-    const fetchStaffs = async () => {
-      try {
-        const response = await staffApi.references();
-        const nextReferences = Array.isArray(response?.staffs) ? response.staffs : [];
-        setStaffReferences(nextReferences);
-        const managerOptions = getStaffNamesByRole(nextReferences, "Quản lý");
-        const programmerOptions = getStaffNamesByRole(nextReferences, "Lập trình viên");
-        if (!isEditMode && managerOptions.length > 0) {
-          setValue("assigner", managerOptions[0], { shouldValidate: true });
-        }
-        if (!isEditMode && programmerOptions.length > 0) {
-          setValue("assignee", programmerOptions[0], { shouldValidate: true });
-        }
-      } catch (error) {
-        toast.error(error?.message || "Không thể tải danh sách nhân sự");
-      }
-    };
-    void fetchStaffs();
-  }, [isEditMode, setValue]);
-
   const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
 
@@ -183,11 +161,13 @@ function ProgramCorrectionForm() {
     const fetchSources = async () => {
       setIsLoadingSources(true);
       try {
-        const staffResponse = await staffApi.references();
-        const [programResponse, businessResponse] = await Promise.all([
-          programApi.references(),
-          businessContractApi.references(),
-        ]);
+        const requests = [staffApi.references(), programApi.references(), businessContractApi.references()];
+        if (isEditMode) {
+          requests.push(correctionApi.detail(id));
+        }
+
+        const [staffResponse, programResponse, businessResponse, detailResponse] = await Promise.all([...requests]);
+
         const staffList = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
         const contracts = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
@@ -195,23 +175,38 @@ function ProgramCorrectionForm() {
         setBusinessContractReferences(contracts);
         setStaffReferences(staffList);
 
-        if (!isEditMode) {
-          const selected = contracts[0];
-          const linkedProgram = getProgramByBusinessContractId(programs, selected?.id);
-          const managerOptions = getStaffNamesByRole(staffList, "Quản lý");
-          const programmerOptions = getStaffNamesByRole(staffList, "Lập trình viên");
-          const nextDefaults = {
-            ...defaultValues,
-            businessContractId: selected?.id || "",
-            durationValue: linkedProgram?.durationValue || defaultValues.durationValue,
-            durationUnit: linkedProgram?.durationUnit || defaultValues.durationUnit,
-            convert: linkedProgram?.convert || defaultValues.convert,
-            assigner: managerOptions[0] || defaultValues.assigner,
-            assignee: programmerOptions[0] || defaultValues.assignee,
-          };
-          reset(nextDefaults);
-          setInitialSnapshot(nextDefaults);
+        if (isEditMode) {
+          const correction = detailResponse?.correction;
+          if (!correction) {
+            toast.error("Không tìm thấy yêu cầu chỉnh sửa");
+            navigate("/lap-trinh/chinh-sua");
+            return;
+          }
+          const linkedProgram = programs.find((item) => item.id === correction.programId) || null;
+          const formValues = mapCorrectionToForm({
+            ...correction,
+            businessContractId: linkedProgram?.businessContractId || "",
+          });
+          reset(formValues);
+          setInitialSnapshot(formValues);
+          return;
         }
+
+        const selected = contracts[0];
+        const linkedProgram = getProgramByBusinessContractId(programs, selected?.id);
+        const managerOptions = getStaffNamesByRole(staffList, "Quản lý");
+        const programmerOptions = getStaffNamesByRole(staffList, "Lập trình viên");
+        const nextDefaults = {
+          ...defaultValues,
+          businessContractId: selected?.id || "",
+          durationValue: linkedProgram?.durationValue || defaultValues.durationValue,
+          durationUnit: linkedProgram?.durationUnit || defaultValues.durationUnit,
+          convert: linkedProgram?.convert || defaultValues.convert,
+          assigner: managerOptions[0] || defaultValues.assigner,
+          assignee: programmerOptions[0] || defaultValues.assignee,
+        };
+        reset(nextDefaults);
+        setInitialSnapshot(nextDefaults);
       } catch (error) {
         toast.error(error?.message || "Không thể tải dữ liệu nguồn");
       } finally {
@@ -220,36 +215,7 @@ function ProgramCorrectionForm() {
     };
 
     void fetchSources();
-  }, [isEditMode, reset]);
-
-  useEffect(() => {
-    if (!isEditMode) return;
-    const fetchDetail = async () => {
-      setIsLoadingDetail(true);
-      try {
-        const response = await correctionApi.detail(id);
-        const correction = response?.correction;
-        if (!correction) {
-          toast.error("Không tìm thấy yêu cầu chỉnh sửa");
-          navigate("/lap-trinh/chinh-sua");
-          return;
-        }
-        const linkedProgram = programReferences.find((item) => item.id === correction.programId) || null;
-        const formValues = mapCorrectionToForm({
-          ...correction,
-          businessContractId: linkedProgram?.businessContractId || "",
-        });
-        reset(formValues);
-        setInitialSnapshot(formValues);
-      } catch (error) {
-        toast.error(error?.message || "Không thể tải chi tiết yêu cầu chỉnh sửa");
-        navigate("/lap-trinh/chinh-sua");
-      } finally {
-        setIsLoadingDetail(false);
-      }
-    };
-    void fetchDetail();
-  }, [id, isEditMode, navigate, programReferences, reset]);
+  }, [id, isEditMode, navigate, reset]);
 
   const persistCorrection = async (values, mode) => {
     const selectedLinkedProgram = getProgramByBusinessContractId(programReferences, values.businessContractId);
@@ -324,7 +290,7 @@ function ProgramCorrectionForm() {
       () => toast.error("Vui lòng kiểm tra lại thông tin form"),
     )();
 
-  if (isLoadingSources || isLoadingDetail) {
+  if (isLoadingSources) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
     );

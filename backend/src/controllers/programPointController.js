@@ -109,6 +109,7 @@ export const listProgramPoints = async (req, res) => {
       status: item.status || "",
       assignee: ownerName,
       point: parsePoint(item.bonusPoint),
+      bonusPoint: parsePoint(item.bonusPoint),
       createdAt,
       createdAtLabel: formatDateTime(createdAt),
     });
@@ -134,6 +135,7 @@ export const listProgramPoints = async (req, res) => {
       status: item.status || "",
       assignee: ownerName,
       point: parsePoint(item.bonusPoint),
+      bonusPoint: parsePoint(item.bonusPoint),
       createdAt,
       createdAtLabel: formatDateTime(createdAt),
     });

@@ -121,7 +121,6 @@ function ProgramUpgradeForm() {
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
@@ -160,27 +159,6 @@ function ProgramUpgradeForm() {
     setValue("completedAt", "", { shouldValidate: true });
   }, [selectedStatus, setValue]);
 
-  useEffect(() => {
-    const fetchStaffs = async () => {
-      try {
-        const response = await staffApi.references();
-        const nextReferences = Array.isArray(response?.staffs) ? response.staffs : [];
-        setStaffReferences(nextReferences);
-        const managerOptions = getStaffNamesByRole(nextReferences, "Quản lý");
-        const programmerOptions = getStaffNamesByRole(nextReferences, "Lập trình viên");
-        if (!isEditMode && managerOptions.length > 0) {
-          setValue("assigner", managerOptions[0], { shouldValidate: true });
-        }
-        if (!isEditMode && programmerOptions.length > 0) {
-          setValue("assignee", programmerOptions[0], { shouldValidate: true });
-        }
-      } catch (error) {
-        toast.error(error?.message || "Không thể tải danh sách nhân sự");
-      }
-    };
-    void fetchStaffs();
-  }, [isEditMode, setValue]);
-
   const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
 
@@ -188,34 +166,52 @@ function ProgramUpgradeForm() {
     const fetchSources = async () => {
       setIsLoadingSources(true);
       try {
-        const staffResponse = await staffApi.references();
-        const [programResponse, businessResponse] = await Promise.all([
-          programApi.references(),
-          businessContractApi.references(),
-        ]);
+        const requests = [staffApi.references(), programApi.references(), businessContractApi.references()];
+        if (isEditMode) {
+          requests.push(upgradeApi.detail(id));
+        }
+
+        const [staffResponse, programResponse, businessResponse, detailResponse] = await Promise.all([...requests]);
+
         const staffList = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
         const contracts = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
+        setStaffReferences(staffList);
         setProgramReferences(programs);
         setBusinessContractReferences(contracts);
-        setStaffReferences(staffList);
-        if (!isEditMode) {
-          const selected = contracts[0];
-          const linkedProgram = getProgramByBusinessContractId(programs, selected?.id);
-          const managerOptions = getStaffNamesByRole(staffList, "Quản lý");
-          const programmerOptions = getStaffNamesByRole(staffList, "Lập trình viên");
-          const nextDefaults = {
-            ...defaultValues,
-            businessContractId: selected?.id || "",
-            durationValue: linkedProgram?.durationValue || defaultValues.durationValue,
-            durationUnit: linkedProgram?.durationUnit || defaultValues.durationUnit,
-            convert: linkedProgram?.convert || defaultValues.convert,
-            assigner: managerOptions[0] || defaultValues.assigner,
-            assignee: programmerOptions[0] || defaultValues.assignee,
-          };
-          reset(nextDefaults);
-          setInitialSnapshot(nextDefaults);
+
+        if (isEditMode) {
+          const upgrade = detailResponse?.upgrade;
+          if (!upgrade) {
+            toast.error("Không tìm thấy yêu cầu nâng cấp");
+            navigate("/lap-trinh/nang-cap");
+            return;
+          }
+          const linkedProgram = programs.find((item) => item.id === upgrade.programId) || null;
+          const formValues = mapUpgradeToForm({
+            ...upgrade,
+            businessContractId: linkedProgram?.businessContractId || "",
+          });
+          reset(formValues);
+          setInitialSnapshot(formValues);
+          return;
         }
+
+        const selected = contracts[0];
+        const linkedProgram = getProgramByBusinessContractId(programs, selected?.id);
+        const managerOptions = getStaffNamesByRole(staffList, "Quản lý");
+        const programmerOptions = getStaffNamesByRole(staffList, "Lập trình viên");
+        const nextDefaults = {
+          ...defaultValues,
+          businessContractId: selected?.id || "",
+          durationValue: linkedProgram?.durationValue || defaultValues.durationValue,
+          durationUnit: linkedProgram?.durationUnit || defaultValues.durationUnit,
+          convert: linkedProgram?.convert || defaultValues.convert,
+          assigner: managerOptions[0] || defaultValues.assigner,
+          assignee: programmerOptions[0] || defaultValues.assignee,
+        };
+        reset(nextDefaults);
+        setInitialSnapshot(nextDefaults);
       } catch (error) {
         toast.error(error?.message || "Không thể tải dữ liệu phiếu gốc");
       } finally {
@@ -223,36 +219,7 @@ function ProgramUpgradeForm() {
       }
     };
     void fetchSources();
-  }, [isEditMode, reset]);
-
-  useEffect(() => {
-    if (!isEditMode) return;
-    const fetchDetail = async () => {
-      setIsLoadingDetail(true);
-      try {
-        const response = await upgradeApi.detail(id);
-        const upgrade = response?.upgrade;
-        if (!upgrade) {
-          toast.error("Không tìm thấy yêu cầu nâng cấp");
-          navigate("/lap-trinh/nang-cap");
-          return;
-        }
-        const linkedProgram = programReferences.find((item) => item.id === upgrade.programId) || null;
-        const formValues = mapUpgradeToForm({
-          ...upgrade,
-          businessContractId: linkedProgram?.businessContractId || "",
-        });
-        reset(formValues);
-        setInitialSnapshot(formValues);
-      } catch (error) {
-        toast.error(error?.message || "Không thể tải chi tiết yêu cầu nâng cấp");
-        navigate("/lap-trinh/nang-cap");
-      } finally {
-        setIsLoadingDetail(false);
-      }
-    };
-    void fetchDetail();
-  }, [id, isEditMode, navigate, programReferences, reset]);
+  }, [id, isEditMode, navigate, reset]);
 
   const persistUpgrade = async (values, mode) => {
     const selectedLinkedProgram = getProgramByBusinessContractId(programReferences, values.businessContractId);
@@ -327,7 +294,7 @@ function ProgramUpgradeForm() {
       () => toast.error("Vui lòng kiểm tra lại thông tin form"),
     )();
 
-  if (isLoadingSources || isLoadingDetail) {
+  if (isLoadingSources) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
     );
