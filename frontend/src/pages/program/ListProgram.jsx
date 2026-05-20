@@ -247,7 +247,7 @@ function ListProgram() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Quy đổi
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">
                 Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -313,7 +313,7 @@ function ListProgram() {
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
                     {row.contractCode || "-"}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.module}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.module}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     {row.processingStatus === COMPLETED_STATUS ? (
                       <span className="text-slate-600">{row.priority || "-"}</span>
@@ -337,10 +337,10 @@ function ListProgram() {
                       </select>
                     )}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.time}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.convert}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
                   <TableCell
-                    className="border border-slate-200 p-4 text-slate-500"
+                    className="border border-slate-200 p-4"
                     onClick={(event) => event.stopPropagation()}
                   >
                     {row.processingStatus === COMPLETED_STATUS ? (
@@ -363,16 +363,16 @@ function ListProgram() {
                       </select>
                     )}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.assigner || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.assignee || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                  <TableCell className="border border-slate-200 p-4">{row.assigner || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.assignee || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">
                     {row.assignedAtLabel || "-"}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                  <TableCell className="border border-slate-200 p-4">
                     {row.receivedAtLabel || "-"}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.dueAtLabel || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                  <TableCell className="border border-slate-200 p-4">{row.dueAtLabel || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">
                     {row.completedAtLabel || "-"}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">

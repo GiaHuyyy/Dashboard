@@ -216,7 +216,7 @@ function SourceManagement() {
               displayedRows.map((row, index) => (
                 <TableRow
                   key={row.id}
-                  className="cursor-pointer text-slate-700 hover:bg-slate-50"
+                  className="cursor-pointer hover:bg-slate-50"
                   onClick={() => navigate(`/he-thong/source/chinh-sua/${row.id}`)}
                 >
                   <TableCell className="border border-slate-200 p-4">
@@ -273,12 +273,12 @@ function SourceManagement() {
                     </div>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className={row.sendStatus === "Đã gửi" ? "text-emerald-700" : "text-slate-600"}>
+                    <span className={row.sendStatus === "Đã gửi" ? "text-emerald-700" : ""}>
                       {row.sendStatus}
                     </span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className={row.downloadStatus === "Đã tải" ? "text-emerald-700" : "text-slate-600"}>
+                    <span className={row.downloadStatus === "Đã tải" ? "text-emerald-700" : ""}>
                       {row.downloadStatus}
                     </span>
                   </TableCell>

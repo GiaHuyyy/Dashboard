@@ -411,16 +411,16 @@ function ProgramUpgradeManagement() {
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                  <TableCell className="border border-slate-200 p-4">
                     {formatDateTime(row.assignedAt)}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                  <TableCell className="border border-slate-200 p-4">
                     {formatDateTime(row.receivedAt)}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                  <TableCell className="border border-slate-200 p-4">
                     {formatDateTime(row.dueAt)}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">
+                  <TableCell className="border border-slate-200 p-4">
                     {formatDateTime(row.completedAt)}
                   </TableCell>
                   <TableCell
