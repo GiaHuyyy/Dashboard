@@ -34,6 +34,7 @@ import StaffManagement from "./pages/staff/StaffManagement";
 import SourceForm from "./pages/system/SourceForm";
 import SourceManagement from "./pages/system/SourceManagement";
 import ServerManagement from "./pages/system/ServerManagement";
+import SystemCategoryManagement from "./pages/config/SystemCategoryManagement";
 import BusinessManagement from "./pages/business/BusinessManagement";
 import BusinessForm from "./pages/business/BusinessForm";
 import Login from "./pages/auth/Login";
@@ -180,7 +181,8 @@ function App() {
           <Route path="kinh-doanh/danh-sach" element={<BusinessManagement />} />
           <Route path="kinh-doanh/them-moi" element={<BusinessForm />} />
           <Route path="kinh-doanh/chinh-sua/:id" element={<BusinessForm />} />
-          <Route path="cau-hinh" element={<Placeholder title="Quản lý cấu hình" />} />
+          <Route path="cau-hinh" element={<Navigate to="/cau-hinh/danh-muc-he-thong" replace />} />
+          <Route path="cau-hinh/danh-muc-he-thong" element={<SystemCategoryManagement />} />
           <Route path="bieu-mau" element={<Placeholder title="Biểu mẫu" />} />
         </Route>
         <Route path="*" element={<Navigate to="/home" replace />} />

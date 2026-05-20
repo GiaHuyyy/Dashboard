@@ -63,7 +63,11 @@ const navItems = [
     path: "/design",
     icon: FileText,
     children: [
-      { label: "Danh sách design", path: "/design/danh-sach", activePathPrefixes: ["/design/them-moi", "/design/chinh-sua/"] },
+      {
+        label: "Danh sách design",
+        path: "/design/danh-sach",
+        activePathPrefixes: ["/design/them-moi", "/design/chinh-sua/"],
+      },
       { label: "Quản lý điểm", path: "/design/quan-ly-diem" },
     ],
   },
@@ -71,7 +75,13 @@ const navItems = [
     label: "Quản lý nhân sự",
     path: "/nhan-su",
     icon: FileText,
-    children: [{ label: "Danh sách nhân sự", path: "/nhan-su/danh-sach", activePathPrefixes: ["/nhan-su/chinh-sua/", "/nhan-su/them-moi"] }],
+    children: [
+      {
+        label: "Danh sách nhân sự",
+        path: "/nhan-su/danh-sach",
+        activePathPrefixes: ["/nhan-su/chinh-sua/", "/nhan-su/them-moi"],
+      },
+    ],
   },
   {
     label: "Quản lý kinh doanh",
@@ -86,7 +96,18 @@ const navItems = [
       },
     ],
   },
-  { label: "Quản lý cấu hình", path: "/cau-hinh", icon: FileText },
+  {
+    label: "Quản lý cấu hình",
+    path: "/cau-hinh",
+    icon: FileText,
+    children: [
+      {
+        label: "Danh mục hệ thống",
+        path: "/cau-hinh/danh-muc-he-thong",
+        activePathPrefixes: ["/cau-hinh/danh-muc-he-thong"],
+      },
+    ],
+  },
   { label: "Biểu mẫu", path: "/bieu-mau", icon: FileText },
 ];
 
@@ -114,7 +135,8 @@ function DashboardLayout() {
           (child) =>
             child.path === location.pathname ||
             (child.activePaths && child.activePaths.includes(location.pathname)) ||
-            (child.activePathPrefixes && child.activePathPrefixes.some((prefix) => location.pathname.startsWith(prefix))),
+            (child.activePathPrefixes &&
+              child.activePathPrefixes.some((prefix) => location.pathname.startsWith(prefix))),
         );
         if (match) return match.label;
       }
