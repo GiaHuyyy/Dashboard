@@ -360,7 +360,7 @@ function ProgramUpgradeForm() {
                     businessContractReferences.length === 0
                       ? [{ label: "Không có dữ liệu", value: "" }]
                       : businessContractReferences.map((item) => ({
-                          label: `${item.contractCode} - ${item.contractName || ""}`.trim(),
+                          label: `${item.contractCode} - ${item.contractName} - ${item.customerName}`.trim(),
                           value: item.id,
                         }))
                   }

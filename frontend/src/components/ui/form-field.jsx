@@ -23,7 +23,11 @@ function FormField({
         {type === "select" ? (
           <select className={cn(fieldClass, selectClassName)} {...selectProps}>
             {options.map((option) => (
-              <option key={option.value ?? option.label} value={option.value ?? option.label}>
+              <option
+                key={option.value ?? option.label}
+                value={option.value ?? option.label}
+                disabled={Boolean(option.disabled)}
+              >
                 {option.label}
               </option>
             ))}

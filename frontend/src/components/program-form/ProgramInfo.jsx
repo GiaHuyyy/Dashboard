@@ -5,7 +5,6 @@ export function ProgramInfo({
   register,
   errors,
   contractOptions = [],
-  selectedContract,
   designTaskOptions = [],
   designEnabled = false,
 }) {
@@ -20,10 +19,6 @@ export function ProgramInfo({
         selectProps={{ ...register("businessContractId"), disabled: contractOptions.length === 0 }}
         error={errors.businessContractId?.message}
       />
-
-      <FormField label="Tên hợp đồng" type="text" inputProps={{ value: selectedContract?.contractName || "", readOnly: true }} />
-      <FormField label="Số hợp đồng" type="text" inputProps={{ value: selectedContract?.contractCode || "", readOnly: true }} />
-      <FormField label="Nhân viên kinh doanh" type="text" inputProps={{ value: selectedContract?.selectedSalesStaff || "", readOnly: true }} />
 
       <FormField
         label="Module"

@@ -56,7 +56,7 @@ const programSchema = z
     visible: z.boolean(),
     processingStatus: z.enum(STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái hợp lệ" }),
     assignedAt: z.string().trim().min(1, "Vui lòng chọn ngày giao"),
-    receivedAt: z.string().optional(),
+    receivedAt: z.string().trim().min(1, "Vui lòng chọn ngày nhận"),
     dueAt: z.string().trim().min(1, "Vui lòng chọn ngày dự kiến"),
     completedAt: z.string().optional(),
   })
@@ -99,6 +99,7 @@ function ProgramForm() {
   const [isLoadingProgram, setIsLoadingProgram] = useState(false);
   const [staffReferences, setStaffReferences] = useState([]);
   const [designReferences, setDesignReferences] = useState([]);
+  const [programReferences, setProgramReferences] = useState([]);
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
@@ -125,26 +126,35 @@ function ProgramForm() {
   const isReadOnlyMode = isEditMode && initialSnapshot.processingStatus === COMPLETED_STATUS;
   const processingStatusOptions = isEditMode ? STATUS_OPTIONS_WITH_COMPLETED : STATUS_OPTIONS;
 
-  const selectedBusinessContract = useMemo(
-    () => businessContractReferences.find((item) => item.id === selectedBusinessContractId) || null,
-    [businessContractReferences, selectedBusinessContractId],
-  );
+  const selectedBusinessContract = useMemo(() => {
+    if (!selectedBusinessContractId) return null;
+    return (
+      businessContractReferences.find((item) => String(item.id) === String(selectedBusinessContractId)) ||
+      businessContractReferences.find((item) => String(item._id) === String(selectedBusinessContractId)) ||
+      businessContractReferences.find((item) => String(item.contractCode) === String(selectedBusinessContractId)) ||
+      businessContractReferences.find((item) => item.label === selectedBusinessContractId) ||
+      null
+    );
+  }, [businessContractReferences, selectedBusinessContractId]);
 
   useEffect(() => {
     const fetchReferences = async () => {
       try {
-        const [staffResponse, designResponse, businessResponse] = await Promise.all([
+        const [staffResponse, designResponse, businessResponse, programResponse] = await Promise.all([
           staffApi.references(),
           designApi.references(),
           businessContractApi.references(),
+          programApi.references(),
         ]);
         const nextStaffReferences = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const nextDesignReferences = Array.isArray(designResponse?.designTasks) ? designResponse.designTasks : [];
         const nextBusinessReferences = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
+        const nextProgramReferences = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
 
         setStaffReferences(nextStaffReferences);
         setDesignReferences(nextDesignReferences);
         setBusinessContractReferences(nextBusinessReferences);
+        setProgramReferences(nextProgramReferences);
 
         const managerOptions = getStaffNamesByRole(nextStaffReferences, "Quản lý");
         const programmerOptions = getStaffNamesByRole(nextStaffReferences, "Lập trình viên");
@@ -167,10 +177,24 @@ function ProgramForm() {
     label: item?.label || item?.title || "Design",
     value: item?.id,
   }));
-  const contractOptions = businessContractReferences.map((item) => ({
-    label: item?.label || `${item.contractCode || "N/A"} - ${item.contractName || "N/A"}`,
-    value: item?.id,
-  }));
+  const usedBusinessContractIds = useMemo(() => {
+    if (isEditMode) return new Set();
+    return new Set(
+      programReferences
+        .map((item) => item?.businessContractId)
+        .filter((value) => value !== undefined && value !== null && value !== ""),
+    );
+  }, [isEditMode, programReferences]);
+
+  const contractOptions = businessContractReferences.map((item) => {
+    const value = item?.id ?? item?._id ?? item?.contractCode ?? item?.label;
+    const isUsed = !isEditMode && usedBusinessContractIds.has(value);
+    return {
+      label: item?.label || `${item.contractCode || "N/A"} - ${item.contractName || "N/A"}`,
+      value,
+      disabled: isUsed,
+    };
+  });
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
@@ -194,9 +218,25 @@ function ProgramForm() {
   }, [designReferences, selectedDesign, selectedDesignTaskId, setValue]);
 
   useEffect(() => {
-    if (isEditMode || !businessContractFromState?.id) return;
-    setValue("businessContractId", businessContractFromState.id, { shouldValidate: true });
+    if (isEditMode || !businessContractFromState) return;
+    const fallbackId =
+      businessContractFromState.id ||
+      businessContractFromState._id ||
+      businessContractFromState.contractCode ||
+      businessContractFromState.label ||
+      "";
+    if (!fallbackId) return;
+    setValue("businessContractId", fallbackId, { shouldValidate: true });
   }, [businessContractFromState, isEditMode, setValue]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    if (selectedBusinessContractId) return;
+    if (businessContractReferences.length === 0) return;
+    const firstAvailable = contractOptions.find((option) => !option.disabled && option.value);
+    if (!firstAvailable) return;
+    setValue("businessContractId", firstAvailable.value, { shouldValidate: true });
+  }, [businessContractReferences.length, contractOptions, isEditMode, selectedBusinessContractId, setValue]);
 
   useEffect(() => {
     if (!isEditMode) return;
@@ -332,16 +372,16 @@ function ProgramForm() {
     <>
       <form className="space-y-4">
         <FormActions
-        onSave={() => submitWithMode("save")}
-        onSaveMail={() => null}
-        onSaveStay={() => submitWithMode("save-stay")}
+          onSave={() => submitWithMode("save")}
+          onSaveMail={() => null}
+          onSaveStay={() => submitWithMode("save-stay")}
           onReset={() => reset(initialSnapshot)}
           isSubmitting={isSubmitting}
           isUploading={false}
           isEditMode={isEditMode}
-        exitPath={returnPath}
-        showSaveMail={false}
-        readOnlyMode={isReadOnlyMode}
+          exitPath={returnPath}
+          showSaveMail={false}
+          readOnlyMode={isReadOnlyMode}
         />
 
         <fieldset disabled={isReadOnlyMode}>
@@ -377,12 +417,12 @@ function ProgramForm() {
                 />
 
                 <FormField
-                label="Trạng thái"
-                type="select"
-                options={processingStatusOptions.map((item) => ({ label: item, value: item }))}
-                selectProps={register("processingStatus")}
-                error={errors.processingStatus?.message}
-              />
+                  label="Trạng thái"
+                  type="select"
+                  options={processingStatusOptions.map((item) => ({ label: item, value: item }))}
+                  selectProps={register("processingStatus")}
+                  error={errors.processingStatus?.message}
+                />
 
                 <FormField
                   label="Ngày giao"
@@ -409,11 +449,11 @@ function ProgramForm() {
                   label="Ngày hoàn thành"
                   type="datetime-local"
                   inputProps={{
-                  ...register("completedAt"),
-                  disabled: selectedProcessingStatus !== COMPLETED_STATUS,
-                }}
-                error={errors.completedAt?.message}
-              />
+                    ...register("completedAt"),
+                    disabled: selectedProcessingStatus !== COMPLETED_STATUS,
+                  }}
+                  error={errors.completedAt?.message}
+                />
 
                 <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                   <input type="checkbox" {...register("visible")} />
@@ -463,10 +503,10 @@ function ProgramForm() {
         }
       >
         <p className="text-sm text-slate-600">
-        Bạn đang chuyển trạng thái sang
-        <span className="font-semibold text-slate-800"> {COMPLETED_STATUS}</span>. Xác nhận để lưu cập nhật.
-      </p>
-    </Modal>
+          Bạn đang chuyển trạng thái sang
+          <span className="font-semibold text-slate-800"> {COMPLETED_STATUS}</span>. Xác nhận để lưu cập nhật.
+        </p>
+      </Modal>
     </>
   );
 }
