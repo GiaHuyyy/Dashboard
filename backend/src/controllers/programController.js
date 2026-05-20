@@ -397,14 +397,16 @@ export const listProgramReferences = async (req, res) => {
     .select(
       "businessContractId contractCode module contractName time convert bonusPoint durationValue durationUnit salesReceiverEmail ccEmails",
     )
+    .populate({ path: "businessContractId", select: "customerName" })
     .lean();
 
   return res.json({
     programs: programs.map((item) => ({
       id: item._id,
-      businessContractId: toObjectIdString(item.businessContractId),
+      businessContractId: toObjectIdString(item.businessContractId?._id || item.businessContractId),
       contractCode: item.contractCode,
       contractName: item.contractName,
+      customerName: item.businessContractId?.customerName || "",
       module: item.module,
       time: item.time || "",
       convert: item.convert || "",

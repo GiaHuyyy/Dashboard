@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 import Program from "../models/Program.js";
 import ProgramSource from "../models/ProgramSource.js";
+import DomainPrice from "../models/DomainPrice.js";
+import HostPrice from "../models/HostPrice.js";
+import SslPrice from "../models/SslPrice.js";
+import PackagePrice from "../models/PackagePrice.js";
+import AdministrationPrice from "../models/AdministrationPrice.js";
+import AdvertisingPrice from "../models/AdvertisingPrice.js";
 import { sendProgramSourceMail } from "../services/programSourceMailService.js";
 
 const SEND_STATUS_OPTIONS = ["Chưa gửi", "Đã gửi"];
@@ -34,6 +40,43 @@ const normalizeDate = (value) => {
 const parsePositiveInteger = (value) => {
   const parsed = Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const fetchPriceReferences = async (source) => {
+  if (!source) return {};
+  const [domainPrice, hostPrice, sslPrice, packagePrice, administrationPrice, advertisingPrice] = await Promise.all([
+    source.domain
+      ? DomainPrice.findOne({ extension: source.domain, isDeleted: false })
+          .select("extension provider registerPrice renewalPrice transferPrice")
+          .lean()
+      : null,
+    source.hostPriceId
+      ? HostPrice.findById(source.hostPriceId)
+          .select("name storage monthlyPrice yearlyPrice1 yearlyPrice2 yearlyPrice3")
+          .lean()
+      : null,
+    source.sslPriceId ? SslPrice.findById(source.sslPriceId).select("name sslType validityMonths price").lean() : null,
+    source.packagePriceId
+      ? PackagePrice.findById(source.packagePriceId).select("name monthlyPrice yearlyPrice").lean()
+      : null,
+    source.administrationPriceId
+      ? AdministrationPrice.findById(source.administrationPriceId).select("serviceName scope frequency price").lean()
+      : null,
+    source.advertisingPriceId
+      ? AdvertisingPrice.findById(source.advertisingPriceId)
+          .select("platform packageName minimumBudget setupFee serviceFeePercent")
+          .lean()
+      : null,
+  ]);
+
+  return {
+    domainPrice,
+    hostPrice,
+    sslPrice,
+    packagePrice,
+    administrationPrice,
+    advertisingPrice,
+  };
 };
 
 const formatDateTime = (value) => {
@@ -193,9 +236,11 @@ export const createProgramSource = async (req, res) => {
 
   if (shouldSendMail) {
     try {
+      const priceReferences = await fetchPriceReferences(created);
       await sendProgramSourceMail({
         program: validationResult.program,
         source: created,
+        priceReferences,
         actionLabel: "Lưu gửi mail",
       });
       created.sentAt = new Date();
@@ -339,9 +384,11 @@ export const updateProgramSource = async (req, res) => {
 
   if (shouldSendMail) {
     try {
+      const priceReferences = await fetchPriceReferences(existing);
       await sendProgramSourceMail({
         program: validationResult.program,
         source: existing,
+        priceReferences,
         actionLabel: "Cập nhật gửi mail",
       });
       existing.sendStatus = "Đã gửi";
@@ -375,9 +422,11 @@ export const sendProgramSourceMailById = async (req, res) => {
 
   const program = source.programId;
   try {
+    const priceReferences = await fetchPriceReferences(source);
     await sendProgramSourceMail({
       program,
       source,
+      priceReferences,
       actionLabel: "Gửi lại",
     });
   } catch (error) {

@@ -64,6 +64,17 @@ const toDateTimeLocal = (value) => {
   return localDate.toISOString().slice(0, 16);
 };
 
+const formatCurrency = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return `${parsed.toLocaleString("vi-VN")} đ`;
+};
+
+const appendPriceLabel = (label, price) => {
+  const priceLabel = formatCurrency(price);
+  return priceLabel ? `${label} - ${priceLabel}` : label;
+};
+
 const mapSourceToForm = (source) => ({
   programId: source.programId || "",
   domain: source.domain || "",
@@ -425,7 +436,7 @@ function SourceForm() {
               domainPriceReferences.length === 0
                 ? [{ label: "Không có dữ liệu", value: "" }]
                 : domainPriceReferences.map((item) => ({
-                    label: `${item.extension} - ${item.provider}`.trim(),
+                    label: appendPriceLabel(`${item.extension} - ${item.provider}`.trim(), item.registerPrice),
                     value: item.extension,
                   }))
             }
@@ -443,7 +454,7 @@ function SourceForm() {
               hostPriceReferences.length === 0
                 ? [{ label: "Không có dữ liệu", value: "" }]
                 : hostPriceReferences.map((item) => ({
-                    label: `${item.name} - ${item.storage}`.trim(),
+                    label: appendPriceLabel(`${item.name} - ${item.storage}`.trim(), item.monthlyPrice),
                     value: item.id,
                   }))
             }
@@ -461,7 +472,10 @@ function SourceForm() {
               sslPriceReferences.length === 0
                 ? [{ label: "Không có dữ liệu", value: "" }]
                 : sslPriceReferences.map((item) => ({
-                    label: `${item.name} - ${item.sslType} - ${item.validityMonths} tháng`.trim(),
+                    label: appendPriceLabel(
+                      `${item.name} - ${item.sslType} - ${item.validityMonths} tháng`.trim(),
+                      item.price,
+                    ),
                     value: item.id,
                   }))
             }
@@ -479,7 +493,7 @@ function SourceForm() {
               packagePriceReferences.length === 0
                 ? [{ label: "Không có dữ liệu", value: "" }]
                 : packagePriceReferences.map((item) => ({
-                    label: item.name || "Gói trọn gói",
+                    label: appendPriceLabel(item.name || "Gói trọn gói", item.yearlyPrice),
                     value: item.id,
                   }))
             }
@@ -497,7 +511,10 @@ function SourceForm() {
               administrationPriceReferences.length === 0
                 ? [{ label: "Không có dữ liệu", value: "" }]
                 : administrationPriceReferences.map((item) => ({
-                    label: `${item.serviceName} - ${item.scope} - ${item.frequency}`.trim(),
+                    label: appendPriceLabel(
+                      `${item.serviceName} - ${item.scope} - ${item.frequency}`.trim(),
+                      item.price,
+                    ),
                     value: item.id,
                   }))
             }
@@ -515,7 +532,7 @@ function SourceForm() {
               advertisingPriceReferences.length === 0
                 ? [{ label: "Không có dữ liệu", value: "" }]
                 : advertisingPriceReferences.map((item) => ({
-                    label: `${item.platform} - ${item.packageName}`.trim(),
+                    label: appendPriceLabel(`${item.platform} - ${item.packageName}`.trim(), item.minimumBudget),
                     value: item.id,
                   }))
             }
