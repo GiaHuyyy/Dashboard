@@ -96,7 +96,7 @@ function DesignPointManagement() {
       item.createdAtLabel,
     ]);
     const csv = [toCsvRow(header), ...rows.map(toCsvRow)].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -110,12 +110,12 @@ function DesignPointManagement() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <Button icon={Lock} label="Chốt kỳ" variant="primary" onClick={() => toast.success("Đã chốt kỳ (UI flow)")} />
+        <Button icon={Lock} label="Chốt kỳ" variant="primary" onClick={() => toast.success("Đã chốt kỳ")} />
         <Button
           icon={LockOpen}
           label="Mở khóa kỳ"
           variant="secondary"
-          onClick={() => toast.success("Đã mở khóa kỳ (UI flow)")}
+          onClick={() => toast.success("Đã mở khóa kỳ")}
         />
         <Button icon={Download} label="Xuất file" variant="success" onClick={exportCsv} />
       </div>
