@@ -1,12 +1,13 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
-import { UPGRADE_COMPLETED_STATUS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
+import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";
 import { staffApi, upgradeApi } from "@/lib/api-client";
+import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
@@ -44,6 +45,13 @@ function ProgramUpgradeManagement() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
   const [staffReferences, setStaffReferences] = useState([]);
+
+  const priorityCategories = useSystemCategoryOptions("priority");
+  const statusCategories = useSystemCategoryOptions("status");
+  const statusOptions = useMemo(
+    () => (statusCategories.values || []).filter((item) => item !== UPGRADE_COMPLETED_STATUS),
+    [statusCategories.values],
+  );
 
   const fetchUpgrades = useCallback(async () => {
     setIsLoading(true);
@@ -150,6 +158,14 @@ function ProgramUpgradeManagement() {
       return;
     }
     void handleInlineUpdate(row.id, { status: nextStatus });
+  };
+
+  const handlePriorityChange = (row, nextPriority) => {
+    if (row.status === UPGRADE_COMPLETED_STATUS) {
+      toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
+      return;
+    }
+    void handleInlineUpdate(row.id, { priority: nextPriority });
   };
 
   const handleDeleteOne = async (rowId) => {
@@ -262,7 +278,7 @@ function ProgramUpgradeManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Hạng mục nâng cấp
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">
                 Ưu tiên
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -339,10 +355,26 @@ function ProgramUpgradeManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.module}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.upgradeItem}</TableCell>
-                  <TableCell
-                    className={`border border-slate-200 p-4 font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}
-                  >
-                    {row.priority}
+                  <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
+                    {row.status === UPGRADE_COMPLETED_STATUS ? (
+                      <span className={`font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}>
+                        {row.priority}
+                      </span>
+                    ) : (
+                      <select
+                        className={`w-full rounded border border-slate-200 px-2 py-1.5 ${
+                          PRIORITY_COLORS[row.priority] || "text-slate-700"
+                        }`}
+                        value={row.priority}
+                        onChange={(event) => handlePriorityChange(row, event.target.value)}
+                      >
+                        {priorityCategories.values.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
@@ -355,7 +387,7 @@ function ProgramUpgradeManagement() {
                         value={row.status}
                         onChange={(event) => handleStatusChange(row, event.target.value)}
                       >
-                        {UPGRADE_STATUS_OPTIONS.map((option) => (
+                        {statusOptions.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>

@@ -9,12 +9,10 @@ import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { designApi, staffApi } from "@/lib/api-client";
+import { useSystemCategoryOptions } from "@/lib/system-categories";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
-const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao"];
-const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý"];
 const COMPLETED_STATUS = "Đã hoàn thành";
-const STATUS_OPTIONS_WITH_COMPLETED = [...STATUS_OPTIONS, COMPLETED_STATUS];
 const DURATION_UNITS = ["h", "ngày"];
 
 const isValidDateValue = (value) => {
@@ -40,14 +38,14 @@ const calculateConvertByDuration = (durationValue, durationUnit) => {
 const schema = z.object({
   title: z.string().trim().min(1, "Vui lòng nhập hạng mục design"),
   designType: z.enum(DESIGN_TYPES, { message: "Vui lòng chọn loại design hợp lệ" }),
-  priority: z.enum(PRIORITY_OPTIONS, { message: "Vui lòng chọn mức ưu tiên hợp lệ" }),
+  priority: z.string().trim().min(1, "Vui lòng chọn mức ưu tiên hợp lệ"),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
   assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
   durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
   durationUnit: z.enum(DURATION_UNITS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
   convert: z.coerce.number().gte(0, "Quy đổi không hợp lệ"),
   bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
-  status: z.enum(STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+  status: z.string().trim().min(1, "Vui lòng chọn trạng thái hợp lệ"),
   handoverDate: z.string().trim().min(1, "Vui lòng nhập ngày giao").refine(isValidDateValue, "Ngày giao không hợp lệ"),
   receiveDate: z.string().trim().min(1, "Vui lòng nhập ngày nhận").refine(isValidDateValue, "Ngày nhận không hợp lệ"),
   expectedDate: z
@@ -66,14 +64,14 @@ const schema = z.object({
 const defaultValues = {
   title: "",
   designType: DESIGN_TYPES[0],
-  priority: PRIORITY_OPTIONS[1],
+  priority: "",
   assigner: "",
   assignee: "",
   durationValue: 1,
   durationUnit: "h",
   convert: 0.125,
   bonusPoint: 0,
-  status: STATUS_OPTIONS[0],
+  status: "",
   handoverDate: "",
   receiveDate: "",
   expectedDate: "",
@@ -107,6 +105,7 @@ function DesignForm() {
     control,
     register,
     handleSubmit,
+    getValues,
     setValue,
     reset,
     formState: { errors, isSubmitting },
@@ -118,7 +117,29 @@ function DesignForm() {
   const durationValue = useWatch({ control, name: "durationValue" });
   const durationUnit = useWatch({ control, name: "durationUnit" });
   const selectedStatus = useWatch({ control, name: "status" });
-  const formStatusOptions = isEditMode ? STATUS_OPTIONS_WITH_COMPLETED : STATUS_OPTIONS;
+  const priorityCategories = useSystemCategoryOptions("priority");
+  const statusCategories = useSystemCategoryOptions("status");
+  const formStatusValues = useMemo(() => {
+    const values = statusCategories.values || [];
+    if (isEditMode) return values;
+    return values.filter((item) => item !== COMPLETED_STATUS);
+  }, [isEditMode, statusCategories.values]);
+  const formStatusOptions = useMemo(
+    () => formStatusValues.map((item) => ({ label: item, value: item })),
+    [formStatusValues],
+  );
+
+  useEffect(() => {
+    if (isEditMode) return;
+    const nextPriority = priorityCategories.options?.[0]?.value || "";
+    const nextStatus = formStatusValues?.[0] || "";
+    if (nextPriority && !getValues("priority")) {
+      setValue("priority", nextPriority, { shouldValidate: true });
+    }
+    if (nextStatus && !getValues("status")) {
+      setValue("status", nextStatus, { shouldValidate: true });
+    }
+  }, [formStatusValues, getValues, isEditMode, priorityCategories.options, setValue]);
 
   useEffect(() => {
     const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
@@ -140,7 +161,8 @@ function DesignForm() {
 
         if (!isEditMode) {
           const manager = staffs.find((item) => item.role === "Quản lý");
-          const designer = staffs.find((item) => item.role === "Thiết kế") || staffs.find((item) => item.role === "Thiết kế viên");
+          const designer =
+            staffs.find((item) => item.role === "Thiết kế") || staffs.find((item) => item.role === "Thiết kế viên");
           const nextDefault = {
             ...defaultValues,
             assigner: manager?.fullName || "",
@@ -173,14 +195,14 @@ function DesignForm() {
         const mapped = {
           title: task.title || "",
           designType: task.designType || DESIGN_TYPES[0],
-          priority: task.priority || PRIORITY_OPTIONS[1],
+          priority: task.priority || "",
           assigner: task.assigner || "",
           assignee: task.assignee || "",
           durationValue: Number(task.durationValue) || 1,
           durationUnit: task.durationUnit || "h",
           convert: Number(task.convert) || 0,
           bonusPoint: Number(task.bonusPoint) || 0,
-          status: task.status || STATUS_OPTIONS[0],
+          status: task.status || "",
           handoverDate: toDateInput(task.handoverDate),
           receiveDate: toDateInput(task.receiveDate),
           expectedDate: toDateInput(task.expectedDate || task.deadline),
@@ -268,7 +290,9 @@ function DesignForm() {
     )();
 
   if (isLoadingReference || isLoadingDetail) {
-    return <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>;
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
+    );
   }
 
   return (
@@ -286,7 +310,9 @@ function DesignForm() {
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Thông tin công việc design</div>
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
+          Thông tin công việc design
+        </div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
@@ -305,10 +331,14 @@ function DesignForm() {
               error={errors.designType?.message}
             />
             <FormField
-              label="Mức ưu tiên"
+              label="Mức độ ưu tiên"
               type="select"
-              options={PRIORITY_OPTIONS.map((item) => ({ label: item, value: item }))}
-              selectProps={register("priority")}
+              options={
+                priorityCategories.options.length > 0
+                  ? priorityCategories.options
+                  : [{ label: "Chưa có danh mục", value: "" }]
+              }
+              selectProps={{ ...register("priority"), disabled: priorityCategories.options.length === 0 }}
               error={errors.priority?.message}
             />
 
@@ -369,8 +399,8 @@ function DesignForm() {
             <FormField
               label="Trạng thái"
               type="select"
-              options={formStatusOptions.map((item) => ({ label: item, value: item }))}
-              selectProps={register("status")}
+              options={formStatusOptions.length > 0 ? formStatusOptions : [{ label: "Chưa có danh mục", value: "" }]}
+              selectProps={{ ...register("status"), disabled: formStatusOptions.length === 0 }}
               error={errors.status?.message}
             />
             <FormField

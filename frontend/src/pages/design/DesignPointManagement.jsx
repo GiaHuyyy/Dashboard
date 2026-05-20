@@ -74,7 +74,7 @@ function DesignPointManagement() {
     const header = [
       "Hạng mục",
       "Loại design",
-      "Mức ưu tiên",
+      "Mức độ ưu tiên",
       "Trạng thái",
       "Người giao (Quản lý)",
       "Người nhận",
@@ -171,21 +171,21 @@ function DesignPointManagement() {
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-t-3 border-t-sky-500 border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Điểm quy đổi</p>
           <p className="text-2xl font-semibold text-slate-800">{summary.totalConvertPoint ?? 0}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-t-3 border-t-sky-500 border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Điểm cộng thêm</p>
           <p className="text-2xl font-semibold text-slate-800">{summary.totalBonusPoint ?? 0}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-t-3 border-t-sky-500 border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Tổng điểm</p>
           <p className="text-2xl font-semibold text-sky-700">{summary.totalPoint ?? 0}</p>
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="mt-6 rounded-tl-2xl rounded-tr-2xl border-t-3 border-t-sky-500 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-4 py-3">
           <h2 className="text-base font-semibold text-slate-600">Tổng quan theo nhân sự design</h2>
         </div>
@@ -252,7 +252,7 @@ function DesignPointManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Loại
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+              <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">
                 Ưu tiên
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">

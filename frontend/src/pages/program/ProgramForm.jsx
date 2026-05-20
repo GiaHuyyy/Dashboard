@@ -7,14 +7,9 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { ProgramInfo } from "@/components/program-form/ProgramInfo";
-import {
-  COMPLETED_STATUS,
-  DURATION_UNIT_OPTIONS,
-  MODULE_OPTIONS,
-  STATUS_OPTIONS,
-  STATUS_OPTIONS_WITH_COMPLETED,
-} from "@/constants/program";
+import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
+import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -45,7 +40,8 @@ const toDateTimeLocal = (value) => {
 const programSchema = z
   .object({
     businessContractId: z.string().trim().min(1, "Vui lòng chọn hợp đồng"),
-    module: z.enum(MODULE_OPTIONS, { message: "Vui lòng chọn module hợp lệ" }),
+    module: z.string().trim().min(1, "Vui lòng chọn module"),
+    priority: z.string().trim().min(1, "Vui lòng chọn mức độ ưu tiên"),
     durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
     durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
     convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
@@ -55,7 +51,7 @@ const programSchema = z
     designTaskId: z.string().trim().optional(),
     design: z.boolean(),
     visible: z.boolean(),
-    processingStatus: z.enum(STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+    processingStatus: z.string().trim().min(1, "Vui lòng chọn trạng thái"),
     assignedAt: z.string().trim().min(1, "Vui lòng chọn ngày giao"),
     receivedAt: z.string().trim().min(1, "Vui lòng chọn ngày nhận"),
     dueAt: z.string().trim().min(1, "Vui lòng chọn ngày dự kiến"),
@@ -73,7 +69,8 @@ const programSchema = z
 
 const defaultValues = {
   businessContractId: "",
-  module: MODULE_OPTIONS[0],
+  module: "",
+  priority: "",
   durationValue: 1,
   durationUnit: "ngày",
   convert: "1",
@@ -83,7 +80,7 @@ const defaultValues = {
   designTaskId: "",
   design: false,
   visible: true,
-  processingStatus: STATUS_OPTIONS[0],
+  processingStatus: "",
   assignedAt: "",
   receivedAt: "",
   dueAt: "",
@@ -111,6 +108,7 @@ function ProgramForm() {
     control,
     register,
     handleSubmit,
+    getValues,
     reset,
     setValue,
     formState: { errors, isSubmitting },
@@ -126,7 +124,21 @@ function ProgramForm() {
   const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
   const selectedProcessingStatus = useWatch({ control, name: "processingStatus" });
   const isReadOnlyMode = isEditMode && initialSnapshot.processingStatus === COMPLETED_STATUS;
-  const processingStatusOptions = isEditMode ? STATUS_OPTIONS_WITH_COMPLETED : STATUS_OPTIONS;
+
+  const moduleCategories = useSystemCategoryOptions("module");
+  const priorityCategories = useSystemCategoryOptions("priority");
+  const statusCategories = useSystemCategoryOptions("status");
+
+  const processingStatusValues = useMemo(() => {
+    const values = statusCategories.values || [];
+    if (isEditMode) return values;
+    return values.filter((item) => item !== COMPLETED_STATUS);
+  }, [isEditMode, statusCategories.values]);
+
+  const processingStatusOptions = useMemo(
+    () => processingStatusValues.map((item) => ({ label: item, value: item })),
+    [processingStatusValues],
+  );
 
   const selectedBusinessContract = useMemo(() => {
     if (!selectedBusinessContractId) return null;
@@ -199,6 +211,21 @@ function ProgramForm() {
   });
 
   useEffect(() => {
+    const nextModule = moduleCategories.options?.[0]?.value || "";
+    const nextPriority = priorityCategories.options?.[0]?.value || "";
+    const nextStatus = processingStatusValues?.[0] || "";
+    if (nextModule && !getValues("module")) {
+      setValue("module", nextModule, { shouldValidate: true });
+    }
+    if (nextPriority && !getValues("priority")) {
+      setValue("priority", nextPriority, { shouldValidate: true });
+    }
+    if (nextStatus && !getValues("processingStatus")) {
+      setValue("processingStatus", nextStatus, { shouldValidate: true });
+    }
+  }, [getValues, moduleCategories.options, priorityCategories.options, processingStatusValues, setValue]);
+
+  useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
   }, [selectedDurationValue, selectedDurationUnit, setValue]);
@@ -258,7 +285,8 @@ function ProgramForm() {
         const safeDuration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 1;
         const formValues = {
           businessContractId: program.businessContractId || "",
-          module: program.module || MODULE_OPTIONS[0],
+          module: program.module || "",
+          priority: program.priority || "",
           durationValue: safeDuration,
           durationUnit: program.durationUnit || "ngày",
           convert: program.convert || "1",
@@ -269,7 +297,7 @@ function ProgramForm() {
           designTaskId: Boolean(program.design) ? program.designTaskId || "" : "",
           design: Boolean(program.design),
           visible: Boolean(program.visible),
-          processingStatus: program.processingStatus || STATUS_OPTIONS[0],
+          processingStatus: program.processingStatus || "",
           assignedAt: toDateTimeLocal(program.assignedAt),
           receivedAt: toDateTimeLocal(program.receivedAt),
           dueAt: toDateTimeLocal(program.dueAt),
@@ -398,6 +426,8 @@ function ProgramForm() {
                 contractOptions={contractOptions}
                 selectedContract={selectedBusinessContract}
                 designTaskOptions={designTaskOptions}
+                moduleOptions={moduleCategories.options}
+                priorityOptions={priorityCategories.options}
                 designEnabled={Boolean(selectedDesign)}
               />
 
@@ -423,7 +453,11 @@ function ProgramForm() {
                 <FormField
                   label="Trạng thái"
                   type="select"
-                  options={processingStatusOptions.map((item) => ({ label: item, value: item }))}
+                  options={
+                    processingStatusOptions.length > 0
+                      ? processingStatusOptions
+                      : [{ label: "Chưa có danh mục", value: "" }]
+                  }
                   selectProps={register("processingStatus")}
                   error={errors.processingStatus?.message}
                 />

@@ -7,13 +7,9 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
-import {
-  UPGRADE_COMPLETED_STATUS,
-  UPGRADE_PRIORITY_OPTIONS,
-  UPGRADE_STATUS_OPTIONS,
-  UPGRADE_STATUS_OPTIONS_WITH_COMPLETED,
-} from "@/constants/program-upgrade";
+import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";
 import { businessContractApi, programApi, staffApi, upgradeApi } from "@/lib/api-client";
+import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -27,7 +23,7 @@ const isValidDateValue = (value) => {
 const schema = z.object({
   businessContractId: z.string().trim().min(1, "Vui lòng chọn phiếu gốc (HĐ)"),
   upgradeItem: z.string().trim().min(3, "Vui lòng nhập hàng mục nâng cấp"),
-  priority: z.enum(UPGRADE_PRIORITY_OPTIONS, { message: "Vui lòng chọn mức độ ưu tiên" }),
+  priority: z.string().trim().min(1, "Vui lòng chọn mức độ ưu tiên"),
   durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
   durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
@@ -41,7 +37,7 @@ const schema = z.object({
     .string()
     .optional()
     .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
-  status: z.enum(UPGRADE_STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái" }),
+  status: z.string().trim().min(1, "Vui lòng chọn trạng thái"),
   visible: z.boolean(),
   note: z.string().optional(),
 });
@@ -49,12 +45,12 @@ const schema = z.object({
 const defaultValues = {
   businessContractId: "",
   upgradeItem: "",
-  priority: UPGRADE_PRIORITY_OPTIONS[1],
+  priority: "",
   durationValue: 1,
   durationUnit: "ngày",
   convert: "1",
   bonusPoint: 0,
-  status: UPGRADE_STATUS_OPTIONS[0],
+  status: "",
   assigner: "",
   assignee: "",
   assignedAt: "",
@@ -80,12 +76,12 @@ const toDateTimeLocal = (value) => {
 const mapUpgradeToForm = (item) => ({
   businessContractId: item.businessContractId || "",
   upgradeItem: item.upgradeItem || "",
-  priority: item.priority || UPGRADE_PRIORITY_OPTIONS[1],
+  priority: item.priority || "",
   durationValue: Number(item.durationValue) || 1,
   durationUnit: item.durationUnit || "ngày",
   convert: item.convert || "1",
   bonusPoint: Number(item.bonusPoint) || 0,
-  status: item.status || UPGRADE_STATUS_OPTIONS[0],
+  status: item.status || "",
   assigner: item.assigner || "",
   assignee: item.assignee || "",
   assignedAt: toDateTimeLocal(item.assignedAt),
@@ -129,6 +125,7 @@ function ProgramUpgradeForm() {
     control,
     register,
     handleSubmit,
+    getValues,
     reset,
     setValue,
     formState: { errors, isSubmitting },
@@ -146,8 +143,27 @@ function ProgramUpgradeForm() {
     [programReferences, selectedBusinessContractId],
   );
   const isReadOnlyMode = isEditMode && initialSnapshot.status === UPGRADE_COMPLETED_STATUS;
-  const statusOptions = isEditMode ? UPGRADE_STATUS_OPTIONS_WITH_COMPLETED : UPGRADE_STATUS_OPTIONS;
+  const priorityCategories = useSystemCategoryOptions("priority");
+  const statusCategories = useSystemCategoryOptions("status");
+  const statusValues = useMemo(() => {
+    const values = statusCategories.values || [];
+    if (isEditMode) return values;
+    return values.filter((item) => item !== UPGRADE_COMPLETED_STATUS);
+  }, [isEditMode, statusCategories.values]);
+  const statusOptions = useMemo(() => statusValues.map((item) => ({ label: item, value: item })), [statusValues]);
   const businessContractRegister = register("businessContractId");
+
+  useEffect(() => {
+    if (isEditMode) return;
+    const nextPriority = priorityCategories.options?.[0]?.value || "";
+    const nextStatus = statusValues?.[0] || "";
+    if (nextPriority && !getValues("priority")) {
+      setValue("priority", nextPriority, { shouldValidate: true });
+    }
+    if (nextStatus && !getValues("status")) {
+      setValue("status", nextStatus, { shouldValidate: true });
+    }
+  }, [getValues, isEditMode, priorityCategories.options, setValue, statusValues]);
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
@@ -382,8 +398,12 @@ function ProgramUpgradeForm() {
                 <FormField
                   label="Mức độ ưu tiên"
                   type="select"
-                  options={UPGRADE_PRIORITY_OPTIONS.map((item) => ({ label: item, value: item }))}
-                  selectProps={register("priority")}
+                  options={
+                    priorityCategories.options.length > 0
+                      ? priorityCategories.options
+                      : [{ label: "Chưa có danh mục", value: "" }]
+                  }
+                  selectProps={{ ...register("priority"), disabled: priorityCategories.options.length === 0 }}
                   error={errors.priority?.message}
                 />
 
@@ -447,8 +467,8 @@ function ProgramUpgradeForm() {
                 <FormField
                   label="Trạng thái"
                   type="select"
-                  options={statusOptions.map((item) => ({ label: item, value: item }))}
-                  selectProps={register("status")}
+                  options={statusOptions.length > 0 ? statusOptions : [{ label: "Chưa có danh mục", value: "" }]}
+                  selectProps={{ ...register("status"), disabled: statusOptions.length === 0 }}
                   error={errors.status?.message}
                 />
 

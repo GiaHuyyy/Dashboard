@@ -7,13 +7,9 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
-import {
-  CORRECTION_COMPLETED_STATUS,
-  CORRECTION_PRIORITY_OPTIONS,
-  CORRECTION_STATUS_OPTIONS,
-  CORRECTION_STATUS_OPTIONS_WITH_COMPLETED,
-} from "@/constants/program-correction";
+import { CORRECTION_COMPLETED_STATUS } from "@/constants/program-correction";
 import { businessContractApi, correctionApi, programApi, staffApi } from "@/lib/api-client";
+import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -27,7 +23,7 @@ const isValidDateValue = (value) => {
 const schema = z.object({
   businessContractId: z.string().trim().min(1, "Vui lòng chọn phiếu gốc (HĐ)"),
   issueContent: z.string().trim().min(5, "Vui lòng nhập mô tả lỗi/chỉnh sửa"),
-  priority: z.enum(CORRECTION_PRIORITY_OPTIONS, { message: "Vui lòng chọn mức độ ưu tiên" }),
+  priority: z.string().trim().min(1, "Vui lòng chọn mức độ ưu tiên"),
   durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
   durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
@@ -41,7 +37,7 @@ const schema = z.object({
     .string()
     .optional()
     .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
-  status: z.enum(CORRECTION_STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái" }),
+  status: z.string().trim().min(1, "Vui lòng chọn trạng thái"),
   visible: z.boolean(),
   note: z.string().optional(),
 });
@@ -49,7 +45,7 @@ const schema = z.object({
 const defaultValues = {
   businessContractId: "",
   issueContent: "",
-  priority: CORRECTION_PRIORITY_OPTIONS[1],
+  priority: "",
   durationValue: 1,
   durationUnit: "ngày",
   convert: "1",
@@ -60,7 +56,7 @@ const defaultValues = {
   receivedAt: "",
   dueAt: "",
   completedAt: "",
-  status: CORRECTION_STATUS_OPTIONS[0],
+  status: "",
   visible: true,
   note: "",
 };
@@ -75,7 +71,7 @@ const toDateTimeLocal = (value) => {
 const mapCorrectionToForm = (row) => ({
   businessContractId: row.businessContractId || "",
   issueContent: row.issueContent || "",
-  priority: row.priority || CORRECTION_PRIORITY_OPTIONS[1],
+  priority: row.priority || "",
   durationValue: Number(row.durationValue) || 1,
   durationUnit: row.durationUnit || "ngày",
   convert: row.convert || "1",
@@ -86,7 +82,7 @@ const mapCorrectionToForm = (row) => ({
   receivedAt: toDateTimeLocal(row.receivedAt),
   dueAt: toDateTimeLocal(row.dueAt),
   completedAt: toDateTimeLocal(row.completedAt),
-  status: row.status || CORRECTION_STATUS_OPTIONS[0],
+  status: row.status || "",
   visible: Boolean(row.visible ?? true),
   note: row.note || "",
 });
@@ -124,6 +120,7 @@ function ProgramCorrectionForm() {
     control,
     register,
     handleSubmit,
+    getValues,
     reset,
     setValue,
     formState: { errors, isSubmitting },
@@ -141,11 +138,30 @@ function ProgramCorrectionForm() {
     [programReferences, selectedBusinessContractId],
   );
   const isReadOnlyMode = isEditMode && initialSnapshot.status === CORRECTION_COMPLETED_STATUS;
-  const statusOptions = isEditMode ? CORRECTION_STATUS_OPTIONS_WITH_COMPLETED : CORRECTION_STATUS_OPTIONS;
+  const priorityCategories = useSystemCategoryOptions("priority");
+  const statusCategories = useSystemCategoryOptions("status");
+  const statusValues = useMemo(() => {
+    const values = statusCategories.values || [];
+    if (isEditMode) return values;
+    return values.filter((item) => item !== CORRECTION_COMPLETED_STATUS);
+  }, [isEditMode, statusCategories.values]);
+  const statusOptions = useMemo(() => statusValues.map((item) => ({ label: item, value: item })), [statusValues]);
   const businessContractRegister = register("businessContractId");
 
   const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
+
+  useEffect(() => {
+    if (isEditMode) return;
+    const nextPriority = priorityCategories.options?.[0]?.value || "";
+    const nextStatus = statusValues?.[0] || "";
+    if (nextPriority && !getValues("priority")) {
+      setValue("priority", nextPriority, { shouldValidate: true });
+    }
+    if (nextStatus && !getValues("status")) {
+      setValue("status", nextStatus, { shouldValidate: true });
+    }
+  }, [getValues, isEditMode, priorityCategories.options, setValue, statusValues]);
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
@@ -382,8 +398,12 @@ function ProgramCorrectionForm() {
                 <FormField
                   label="Mức độ ưu tiên"
                   type="select"
-                  options={CORRECTION_PRIORITY_OPTIONS.map((item) => ({ label: item, value: item }))}
-                  selectProps={register("priority")}
+                  options={
+                    priorityCategories.options.length > 0
+                      ? priorityCategories.options
+                      : [{ label: "Chưa có danh mục", value: "" }]
+                  }
+                  selectProps={{ ...register("priority"), disabled: priorityCategories.options.length === 0 }}
                   error={errors.priority?.message}
                 />
 
@@ -447,8 +467,8 @@ function ProgramCorrectionForm() {
                 <FormField
                   label="Trạng thái"
                   type="select"
-                  options={statusOptions.map((item) => ({ label: item, value: item }))}
-                  selectProps={register("status")}
+                  options={statusOptions.length > 0 ? statusOptions : [{ label: "Chưa có danh mục", value: "" }]}
+                  selectProps={{ ...register("status"), disabled: statusOptions.length === 0 }}
                   error={errors.status?.message}
                 />
 

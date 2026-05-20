@@ -2,16 +2,16 @@ import mongoose from "mongoose";
 
 import Program from "../models/Program.js";
 import ProgramUpgrade from "../models/ProgramUpgrade.js";
+import { getActiveCategoryNames } from "../utils/system-category.js";
 
-const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao", "Khẩn"];
-const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"];
 const COMPLETED_STATUS = "Đã hoàn thành";
-const normalizeStatus = (value) => {
+const normalizeStatus = (value, statusOptions) => {
   const normalized = normalizeString(value);
   if (normalized === "Hoàn thành") return COMPLETED_STATUS;
   if (normalized === "Tạm dừng") return "Đang xử lý";
   if (normalized === "Đã nhận") return "Đã phân công";
-  return STATUS_OPTIONS.includes(normalized) ? normalized : STATUS_OPTIONS[0];
+  if (!Array.isArray(statusOptions) || statusOptions.length === 0) return normalized;
+  return statusOptions.includes(normalized) ? normalized : statusOptions[0];
 };
 const DURATION_UNITS = ["h", "ngày"];
 
@@ -78,7 +78,7 @@ const normalizePayload = (body = {}) => ({
   durationValue: normalizeNumber(body.durationValue),
   durationUnit: normalizeString(body.durationUnit),
   bonusPoint: normalizeNumber(body.bonusPoint),
-  status: normalizeStatus(body.status),
+  status: normalizeString(body.status),
   assigner: normalizeString(body.assigner),
   assignee: normalizeString(body.assignee),
   assignedAt: body.assignedAt ? normalizeDate(body.assignedAt) : null,
@@ -90,6 +90,19 @@ const normalizePayload = (body = {}) => ({
 });
 
 const validatePayload = async (payload) => {
+  const [priorityOptions, statusOptions] = await Promise.all([
+    getActiveCategoryNames("priority"),
+    getActiveCategoryNames("status"),
+  ]);
+
+  if (priorityOptions.length === 0) {
+    return { status: 400, message: "Danh mục ưu tiên chưa được cấu hình" };
+  }
+  if (statusOptions.length === 0) {
+    return { status: 400, message: "Danh mục trạng thái chưa được cấu hình" };
+  }
+
+  payload.status = normalizeStatus(payload.status, statusOptions);
   if (!payload.programId) {
     return { status: 400, message: "programId là bắt buộc" };
   }
@@ -132,11 +145,11 @@ const validatePayload = async (payload) => {
   if (payload.bonusPoint === null || payload.bonusPoint < 0) {
     return { status: 400, message: "bonusPoint không hợp lệ" };
   }
-  if (!PRIORITY_OPTIONS.includes(payload.priority)) {
-    return { status: 400, message: `priority không hợp lệ. Giá trị cho phép: ${PRIORITY_OPTIONS.join(", ")}` };
+  if (!priorityOptions.includes(payload.priority)) {
+    return { status: 400, message: `priority không hợp lệ. Giá trị cho phép: ${priorityOptions.join(", ")}` };
   }
-  if (!STATUS_OPTIONS.includes(payload.status)) {
-    return { status: 400, message: `status không hợp lệ. Giá trị cho phép: ${STATUS_OPTIONS.join(", ")}` };
+  if (!statusOptions.includes(payload.status)) {
+    return { status: 400, message: `status không hợp lệ. Giá trị cho phép: ${statusOptions.join(", ")}` };
   }
   if (payload.visible === null) {
     return { status: 400, message: "visible phải là kiểu boolean" };

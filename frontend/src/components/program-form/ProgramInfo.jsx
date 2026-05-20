@@ -1,7 +1,15 @@
 import FormField from "@/components/ui/form-field";
-import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS } from "@/constants/program";
+import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 
-export function ProgramInfo({ register, errors, contractOptions = [], designTaskOptions = [], designEnabled = false }) {
+export function ProgramInfo({
+  register,
+  errors,
+  contractOptions = [],
+  designTaskOptions = [],
+  moduleOptions = [],
+  priorityOptions = [],
+  designEnabled = false,
+}) {
   return (
     <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
       <p className="text-md font-semibold text-slate-700">Thông tin lập trình</p>
@@ -17,9 +25,17 @@ export function ProgramInfo({ register, errors, contractOptions = [], designTask
       <FormField
         label="Module"
         type="select"
-        options={MODULE_OPTIONS.map((item) => ({ label: item, value: item }))}
-        selectProps={register("module")}
+        options={moduleOptions.length > 0 ? moduleOptions : [{ label: "Chưa có danh mục", value: "" }]}
+        selectProps={{ ...register("module"), disabled: moduleOptions.length === 0 }}
         error={errors.module?.message}
+      />
+
+      <FormField
+        label="Mức độ ưu tiên"
+        type="select"
+        options={priorityOptions.length > 0 ? priorityOptions : [{ label: "Chưa có danh mục", value: "" }]}
+        selectProps={{ ...register("priority"), disabled: priorityOptions.length === 0 }}
+        error={errors.priority?.message}
       />
 
       <div className="grid grid-cols-2 gap-3">

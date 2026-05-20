@@ -4,16 +4,16 @@ import BusinessContract from "../models/BusinessContract.js";
 import DesignTask from "../models/DesignTask.js";
 import Program from "../models/Program.js";
 import { sendProgramMail } from "../services/programMailService.js";
+import { getActiveCategoryNames } from "../utils/system-category.js";
 
-const MODULE_OPTIONS = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 const DURATION_UNITS = ["h", "ngày"];
-const PROCESSING_STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"];
 const COMPLETED_STATUS = "Đã hoàn thành";
-const normalizeProcessingStatus = (value) => {
+const normalizeProcessingStatus = (value, statusOptions) => {
   const normalized = normalizeString(value);
   if (normalized === "Hoàn thành") return COMPLETED_STATUS;
   if (normalized === "Đã nhận") return "Đã phân công";
-  return PROCESSING_STATUS_OPTIONS.includes(normalized) ? normalized : PROCESSING_STATUS_OPTIONS[0];
+  if (!Array.isArray(statusOptions) || statusOptions.length === 0) return normalized;
+  return statusOptions.includes(normalized) ? normalized : statusOptions[0];
 };
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EMAIL_LOCAL_MIN_LENGTH = 6;
@@ -95,6 +95,7 @@ const normalizeProgramPayload = (body = {}) => {
 
   return {
     module,
+    priority: normalizeString(body.priority),
     durationValue,
     durationUnit,
     time,
@@ -107,7 +108,7 @@ const normalizeProgramPayload = (body = {}) => {
     receivedAt: normalizeDate(body.receivedAt),
     dueAt: normalizeDate(body.dueAt),
     completedAt: normalizeDate(body.completedAt),
-    processingStatus: normalizeProcessingStatus(body.processingStatus),
+    processingStatus: normalizeString(body.processingStatus),
     design: normalizeBoolean(body.design),
     visible: normalizeBoolean(body.visible),
     designTaskId: normalizeString(body.designTaskId) || null,
@@ -119,6 +120,7 @@ const normalizeProgramPayload = (body = {}) => {
 const validateProgramPayload = async (payload, { checkDuplicate = true, excludeProgramId = "" } = {}) => {
   const {
     module,
+    priority,
     durationValue,
     durationUnit,
     convert,
@@ -129,6 +131,22 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     visible,
     designTaskId,
   } = payload;
+
+  const [moduleOptions, statusOptions, priorityOptions] = await Promise.all([
+    getActiveCategoryNames("module"),
+    getActiveCategoryNames("status"),
+    getActiveCategoryNames("priority"),
+  ]);
+
+  if (moduleOptions.length === 0) {
+    return { status: 400, message: "Danh mục module chưa được cấu hình" };
+  }
+  if (statusOptions.length === 0) {
+    return { status: 400, message: "Danh mục trạng thái chưa được cấu hình" };
+  }
+  if (priorityOptions.length === 0) {
+    return { status: 400, message: "Danh mục ưu tiên chưa được cấu hình" };
+  }
 
   if (!module || durationValue === null || !durationUnit || !assigner || !assignee) {
     return { status: 400, message: "module, durationValue, durationUnit, assigner, assignee là bắt buộc" };
@@ -142,15 +160,19 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
   if (!payload.dueAt) {
     return { status: 400, message: "dueAt là bắt buộc" };
   }
-  if (!PROCESSING_STATUS_OPTIONS.includes(payload.processingStatus)) {
+  payload.processingStatus = normalizeProcessingStatus(payload.processingStatus, statusOptions);
+  if (!statusOptions.includes(payload.processingStatus)) {
     return {
       status: 400,
-      message: `processingStatus không hợp lệ. Giá trị cho phép: ${PROCESSING_STATUS_OPTIONS.join(", ")}`,
+      message: `processingStatus không hợp lệ. Giá trị cho phép: ${statusOptions.join(", ")}`,
     };
   }
 
-  if (!MODULE_OPTIONS.includes(module)) {
-    return { status: 400, message: `module không hợp lệ. Giá trị cho phép: ${MODULE_OPTIONS.join(", ")}` };
+  if (!moduleOptions.includes(module)) {
+    return { status: 400, message: `module không hợp lệ. Giá trị cho phép: ${moduleOptions.join(", ")}` };
+  }
+  if (!priorityOptions.includes(priority)) {
+    return { status: 400, message: `priority không hợp lệ. Giá trị cho phép: ${priorityOptions.join(", ")}` };
   }
   if (durationValue <= 0) {
     return { status: 400, message: "Thời gian phải là số lớn hơn 0" };
@@ -296,6 +318,7 @@ export const createProgram = async (req, res) => {
   const createdProgram = await Program.create({
     type: "program",
     module: payload.module,
+    priority: payload.priority,
     time: payload.time,
     durationValue: payload.durationValue,
     durationUnit: payload.durationUnit,
@@ -357,7 +380,7 @@ export const listPrograms = async (req, res) => {
   const programs = await Program.find(filters)
     .sort({ programCreatedAt: 1, createdAt: 1 })
     .select(
-      "contractCode contractName module time convert assigner assignee designTaskTitle processingStatus assignedAt receivedAt dueAt completedAt design visible",
+      "contractCode contractName module priority time convert assigner assignee designTaskTitle processingStatus assignedAt receivedAt dueAt completedAt design visible",
     )
     .lean();
 
@@ -367,6 +390,7 @@ export const listPrograms = async (req, res) => {
       contractCode: item.contractCode || "",
       contractName: item.contractName || "",
       module: item.module,
+      priority: item.priority || "",
       time: item.time,
       convert: item.convert,
       bonusPoint: Number(item.bonusPoint || 0),
@@ -395,7 +419,7 @@ export const listProgramReferences = async (req, res) => {
   })
     .sort({ programCreatedAt: 1, createdAt: 1 })
     .select(
-      "businessContractId contractCode module contractName time convert bonusPoint durationValue durationUnit salesReceiverEmail ccEmails",
+      "businessContractId contractCode module priority contractName time convert bonusPoint durationValue durationUnit salesReceiverEmail ccEmails",
     )
     .populate({ path: "businessContractId", select: "customerName" })
     .lean();
@@ -408,6 +432,7 @@ export const listProgramReferences = async (req, res) => {
       contractName: item.contractName,
       customerName: item.businessContractId?.customerName || "",
       module: item.module,
+      priority: item.priority || "",
       time: item.time || "",
       convert: item.convert || "",
       bonusPoint: Number(item.bonusPoint || 0),
@@ -429,6 +454,7 @@ export const getProgramById = async (req, res) => {
     program: {
       id: program._id,
       module: program.module,
+      priority: program.priority || "",
       time: program.time,
       durationValue: program.durationValue,
       durationUnit: program.durationUnit,
@@ -477,6 +503,7 @@ export const updateProgram = async (req, res) => {
   }
 
   existingProgram.module = payload.module;
+  existingProgram.priority = payload.priority;
   existingProgram.durationValue = payload.durationValue;
   existingProgram.durationUnit = payload.durationUnit;
   existingProgram.time = payload.time;

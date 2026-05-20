@@ -1,16 +1,16 @@
 ﻿import mongoose from "mongoose";
 
 import DesignTask from "../models/DesignTask.js";
+import { getActiveCategoryNames } from "../utils/system-category.js";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
-const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao"];
-const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"];
 const COMPLETED_STATUS = "Đã hoàn thành";
-const normalizeStatus = (value) => {
+const normalizeStatus = (value, statusOptions) => {
   const normalized = normalizeString(value);
   if (normalized === "Hoàn thành") return COMPLETED_STATUS;
   if (normalized === "Đã nhận") return "Đã phân công";
-  return STATUS_OPTIONS.includes(normalized) ? normalized : STATUS_OPTIONS[0];
+  if (!Array.isArray(statusOptions) || statusOptions.length === 0) return normalized;
+  return statusOptions.includes(normalized) ? normalized : statusOptions[0];
 };
 const DURATION_UNITS = ["h", "ngày"];
 
@@ -59,19 +59,36 @@ const normalizePayload = (body = {}) => ({
   durationUnit: normalizeString(body.durationUnit),
   convert: normalizeNumber(body.convert),
   bonusPoint: normalizeNumber(body.bonusPoint),
-  status: normalizeStatus(body.status),
+  status: normalizeString(body.status),
   handoverDate: body.handoverDate ? normalizeDate(body.handoverDate) : null,
   receiveDate: body.receiveDate ? normalizeDate(body.receiveDate) : null,
-  expectedDate: body.expectedDate ? normalizeDate(body.expectedDate) : body.deadline ? normalizeDate(body.deadline) : null,
+  expectedDate: body.expectedDate
+    ? normalizeDate(body.expectedDate)
+    : body.deadline
+      ? normalizeDate(body.deadline)
+      : null,
   completedDate: body.completedDate ? normalizeDate(body.completedDate) : null,
   visible: normalizeBoolean(body.visible),
   note: normalizeString(body.note),
 });
 
 const validatePayload = async (payload, excludeId = "") => {
+  const [priorityOptions, statusOptions] = await Promise.all([
+    getActiveCategoryNames("priority"),
+    getActiveCategoryNames("status"),
+  ]);
+
+  if (priorityOptions.length === 0) {
+    return { status: 400, message: "Danh mục ưu tiên chưa được cấu hình" };
+  }
+  if (statusOptions.length === 0) {
+    return { status: 400, message: "Danh mục trạng thái chưa được cấu hình" };
+  }
+
+  payload.status = normalizeStatus(payload.status, statusOptions);
   if (!payload.title) return { status: 400, message: "title là bắt buộc" };
   if (!DESIGN_TYPES.includes(payload.designType)) return { status: 400, message: "designType không hợp lệ" };
-  if (!PRIORITY_OPTIONS.includes(payload.priority)) return { status: 400, message: "priority không hợp lệ" };
+  if (!priorityOptions.includes(payload.priority)) return { status: 400, message: "priority không hợp lệ" };
   if (!payload.assigner) return { status: 400, message: "assigner là bắt buộc" };
   if (!payload.assignee) return { status: 400, message: "assignee là bắt buộc" };
   if (payload.durationValue === null || payload.durationValue <= 0)
@@ -79,7 +96,7 @@ const validatePayload = async (payload, excludeId = "") => {
   if (!DURATION_UNITS.includes(payload.durationUnit)) return { status: 400, message: "durationUnit không hợp lệ" };
   if (payload.convert === null || payload.convert < 0) return { status: 400, message: "convert không hợp lệ" };
   if (payload.bonusPoint === null || payload.bonusPoint < 0) return { status: 400, message: "bonusPoint không hợp lệ" };
-  if (!STATUS_OPTIONS.includes(payload.status)) return { status: 400, message: "status không hợp lệ" };
+  if (!statusOptions.includes(payload.status)) return { status: 400, message: "status không hợp lệ" };
   if (payload.visible === null) return { status: 400, message: "visible phải là kiểu boolean" };
   if (payload.status !== COMPLETED_STATUS) {
     payload.completedDate = null;
@@ -121,7 +138,11 @@ const toResponseItem = (doc) => ({
   expectedDateLabel: doc.expectedDate ? formatDateTime(doc.expectedDate) : "",
   completedDate: doc.completedDate ? new Date(doc.completedDate).toISOString() : null,
   completedDateLabel: doc.completedDate ? formatDateTime(doc.completedDate) : "",
-  deadline: doc.expectedDate ? new Date(doc.expectedDate).toISOString() : doc.deadline ? new Date(doc.deadline).toISOString() : null,
+  deadline: doc.expectedDate
+    ? new Date(doc.expectedDate).toISOString()
+    : doc.deadline
+      ? new Date(doc.deadline).toISOString()
+      : null,
   deadlineLabel: doc.expectedDate ? formatDateTime(doc.expectedDate) : doc.deadline ? formatDateTime(doc.deadline) : "",
   visible: Boolean(doc.visible),
   note: doc.note || "",
@@ -180,9 +201,9 @@ export const listDesignReferences = async (req, res) => {
       status: normalizeStatus(item.status),
       expectedDate: item.expectedDate ? new Date(item.expectedDate).toISOString() : null,
       expectedDateLabel: item.expectedDate ? formatDateTime(item.expectedDate) : "",
-      label: `${item.title || "Design"} - ${item.designType || "N/A"} - ${item.assignee || "N/A"} - ${
-        normalizeStatus(item.status)
-      }`,
+      label: `${item.title || "Design"} - ${item.designType || "N/A"} - ${item.assignee || "N/A"} - ${normalizeStatus(
+        item.status,
+      )}`,
     })),
   });
 };
@@ -283,4 +304,3 @@ export const deleteDesignTasks = async (req, res) => {
     deletedCount: result.modifiedCount || 0,
   });
 };
-

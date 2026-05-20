@@ -7,6 +7,11 @@ const programSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    priority: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     time: {
       type: String,
       required: true,
