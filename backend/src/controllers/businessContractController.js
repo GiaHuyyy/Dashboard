@@ -1,11 +1,13 @@
 import mongoose from "mongoose";
 
 import BusinessContract from "../models/BusinessContract.js";
+import { sendBusinessContractMail } from "../services/businessContractMailService.js";
 
 const HANDOVER_STATUS_OPTIONS = ["Chưa bàn giao", "Đã bàn giao"];
 const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
 const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const normalizeFlag = (value) => value === true || String(value).toLowerCase() === "true";
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -68,8 +70,9 @@ const normalizePayload = (body = {}) => {
     status: normalizeString(body.status) || STATUS_OPTIONS[0],
     mailStatus: normalizeString(body.mailStatus) || MAIL_STATUS_OPTIONS[0],
     selectedSalesStaff: normalizeString(body.selectedSalesStaff),
-    salesReceiverName: normalizeString(body.salesReceiverName),
-    salesReceiverEmail: normalizeString(body.salesReceiverEmail).toLowerCase(),
+    salesReceiverName: normalizeString(body.salesReceiverName) || normalizeString(body.customerName),
+    salesReceiverEmail:
+      normalizeString(body.salesReceiverEmail).toLowerCase() || normalizeString(body.customerEmail).toLowerCase(),
     ccEmails: parseCcEmails(body.ccEmails),
     contractImages,
     handoverStatus: normalizeString(body.handoverStatus) || HANDOVER_STATUS_OPTIONS[0],
@@ -83,9 +86,8 @@ const validatePayload = async (payload, { excludeId = "" } = {}) => {
   if (!payload.contractCode) return { status: 400, message: "contractCode là bắt buộc" };
   if (!payload.contractName) return { status: 400, message: "contractName là bắt buộc" };
   if (!payload.customerName) return { status: 400, message: "customerName là bắt buộc" };
+  if (!payload.customerEmail) return { status: 400, message: "customerEmail là bắt buộc" };
   if (!payload.selectedSalesStaff) return { status: 400, message: "selectedSalesStaff là bắt buộc" };
-  if (!payload.salesReceiverName) return { status: 400, message: "salesReceiverName là bắt buộc" };
-  if (!payload.salesReceiverEmail) return { status: 400, message: "salesReceiverEmail là bắt buộc" };
 
   if (!STATUS_OPTIONS.includes(payload.status)) {
     return { status: 400, message: `status không hợp lệ. Giá trị cho phép: ${STATUS_OPTIONS.join(", ")}` };
@@ -101,9 +103,6 @@ const validatePayload = async (payload, { excludeId = "" } = {}) => {
   }
   if (payload.visible === null) return { status: 400, message: "visible phải là kiểu boolean" };
 
-  if (!EMAIL_REGEX.test(payload.salesReceiverEmail)) {
-    return { status: 400, message: "salesReceiverEmail không đúng định dạng email" };
-  }
   if (payload.customerEmail && !EMAIL_REGEX.test(payload.customerEmail)) {
     return { status: 400, message: "customerEmail không đúng định dạng email" };
   }
@@ -149,10 +148,13 @@ const toResponseItem = (doc) => ({
 });
 
 export const createBusinessContract = async (req, res) => {
+  const shouldSendMail = normalizeFlag(req.body.sendMail);
   const payload = normalizePayload({
     ...req.body,
     visible: req.body.visible ?? true,
   });
+  payload.salesReceiverName = payload.customerName;
+  payload.salesReceiverEmail = payload.customerEmail;
   if (payload.handoverStatus !== "Đã bàn giao") {
     payload.handoverAt = null;
   } else if (!payload.handoverAt) {
@@ -166,8 +168,22 @@ export const createBusinessContract = async (req, res) => {
     ...payload,
     createdBy: req.user.sub,
   });
+
+  if (shouldSendMail) {
+    try {
+      await sendBusinessContractMail({
+        contract: toResponseItem(created),
+        actionLabel: "Lưu gửi mail",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: `Đã lưu hợp đồng nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
+      });
+    }
+  }
+
   return res.status(201).json({
-    message: "Đã tạo hợp đồng kinh doanh",
+    message: shouldSendMail ? "Đã tạo hợp đồng và gửi mail thành công" : "Đã tạo hợp đồng kinh doanh",
     contract: toResponseItem(created),
   });
 };
@@ -248,6 +264,7 @@ export const getBusinessContractById = async (req, res) => {
 };
 
 export const updateBusinessContract = async (req, res) => {
+  const shouldSendMail = normalizeFlag(req.body.sendMail);
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
   const existing = await BusinessContract.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
@@ -262,8 +279,8 @@ export const updateBusinessContract = async (req, res) => {
     status: input.status || existing.status || STATUS_OPTIONS[0],
     mailStatus: input.mailStatus || existing.mailStatus || MAIL_STATUS_OPTIONS[0],
     selectedSalesStaff: input.selectedSalesStaff || existing.selectedSalesStaff,
-    salesReceiverName: input.salesReceiverName || existing.salesReceiverName,
-    salesReceiverEmail: input.salesReceiverEmail || existing.salesReceiverEmail,
+    salesReceiverName: input.customerName || existing.customerName,
+    salesReceiverEmail: input.customerEmail || existing.customerEmail,
     ccEmails: req.body.ccEmails !== undefined ? input.ccEmails : existing.ccEmails,
     contractImages: Array.isArray(req.body.contractImages) ? input.contractImages : existing.contractImages,
     handoverStatus: input.handoverStatus || existing.handoverStatus,
@@ -299,8 +316,21 @@ export const updateBusinessContract = async (req, res) => {
   existing.note = mergedPayload.note;
   await existing.save();
 
+  if (shouldSendMail) {
+    try {
+      await sendBusinessContractMail({
+        contract: toResponseItem(existing),
+        actionLabel: "Cập nhật gửi mail",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: `Đã cập nhật hợp đồng nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
+      });
+    }
+  }
+
   return res.json({
-    message: "Đã cập nhật hợp đồng kinh doanh",
+    message: shouldSendMail ? "Đã cập nhật hợp đồng và gửi mail thành công" : "Đã cập nhật hợp đồng kinh doanh",
     contract: toResponseItem(existing),
   });
 };

@@ -5,11 +5,11 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
-import { MODULE_OPTIONS } from "@/constants/program";
-import { programApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { COMPLETED_STATUS, MODULE_OPTIONS, STATUS_OPTIONS } from "@/constants/program";
+import { programApi } from "@/lib/api-client";
 
 function ListProgram() {
   const navigate = useNavigate();
@@ -21,12 +21,13 @@ function ListProgram() {
   const [activeRow, setActiveRow] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteMode, setDeleteMode] = useState("single");
+  const [updatingStatusId, setUpdatingStatusId] = useState("");
 
   const fetchPrograms = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await programApi.list(selectedModule);
-      const nextPrograms = response.programs || [];
+      const nextPrograms = response?.programs || [];
       setPrograms(nextPrograms);
       setSelectedIds((prev) => prev.filter((id) => nextPrograms.some((item) => item.id === id)));
     } catch (error) {
@@ -37,16 +38,19 @@ function ListProgram() {
   }, [selectedModule]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void fetchPrograms();
-    }, 0);
-    return () => window.clearTimeout(timer);
+    void fetchPrograms();
   }, [fetchPrograms]);
 
   const filteredPrograms = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
     if (!keyword) return programs;
-    return programs.filter((item) => item.module.toLowerCase().includes(keyword));
+    return programs.filter((item) => {
+      const source = [item.contractCode, item.contractName, item.module, item.assigner, item.assignee]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return source.includes(keyword);
+    });
   }, [programs, searchText]);
 
   const openDelete = (row) => {
@@ -108,6 +112,50 @@ function ListProgram() {
     }
   };
 
+  const handleInlineStatusUpdate = async (row, nextStatus) => {
+    if (!row?.id || !nextStatus || nextStatus === row.processingStatus) return;
+    if (row.processingStatus === COMPLETED_STATUS) {
+      toast.error("Không thể chỉnh sửa chương trình đã hoàn thành");
+      return;
+    }
+
+    setUpdatingStatusId(row.id);
+    try {
+      const detailResponse = await programApi.detail(row.id);
+      const program = detailResponse?.program;
+      if (!program) {
+        toast.error("Không tìm thấy dữ liệu chương trình");
+        return;
+      }
+
+      const payload = {
+        module: program.module,
+        durationValue: program.durationValue,
+        durationUnit: program.durationUnit,
+        convert: program.convert,
+        assigner: program.assigner,
+        assignee: program.assignee,
+        businessContractId: program.businessContractId,
+        designTaskId: program.designTaskId || "",
+        design: Boolean(program.design),
+        visible: Boolean(program.visible),
+        processingStatus: nextStatus,
+        assignedAt: program.assignedAt,
+        receivedAt: program.receivedAt || null,
+        dueAt: program.dueAt,
+        completedAt: null,
+      };
+
+      await programApi.update(row.id, payload);
+      await fetchPrograms();
+      toast.success("Đã cập nhật trạng thái");
+    } catch (error) {
+      toast.error(error?.message || "Cập nhật trạng thái không thành công");
+    } finally {
+      setUpdatingStatusId("");
+    }
+  };
+
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
   const deleteDescription =
     deleteMode === "single"
@@ -140,7 +188,11 @@ function ListProgram() {
         </select>
       </div>
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm module">
+      <ManagementTableCard
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm số HĐ, module, người giao/nhận"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
@@ -154,10 +206,13 @@ function ListProgram() {
                 />
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Phiếu gốc (HĐ)</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Module</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Thời gian</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Quy đổi</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Người giao</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Người nhận</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày giao</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày nhận</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày dự kiến</TableHead>
@@ -170,13 +225,13 @@ function ListProgram() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={16} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : filteredPrograms.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={16} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -198,19 +253,42 @@ function ListProgram() {
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
                   </TableCell>
+                  <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.module}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.convert}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.processingStatus || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500" onClick={(event) => event.stopPropagation()}>
+                    {row.processingStatus === COMPLETED_STATUS ? (
+                      <span className="font-semibold text-emerald-700">{COMPLETED_STATUS}</span>
+                    ) : (
+                      <select
+                        className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm"
+                        value={row.processingStatus || STATUS_OPTIONS[0]}
+                        disabled={updatingStatusId === row.id}
+                        onChange={(event) => {
+                          event.stopPropagation();
+                          void handleInlineStatusUpdate(row, event.target.value);
+                        }}
+                      >
+                        {STATUS_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.assigner || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-slate-500">{row.assignee || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.assignedAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.receivedAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.dueAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-slate-500">{row.completedAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
-                    <input type="checkbox" checked={row.design} readOnly onClick={(event) => event.stopPropagation()} />
+                    <input type="checkbox" checked={Boolean(row.design)} readOnly onClick={(event) => event.stopPropagation()} />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
-                    <input type="checkbox" checked={row.visible} readOnly onClick={(event) => event.stopPropagation()} />
+                    <input type="checkbox" checked={Boolean(row.visible)} readOnly onClick={(event) => event.stopPropagation()} />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">

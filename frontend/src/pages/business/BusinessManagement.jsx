@@ -89,7 +89,7 @@ function BusinessManagement() {
   };
 
   const handleHandover = async (row) => {
-    if (handoverRowId === row.id) return;
+    if (handoverRowId === row.id || row.handoverStatus === "Đã bàn giao") return;
     setHandoverRowId(row.id);
     try {
       const response = await businessContractApi.handover(row.id);
@@ -135,11 +135,7 @@ function BusinessManagement() {
         </select>
       </div>
 
-      <ManagementTableCard
-        searchText={searchText}
-        onSearchChange={setSearchText}
-        searchPlaceholder="Tìm số HĐ, tên HĐ, khách hàng"
-      >
+      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm số HĐ, tên HĐ, khách hàng">
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
@@ -152,64 +148,35 @@ function BusinessManagement() {
                   onClick={(event) => event.stopPropagation()}
                 />
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                STT
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Số hợp đồng
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Tên hợp đồng
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Khách hàng
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Nhân viên kinh doanh
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Trạng thái
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Mail nhận
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Email nhận
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Trạng thái bàn giao
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày bàn giao
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Hiển thị
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Thao tác
-              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Số hợp đồng</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Tên hợp đồng</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Khách hàng</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Nhân viên kinh doanh</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mail nhận</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Email khách hàng</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái bàn giao</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày bàn giao</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hiển thị</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
             ) : (
               displayedRows.map((row, index) => (
-                <TableRow
-                  key={row.id}
-                  className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => navigate(`/kinh-doanh/chinh-sua/${row.id}`)}
-                >
+                <TableRow key={row.id} className="cursor-pointer text-slate-700 hover:bg-slate-50" onClick={() => navigate(`/kinh-doanh/chinh-sua/${row.id}`)}>
                   <TableCell className="border border-slate-200 p-4">
                     <input
                       type="checkbox"
@@ -225,13 +192,10 @@ function BusinessManagement() {
                   <TableCell className="border border-slate-200 p-4 text-left">{row.contractName}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.customerName}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.selectedSalesStaff}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.status}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.mailStatus}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-left">{row.salesReceiverEmail}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-left">{row.customerEmail}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className={row.handoverStatus === "Đã bàn giao" ? "text-emerald-700" : "text-slate-600"}>
-                      {row.handoverStatus}
-                    </span>
+                    <span className={row.handoverStatus === "Đã bàn giao" ? "text-emerald-700" : "text-slate-600"}>{row.handoverStatus}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.handoverAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
@@ -244,7 +208,7 @@ function BusinessManagement() {
                         label={handoverRowId === row.id ? "Đang bàn giao" : "Bàn giao"}
                         variant="info"
                         size="sm"
-                        disabled={handoverRowId === row.id}
+                        disabled={handoverRowId === row.id || row.handoverStatus === "Đã bàn giao"}
                         onClick={(event) => {
                           event.stopPropagation();
                           void handleHandover(row);
@@ -298,11 +262,7 @@ function BusinessManagement() {
             >
               Hủy
             </button>
-            <button
-              type="button"
-              onClick={() => void handleDelete()}
-              className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
-            >
+            <button type="button" onClick={() => void handleDelete()} className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white">
               Xóa
             </button>
           </div>

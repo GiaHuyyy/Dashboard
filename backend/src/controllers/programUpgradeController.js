@@ -4,7 +4,15 @@ import Program from "../models/Program.js";
 import ProgramUpgrade from "../models/ProgramUpgrade.js";
 
 const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao", "Khẩn"];
-const STATUS_OPTIONS = ["Mới tạo", "Đang xử lý", "Hoàn thành", "Tạm dừng"];
+const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"];
+const COMPLETED_STATUS = "Đã hoàn thành";
+const normalizeStatus = (value) => {
+  const normalized = normalizeString(value);
+  if (normalized === "Hoàn thành") return COMPLETED_STATUS;
+  if (normalized === "Tạm dừng") return "Đang xử lý";
+  if (normalized === "Đã nhận") return "Đã phân công";
+  return STATUS_OPTIONS.includes(normalized) ? normalized : STATUS_OPTIONS[0];
+};
 const DURATION_UNITS = ["h", "ngày"];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
@@ -70,7 +78,7 @@ const normalizePayload = (body = {}) => ({
   durationValue: normalizeNumber(body.durationValue),
   durationUnit: normalizeString(body.durationUnit),
   bonusPoint: normalizeNumber(body.bonusPoint),
-  status: normalizeString(body.status),
+  status: normalizeStatus(body.status),
   assigner: normalizeString(body.assigner),
   assignee: normalizeString(body.assignee),
   assignedAt: body.assignedAt ? normalizeDate(body.assignedAt) : null,
@@ -153,7 +161,7 @@ const toResponseItem = (doc) => ({
   time: doc.time || "",
   convert: doc.convert || "",
   bonusPoint: doc.bonusPoint,
-  status: doc.status,
+  status: normalizeStatus(doc.status),
   assigner: doc.assigner,
   assignee: doc.assignee,
   assignedAt: toIsoString(doc.assignedAt),
@@ -172,8 +180,7 @@ const toResponseItem = (doc) => ({
 
 export const createProgramUpgrade = async (req, res) => {
   const payload = normalizePayload(req.body);
-  const normalizedPayload =
-    payload.status === STATUS_OPTIONS[2] ? payload : { ...payload, completedAt: null };
+  const normalizedPayload = payload.status === COMPLETED_STATUS ? payload : { ...payload, completedAt: null };
 
   const validationResult = await validatePayload(normalizedPayload);
   if (validationResult.status) {
@@ -291,7 +298,7 @@ export const updateProgramUpgrade = async (req, res) => {
     visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
-  if (mergedPayload.status !== STATUS_OPTIONS[2]) {
+  if (mergedPayload.status !== COMPLETED_STATUS) {
     mergedPayload.completedAt = null;
   }
   const validationResult = await validatePayload(mergedPayload);

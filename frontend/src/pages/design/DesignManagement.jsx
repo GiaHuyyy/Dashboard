@@ -11,7 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { designApi } from "@/lib/api-client";
 
 const DESIGN_TYPES = ["all", "Logo", "Banner", "Landing page", "UI/UX", "Social post"];
-const STATUS_OPTIONS = ["all", "Mới tạo", "Đã nhận", "Đang xử lý", "Hoàn thành"];
+const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý"];
+const COMPLETED_STATUS = "Đã hoàn thành";
+const STATUS_FILTER_OPTIONS = ["all", ...STATUS_OPTIONS, COMPLETED_STATUS];
 
 function DesignManagement() {
   const navigate = useNavigate();
@@ -21,8 +23,6 @@ function DesignManagement() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
-  const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
-  const [pendingStatusUpdate, setPendingStatusUpdate] = useState(null);
   const [updatingStatusId, setUpdatingStatusId] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -55,10 +55,7 @@ function DesignManagement() {
   const displayedIds = displayedRows.map((item) => item.id);
   const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
-  const assigneeOptions = useMemo(
-    () => ["all", ...Array.from(new Set(rows.map((item) => item.assignee).filter(Boolean)))],
-    [rows],
-  );
+  const assigneeOptions = useMemo(() => ["all", ...Array.from(new Set(rows.map((item) => item.assignee).filter(Boolean)))], [rows]);
 
   const openCreate = () => navigate("/design/them-moi");
   const openEdit = (row) => navigate(`/design/chinh-sua/${row.id}`);
@@ -107,13 +104,11 @@ function DesignManagement() {
     try {
       const payload = {
         status: nextStatus,
-        completedDate: nextStatus === "Hoàn thành" ? row.completedDate || new Date().toISOString() : null,
+        completedDate: null,
       };
       const response = await designApi.update(row.id, payload);
       const nextRow = response?.designTask;
-      setRows((prev) =>
-        prev.map((item) => (item.id === row.id ? { ...item, ...(nextRow || {}), status: nextStatus } : item)),
-      );
+      setRows((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...(nextRow || {}), status: nextStatus } : item)));
       toast.success("Đã cập nhật trạng thái");
     } catch (error) {
       toast.error(error?.message || "Không thể cập nhật trạng thái");
@@ -123,12 +118,7 @@ function DesignManagement() {
   };
 
   const handleStatusChange = (row, nextStatus) => {
-    if (nextStatus === row.status) return;
-    if (nextStatus === "Hoàn thành" && row.status !== "Hoàn thành") {
-      setPendingStatusUpdate({ row, nextStatus });
-      setStatusConfirmOpen(true);
-      return;
-    }
+    if (nextStatus === row.status || row.status === COMPLETED_STATUS) return;
     void applyStatusUpdate(row, nextStatus);
   };
 
@@ -162,7 +152,7 @@ function DesignManagement() {
           value={selectedStatus}
           onChange={(event) => setSelectedStatus(event.target.value)}
         >
-          {STATUS_OPTIONS.map((option) => (
+          {STATUS_FILTER_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option === "all" ? "Trạng thái" : option}
             </option>
@@ -182,11 +172,7 @@ function DesignManagement() {
         </select>
       </div>
 
-      <ManagementTableCard
-        searchText={searchText}
-        onSearchChange={setSearchText}
-        searchPlaceholder="Tìm công việc design"
-      >
+      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm công việc design">
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
@@ -198,54 +184,22 @@ function DesignManagement() {
                   onClick={(event) => event.stopPropagation()}
                 />
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                STT
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Hạng mục
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Loại
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Mức ưu tiên
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Thời gian
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Quy đổi
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm thêm
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Người giao (Quản lý)
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Người nhận
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Trạng thái
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày giao
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày nhận
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày dự kiến
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày hoàn thành
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Hiển thị
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Thao tác
-              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hạng mục</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Loại</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mức ưu tiên</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Thời gian</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Quy đổi</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Điểm thêm</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Người giao (Quản lý)</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Người nhận</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày giao</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày nhận</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày dự kiến</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày hoàn thành</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hiển thị</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -263,11 +217,7 @@ function DesignManagement() {
               </TableRow>
             ) : (
               displayedRows.map((row, index) => (
-                <TableRow
-                  key={row.id}
-                  className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => openEdit(row)}
-                >
+                <TableRow key={row.id} className="cursor-pointer text-slate-700 hover:bg-slate-50" onClick={() => openEdit(row)}>
                   <TableCell className="border border-slate-200 p-4">
                     <input
                       type="checkbox"
@@ -279,9 +229,7 @@ function DesignManagement() {
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
-                    {row.title}
-                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">{row.title}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.designType}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.priority}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.durationLabel}</TableCell>
@@ -290,34 +238,33 @@ function DesignManagement() {
                   <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    <select
-                      className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
-                      value={row.status}
-                      disabled={updatingStatusId === row.id}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => {
-                        event.stopPropagation();
-                        handleStatusChange(row, event.target.value);
-                      }}
-                    >
-                      {STATUS_OPTIONS.filter((item) => item !== "all").map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                    {row.status === COMPLETED_STATUS ? (
+                      <span className="font-semibold text-emerald-700">{COMPLETED_STATUS}</span>
+                    ) : (
+                      <select
+                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
+                        value={row.status}
+                        disabled={updatingStatusId === row.id}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => {
+                          event.stopPropagation();
+                          handleStatusChange(row, event.target.value);
+                        }}
+                      >
+                        {STATUS_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.handoverDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.receiveDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.expectedDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.completedDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(row.visible)}
-                      readOnly
-                      onClick={(event) => event.stopPropagation()}
-                    />
+                    <input type="checkbox" checked={Boolean(row.visible)} readOnly onClick={(event) => event.stopPropagation()} />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
@@ -373,51 +320,7 @@ function DesignManagement() {
         }
       >
         <p className="text-sm text-slate-600">
-          Bạn có chắc muốn xóa công việc design{" "}
-          <span className="font-semibold text-slate-800">{deleteRow?.title || "đang chọn"}</span>?
-        </p>
-      </Modal>
-
-      <Modal
-        open={statusConfirmOpen}
-        onClose={() => {
-          setStatusConfirmOpen(false);
-          setPendingStatusUpdate(null);
-        }}
-        title="Xác nhận hoàn thành"
-        size="sm"
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setStatusConfirmOpen(false);
-                setPendingStatusUpdate(null);
-              }}
-              className="rounded-md border px-4 py-2 text-sm"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const current = pendingStatusUpdate;
-                setStatusConfirmOpen(false);
-                setPendingStatusUpdate(null);
-                if (current) {
-                  void applyStatusUpdate(current.row, current.nextStatus);
-                }
-              }}
-              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
-            >
-              Xác nhận
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm text-slate-600">
-          Bạn đang chuyển trạng thái sang
-          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
+          Bạn có chắc muốn xóa công việc design <span className="font-semibold text-slate-800">{deleteRow?.title || "đang chọn"}</span>?
         </p>
       </Modal>
     </>

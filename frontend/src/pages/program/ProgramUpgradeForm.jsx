@@ -7,7 +7,12 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
-import { UPGRADE_PRIORITY_OPTIONS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
+import {
+  UPGRADE_COMPLETED_STATUS,
+  UPGRADE_PRIORITY_OPTIONS,
+  UPGRADE_STATUS_OPTIONS,
+  UPGRADE_STATUS_OPTIONS_WITH_COMPLETED,
+} from "@/constants/program-upgrade";
 import { businessContractApi, programApi, staffApi, upgradeApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
@@ -27,7 +32,6 @@ const schema = z.object({
   durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
   convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
   bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
-  status: z.enum(UPGRADE_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái" }),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
   assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
   assignedAt: z.string().trim().min(1, "Vui lòng nhập ngày giao").refine(isValidDateValue, "Ngày giao không hợp lệ"),
@@ -37,6 +41,7 @@ const schema = z.object({
     .string()
     .optional()
     .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
+  status: z.enum(UPGRADE_STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái" }),
   visible: z.boolean(),
   note: z.string().optional(),
 });
@@ -141,7 +146,8 @@ function ProgramUpgradeForm() {
     () => getProgramByBusinessContractId(programReferences, selectedBusinessContractId),
     [programReferences, selectedBusinessContractId],
   );
-  const isReadOnlyMode = isEditMode && initialSnapshot.status === "Hoàn thành";
+  const isReadOnlyMode = isEditMode && initialSnapshot.status === UPGRADE_COMPLETED_STATUS;
+  const statusOptions = isEditMode ? UPGRADE_STATUS_OPTIONS_WITH_COMPLETED : UPGRADE_STATUS_OPTIONS;
   const businessContractRegister = register("businessContractId");
 
   useEffect(() => {
@@ -150,7 +156,7 @@ function ProgramUpgradeForm() {
   }, [selectedDurationUnit, selectedDurationValue, setValue]);
 
   useEffect(() => {
-    if (selectedStatus === "Hoàn thành") return;
+    if (selectedStatus === UPGRADE_COMPLETED_STATUS) return;
     setValue("completedAt", "", { shouldValidate: true });
   }, [selectedStatus, setValue]);
 
@@ -261,7 +267,7 @@ function ProgramUpgradeForm() {
       assignedAt: values.assignedAt,
       receivedAt: values.receivedAt || null,
       dueAt: values.dueAt,
-      completedAt: values.status === "Hoàn thành" ? values.completedAt || null : null,
+      completedAt: values.status === UPGRADE_COMPLETED_STATUS ? values.completedAt || null : null,
       visible: values.visible,
       note: values.note || "",
     };
@@ -300,7 +306,7 @@ function ProgramUpgradeForm() {
     if (isReadOnlyMode) {
       return;
     }
-    if (values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
+    if (values.status === UPGRADE_COMPLETED_STATUS && initialSnapshot.status !== UPGRADE_COMPLETED_STATUS) {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
       return;
@@ -467,7 +473,7 @@ function ProgramUpgradeForm() {
                 <FormField
                   label="Trạng thái"
                   type="select"
-                  options={UPGRADE_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+                  options={statusOptions.map((item) => ({ label: item, value: item }))}
                   selectProps={register("status")}
                   error={errors.status?.message}
                 />
@@ -496,7 +502,7 @@ function ProgramUpgradeForm() {
                 <FormField
                   label="Ngày hoàn thành"
                   type="datetime-local"
-                  inputProps={{ ...register("completedAt"), disabled: selectedStatus !== "Hoàn thành" }}
+                  inputProps={{ ...register("completedAt"), disabled: selectedStatus !== UPGRADE_COMPLETED_STATUS }}
                   error={errors.completedAt?.message}
                 />
 
@@ -549,7 +555,7 @@ function ProgramUpgradeForm() {
       >
         <p className="text-sm text-slate-600">
           Bạn đang chuyển trạng thái sang
-          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
+          <span className="font-semibold text-slate-800"> {UPGRADE_COMPLETED_STATUS}</span>. Xác nhận để lưu cập nhật.
         </p>
       </Modal>
     </>

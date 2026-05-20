@@ -7,7 +7,14 @@ import { sendProgramMail } from "../services/programMailService.js";
 
 const MODULE_OPTIONS = ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"];
 const DURATION_UNITS = ["h", "ngày"];
-const PROCESSING_STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
+const PROCESSING_STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"];
+const COMPLETED_STATUS = "Đã hoàn thành";
+const normalizeProcessingStatus = (value) => {
+  const normalized = normalizeString(value);
+  if (normalized === "Hoàn thành") return COMPLETED_STATUS;
+  if (normalized === "Đã nhận") return "Đã phân công";
+  return PROCESSING_STATUS_OPTIONS.includes(normalized) ? normalized : PROCESSING_STATUS_OPTIONS[0];
+};
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EMAIL_LOCAL_MIN_LENGTH = 6;
 const EMAIL_LOCAL_HAS_LETTER_REGEX = /[A-Za-zÀ-ỹ]/u;
@@ -98,7 +105,7 @@ const normalizeProgramPayload = (body = {}) => {
     receivedAt: normalizeDate(body.receivedAt),
     dueAt: normalizeDate(body.dueAt),
     completedAt: normalizeDate(body.completedAt),
-    processingStatus: normalizeString(body.processingStatus) || PROCESSING_STATUS_OPTIONS[0],
+    processingStatus: normalizeProcessingStatus(body.processingStatus),
     design: normalizeBoolean(body.design),
     visible: normalizeBoolean(body.visible),
     designTaskId: normalizeString(body.designTaskId) || null,
@@ -191,7 +198,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     ccEmails,
   };
 
-  if (payload.processingStatus !== "Hoàn thành") {
+  if (payload.processingStatus !== COMPLETED_STATUS) {
     payload.completedAt = null;
   }
 
@@ -205,7 +212,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     const designTask = await DesignTask.findOne({
       _id: designTaskId,
       isDeleted: false,
-      status: "Hoàn thành",
+      status: { $in: [COMPLETED_STATUS, "Hoàn thành"] },
     })
       .select("title")
       .lean();
@@ -332,19 +339,23 @@ export const listPrograms = async (req, res) => {
 
   const programs = await Program.find(filters)
     .sort({ programCreatedAt: 1, createdAt: 1 })
-    .select("module time convert assigner assignee designTaskTitle processingStatus assignedAt receivedAt dueAt completedAt design visible")
+    .select(
+      "contractCode contractName module time convert assigner assignee designTaskTitle processingStatus assignedAt receivedAt dueAt completedAt design visible",
+    )
     .lean();
 
   return res.json({
     programs: programs.map((item) => ({
       id: item._id,
+      contractCode: item.contractCode || "",
+      contractName: item.contractName || "",
       module: item.module,
       time: item.time,
       convert: item.convert,
       assigner: item.assigner || "",
       assignee: item.assignee || "",
       designTaskTitle: item.designTaskTitle || "",
-      processingStatus: item.processingStatus || PROCESSING_STATUS_OPTIONS[0],
+      processingStatus: normalizeProcessingStatus(item.processingStatus),
       assignedAt: toIsoString(item.assignedAt),
       assignedAtLabel: formatDateTime(item.assignedAt),
       receivedAt: toIsoString(item.receivedAt),
@@ -408,7 +419,7 @@ export const getProgramById = async (req, res) => {
       receivedAt: toIsoString(program.receivedAt),
       dueAt: toIsoString(program.dueAt),
       completedAt: toIsoString(program.completedAt),
-      processingStatus: program.processingStatus || PROCESSING_STATUS_OPTIONS[0],
+      processingStatus: normalizeProcessingStatus(program.processingStatus),
       design: program.design,
       visible: program.visible,
       contractName: program.contractName,

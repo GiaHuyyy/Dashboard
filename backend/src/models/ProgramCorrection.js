@@ -73,7 +73,7 @@ const programCorrectionSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Mới tạo", "Đã phân công", "Đã nhận", "Đang xử lý", "Hoàn thành"],
+      enum: ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"],
       index: true,
     },
     visible: {

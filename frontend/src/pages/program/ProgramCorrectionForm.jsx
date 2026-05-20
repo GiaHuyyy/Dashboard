@@ -7,7 +7,12 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
-import { CORRECTION_PRIORITY_OPTIONS, CORRECTION_STATUS_OPTIONS } from "@/constants/program-correction";
+import {
+  CORRECTION_COMPLETED_STATUS,
+  CORRECTION_PRIORITY_OPTIONS,
+  CORRECTION_STATUS_OPTIONS,
+  CORRECTION_STATUS_OPTIONS_WITH_COMPLETED,
+} from "@/constants/program-correction";
 import { businessContractApi, correctionApi, programApi, staffApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
@@ -36,7 +41,7 @@ const schema = z.object({
     .string()
     .optional()
     .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
-  status: z.enum(CORRECTION_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái" }),
+  status: z.enum(CORRECTION_STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái" }),
   visible: z.boolean(),
   note: z.string().optional(),
 });
@@ -136,7 +141,8 @@ function ProgramCorrectionForm() {
     () => getProgramByBusinessContractId(programReferences, selectedBusinessContractId),
     [programReferences, selectedBusinessContractId],
   );
-  const isReadOnlyMode = isEditMode && initialSnapshot.status === "Hoàn thành";
+  const isReadOnlyMode = isEditMode && initialSnapshot.status === CORRECTION_COMPLETED_STATUS;
+  const statusOptions = isEditMode ? CORRECTION_STATUS_OPTIONS_WITH_COMPLETED : CORRECTION_STATUS_OPTIONS;
   const businessContractRegister = register("businessContractId");
 
   useEffect(() => {
@@ -169,7 +175,7 @@ function ProgramCorrectionForm() {
   }, [selectedDurationUnit, selectedDurationValue, setValue]);
 
   useEffect(() => {
-    if (selectedStatus === "Hoàn thành") return;
+    if (selectedStatus === CORRECTION_COMPLETED_STATUS) return;
     setValue("completedAt", "", { shouldValidate: true });
   }, [selectedStatus, setValue]);
 
@@ -257,7 +263,7 @@ function ProgramCorrectionForm() {
       assignedAt: values.assignedAt,
       receivedAt: values.receivedAt || null,
       dueAt: values.dueAt,
-      completedAt: values.status === "Hoàn thành" ? values.completedAt || null : null,
+      completedAt: values.status === CORRECTION_COMPLETED_STATUS ? values.completedAt || null : null,
       status: values.status,
       visible: values.visible,
       note: values.note || "",
@@ -297,7 +303,7 @@ function ProgramCorrectionForm() {
     if (isReadOnlyMode) {
       return;
     }
-    if (values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
+    if (values.status === CORRECTION_COMPLETED_STATUS && initialSnapshot.status !== CORRECTION_COMPLETED_STATUS) {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
       return;
@@ -468,7 +474,7 @@ function ProgramCorrectionForm() {
                 <FormField
                   label="Trạng thái"
                   type="select"
-                  options={CORRECTION_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+                  options={statusOptions.map((item) => ({ label: item, value: item }))}
                   selectProps={register("status")}
                   error={errors.status?.message}
                 />
@@ -497,7 +503,7 @@ function ProgramCorrectionForm() {
                 <FormField
                   label="Ngày hoàn thành"
                   type="datetime-local"
-                  inputProps={{ ...register("completedAt"), disabled: selectedStatus !== "Hoàn thành" }}
+                  inputProps={{ ...register("completedAt"), disabled: selectedStatus !== CORRECTION_COMPLETED_STATUS }}
                   error={errors.completedAt?.message}
                 />
 
@@ -550,7 +556,7 @@ function ProgramCorrectionForm() {
       >
         <p className="text-sm text-slate-600">
           Bạn đang chuyển trạng thái sang
-          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
+          <span className="font-semibold text-slate-800">{CORRECTION_COMPLETED_STATUS}</span>. Xác nhận để lưu cập nhật.
         </p>
       </Modal>
     </>

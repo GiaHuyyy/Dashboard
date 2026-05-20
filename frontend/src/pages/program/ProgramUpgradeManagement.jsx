@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
-import { UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
+import { UPGRADE_COMPLETED_STATUS, UPGRADE_STATUS_OPTIONS } from "@/constants/program-upgrade";
 import { staffApi, upgradeApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { Button } from "@/components/ui/button-v2";
@@ -43,8 +43,6 @@ function ProgramUpgradeManagement() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
-  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [staffReferences, setStaffReferences] = useState([]);
 
   const fetchUpgrades = useCallback(async () => {
@@ -113,7 +111,7 @@ function ProgramUpgradeManagement() {
   const handleInlineUpdate = async (rowId, patch) => {
     const target = rows.find((item) => item.id === rowId);
     if (!target) return;
-    if (target.status === "Hoàn thành") {
+    if (target.status === UPGRADE_COMPLETED_STATUS) {
       toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
       return;
     }
@@ -147,13 +145,8 @@ function ProgramUpgradeManagement() {
   };
 
   const handleStatusChange = (row, nextStatus) => {
-    if (row.status === "Hoàn thành") {
+    if (row.status === UPGRADE_COMPLETED_STATUS) {
       toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
-      return;
-    }
-    if (nextStatus === "Hoàn thành" && row.status !== "Hoàn thành") {
-      setPendingStatusChange({ rowId: row.id, status: nextStatus });
-      setCompleteConfirmOpen(true);
       return;
     }
     void handleInlineUpdate(row.id, { status: nextStatus });
@@ -354,18 +347,21 @@ function ProgramUpgradeManagement() {
                   <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    <select
-                      className="w-full rounded border border-slate-200 px-2 py-1.5"
-                      value={row.status}
-                      disabled={row.status === "Hoàn thành"}
-                      onChange={(event) => handleStatusChange(row, event.target.value)}
-                    >
-                      {UPGRADE_STATUS_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                    {row.status === UPGRADE_COMPLETED_STATUS ? (
+                      <span className="font-semibold text-emerald-700">{UPGRADE_COMPLETED_STATUS}</span>
+                    ) : (
+                      <select
+                        className="w-full rounded border border-slate-200 px-2 py-1.5"
+                        value={row.status}
+                        onChange={(event) => handleStatusChange(row, event.target.value)}
+                      >
+                        {UPGRADE_STATUS_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
@@ -373,7 +369,7 @@ function ProgramUpgradeManagement() {
                     <select
                       className="w-full rounded border border-slate-200 px-2 py-1.5"
                       value={row.assignee}
-                      disabled={row.status === "Hoàn thành"}
+                      disabled={row.status === UPGRADE_COMPLETED_STATUS}
                       onChange={(event) => void handleInlineUpdate(row.id, { assignee: event.target.value })}
                     >
                       {assigneeOptions.map((option) => (
@@ -402,7 +398,7 @@ function ProgramUpgradeManagement() {
                     <input
                       type="checkbox"
                       checked={row.visible}
-                      disabled={row.status === "Hoàn thành"}
+                      disabled={row.status === UPGRADE_COMPLETED_STATUS}
                       onChange={(event) => void handleInlineUpdate(row.id, { visible: event.target.checked })}
                     />
                   </TableCell>
@@ -437,48 +433,6 @@ function ProgramUpgradeManagement() {
           </TableBody>
         </Table>
       </ManagementTableCard>
-
-      <Modal
-        open={completeConfirmOpen}
-        onClose={() => {
-          setCompleteConfirmOpen(false);
-          setPendingStatusChange(null);
-        }}
-        title="Xác nhận hoàn thành"
-        size="sm"
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setCompleteConfirmOpen(false);
-                setPendingStatusChange(null);
-              }}
-              className="rounded-md border px-4 py-2 text-sm"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (pendingStatusChange?.rowId) {
-                  void handleInlineUpdate(pendingStatusChange.rowId, { status: "Hoàn thành" });
-                }
-                setCompleteConfirmOpen(false);
-                setPendingStatusChange(null);
-              }}
-              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
-            >
-              Xác nhận
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm text-slate-600">
-          Trạng thái sẽ được chuyển sang
-          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Bạn có chắc muốn tiếp tục?
-        </p>
-      </Modal>
 
       <Modal
         open={deleteOpen}

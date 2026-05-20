@@ -12,8 +12,11 @@ import { designApi, staffApi } from "@/lib/api-client";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao"];
-const STATUS_OPTIONS = ["Mới tạo", "Đã nhận", "Đang xử lý", "Hoàn thành"];
+const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý"];
+const COMPLETED_STATUS = "Đã hoàn thành";
+const STATUS_OPTIONS_WITH_COMPLETED = [...STATUS_OPTIONS, COMPLETED_STATUS];
 const DURATION_UNITS = ["h", "ngày"];
+
 const isValidDateValue = (value) => {
   if (!value) return false;
   const date = new Date(value);
@@ -44,7 +47,7 @@ const schema = z.object({
   durationUnit: z.enum(DURATION_UNITS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
   convert: z.coerce.number().gte(0, "Quy đổi không hợp lệ"),
   bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
-  status: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+  status: z.enum(STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái hợp lệ" }),
   handoverDate: z.string().trim().min(1, "Vui lòng nhập ngày giao").refine(isValidDateValue, "Ngày giao không hợp lệ"),
   receiveDate: z.string().trim().min(1, "Vui lòng nhập ngày nhận").refine(isValidDateValue, "Ngày nhận không hợp lệ"),
   expectedDate: z
@@ -54,9 +57,8 @@ const schema = z.object({
     .refine(isValidDateValue, "Ngày dự kiến không hợp lệ"),
   completedDate: z
     .string()
-    .trim()
-    .min(1, "Vui lòng nhập ngày hoàn thành")
-    .refine(isValidDateValue, "Ngày hoàn thành không hợp lệ"),
+    .optional()
+    .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
   visible: z.boolean(),
   note: z.string().optional(),
 });
@@ -71,7 +73,7 @@ const defaultValues = {
   durationUnit: "h",
   convert: 0.125,
   bonusPoint: 0,
-  status: "Mới tạo",
+  status: STATUS_OPTIONS[0],
   handoverDate: "",
   receiveDate: "",
   expectedDate: "",
@@ -115,11 +117,18 @@ function DesignForm() {
 
   const durationValue = useWatch({ control, name: "durationValue" });
   const durationUnit = useWatch({ control, name: "durationUnit" });
+  const selectedStatus = useWatch({ control, name: "status" });
+  const formStatusOptions = isEditMode ? STATUS_OPTIONS_WITH_COMPLETED : STATUS_OPTIONS;
 
   useEffect(() => {
     const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
     setValue("convert", nextConvert, { shouldValidate: true });
   }, [durationUnit, durationValue, setValue]);
+
+  useEffect(() => {
+    if (selectedStatus === COMPLETED_STATUS) return;
+    setValue("completedDate", "", { shouldValidate: true });
+  }, [selectedStatus, setValue]);
 
   useEffect(() => {
     const fetchStaffReferences = async () => {
@@ -131,8 +140,7 @@ function DesignForm() {
 
         if (!isEditMode) {
           const manager = staffs.find((item) => item.role === "Quản lý");
-          const designer =
-            staffs.find((item) => item.role === "Thiết kế") || staffs.find((item) => item.role === "Thiết kế viên");
+          const designer = staffs.find((item) => item.role === "Thiết kế") || staffs.find((item) => item.role === "Thiết kế viên");
           const nextDefault = {
             ...defaultValues,
             assigner: manager?.fullName || "",
@@ -216,7 +224,7 @@ function DesignForm() {
       handoverDate: values.handoverDate || null,
       receiveDate: values.receiveDate || null,
       expectedDate: values.expectedDate || null,
-      completedDate: values.completedDate || null,
+      completedDate: values.status === COMPLETED_STATUS ? values.completedDate || null : null,
       note: values.note || "",
     };
 
@@ -245,7 +253,7 @@ function DesignForm() {
   };
 
   const onSubmit = async (values, mode) => {
-    if (values.status === "Hoàn thành" && initialSnapshot.status !== "Hoàn thành") {
+    if (values.status === COMPLETED_STATUS && initialSnapshot.status !== COMPLETED_STATUS) {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
       return;
@@ -260,9 +268,7 @@ function DesignForm() {
     )();
 
   if (isLoadingReference || isLoadingDetail) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
-    );
+    return <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>;
   }
 
   return (
@@ -280,9 +286,7 @@ function DesignForm() {
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Thông tin công việc design
-        </div>
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Thông tin công việc design</div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
@@ -365,7 +369,7 @@ function DesignForm() {
             <FormField
               label="Trạng thái"
               type="select"
-              options={STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+              options={formStatusOptions.map((item) => ({ label: item, value: item }))}
               selectProps={register("status")}
               error={errors.status?.message}
             />
@@ -390,7 +394,7 @@ function DesignForm() {
             <FormField
               label="Ngày hoàn thành"
               type="date"
-              inputProps={{ ...register("completedDate") }}
+              inputProps={{ ...register("completedDate"), disabled: selectedStatus !== COMPLETED_STATUS }}
               error={errors.completedDate?.message}
             />
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -440,7 +444,7 @@ function DesignForm() {
       >
         <p className="text-sm text-slate-600">
           Bạn đang chuyển trạng thái sang
-          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
+          <span className="font-semibold text-slate-800"> {COMPLETED_STATUS}</span>. Xác nhận để lưu cập nhật.
         </p>
       </Modal>
     </form>

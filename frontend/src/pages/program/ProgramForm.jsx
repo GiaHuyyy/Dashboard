@@ -7,7 +7,13 @@ import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { ProgramInfo } from "@/components/program-form/ProgramInfo";
-import { DURATION_UNIT_OPTIONS, MODULE_OPTIONS, STATUS_OPTIONS } from "@/constants/program";
+import {
+  COMPLETED_STATUS,
+  DURATION_UNIT_OPTIONS,
+  MODULE_OPTIONS,
+  STATUS_OPTIONS,
+  STATUS_OPTIONS_WITH_COMPLETED,
+} from "@/constants/program";
 import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
@@ -48,7 +54,7 @@ const programSchema = z
     designTaskId: z.string().trim().optional(),
     design: z.boolean(),
     visible: z.boolean(),
-    processingStatus: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+    processingStatus: z.enum(STATUS_OPTIONS_WITH_COMPLETED, { message: "Vui lòng chọn trạng thái hợp lệ" }),
     assignedAt: z.string().trim().min(1, "Vui lòng chọn ngày giao"),
     receivedAt: z.string().optional(),
     dueAt: z.string().trim().min(1, "Vui lòng chọn ngày dự kiến"),
@@ -116,7 +122,8 @@ function ProgramForm() {
   const selectedDesignTaskId = useWatch({ control, name: "designTaskId" });
   const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
   const selectedProcessingStatus = useWatch({ control, name: "processingStatus" });
-  const isReadOnlyMode = isEditMode && initialSnapshot.processingStatus === "Hoàn thành";
+  const isReadOnlyMode = isEditMode && initialSnapshot.processingStatus === COMPLETED_STATUS;
+  const processingStatusOptions = isEditMode ? STATUS_OPTIONS_WITH_COMPLETED : STATUS_OPTIONS;
 
   const selectedBusinessContract = useMemo(
     () => businessContractReferences.find((item) => item.id === selectedBusinessContractId) || null,
@@ -177,7 +184,7 @@ function ProgramForm() {
   }, [selectedDesign, setValue]);
 
   useEffect(() => {
-    if (selectedProcessingStatus === "Hoàn thành") return;
+    if (selectedProcessingStatus === COMPLETED_STATUS) return;
     setValue("completedAt", "", { shouldValidate: true });
   }, [selectedProcessingStatus, setValue]);
 
@@ -245,7 +252,7 @@ function ProgramForm() {
       convert: calculateConvertByDuration(values.durationValue, values.durationUnit),
       sendMail: shouldSendMail,
       receivedAt: values.receivedAt || null,
-      completedAt: values.processingStatus === "Hoàn thành" ? values.completedAt || null : null,
+      completedAt: values.processingStatus === COMPLETED_STATUS ? values.completedAt || null : null,
     };
 
     try {
@@ -299,7 +306,7 @@ function ProgramForm() {
 
   const onSubmit = async (values, mode) => {
     if (isReadOnlyMode) return;
-    if (values.processingStatus === "Hoàn thành" && initialSnapshot.processingStatus !== "Hoàn thành") {
+    if (values.processingStatus === COMPLETED_STATUS && initialSnapshot.processingStatus !== COMPLETED_STATUS) {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
       return;
@@ -325,15 +332,16 @@ function ProgramForm() {
     <>
       <form className="space-y-4">
         <FormActions
-          onSave={() => submitWithMode("save")}
-          onSaveMail={() => submitWithMode("save-mail")}
-          onSaveStay={() => submitWithMode("save-stay")}
+        onSave={() => submitWithMode("save")}
+        onSaveMail={() => null}
+        onSaveStay={() => submitWithMode("save-stay")}
           onReset={() => reset(initialSnapshot)}
           isSubmitting={isSubmitting}
           isUploading={false}
           isEditMode={isEditMode}
-          exitPath={returnPath}
-          readOnlyMode={isReadOnlyMode}
+        exitPath={returnPath}
+        showSaveMail={false}
+        readOnlyMode={isReadOnlyMode}
         />
 
         <fieldset disabled={isReadOnlyMode}>
@@ -369,12 +377,12 @@ function ProgramForm() {
                 />
 
                 <FormField
-                  label="Trạng thái"
-                  type="select"
-                  options={STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
-                  selectProps={register("processingStatus")}
-                  error={errors.processingStatus?.message}
-                />
+                label="Trạng thái"
+                type="select"
+                options={processingStatusOptions.map((item) => ({ label: item, value: item }))}
+                selectProps={register("processingStatus")}
+                error={errors.processingStatus?.message}
+              />
 
                 <FormField
                   label="Ngày giao"
@@ -401,11 +409,11 @@ function ProgramForm() {
                   label="Ngày hoàn thành"
                   type="datetime-local"
                   inputProps={{
-                    ...register("completedAt"),
-                    disabled: selectedProcessingStatus !== "Hoàn thành",
-                  }}
-                  error={errors.completedAt?.message}
-                />
+                  ...register("completedAt"),
+                  disabled: selectedProcessingStatus !== COMPLETED_STATUS,
+                }}
+                error={errors.completedAt?.message}
+              />
 
                 <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                   <input type="checkbox" {...register("visible")} />
@@ -455,10 +463,10 @@ function ProgramForm() {
         }
       >
         <p className="text-sm text-slate-600">
-          Bạn đang chuyển trạng thái sang
-          <span className="font-semibold text-slate-800"> Hoàn thành</span>. Xác nhận để lưu cập nhật.
-        </p>
-      </Modal>
+        Bạn đang chuyển trạng thái sang
+        <span className="font-semibold text-slate-800"> {COMPLETED_STATUS}</span>. Xác nhận để lưu cập nhật.
+      </p>
+    </Modal>
     </>
   );
 }

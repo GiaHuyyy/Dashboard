@@ -1,11 +1,18 @@
-import mongoose from "mongoose";
+﻿import mongoose from "mongoose";
 
 import DesignTask from "../models/DesignTask.js";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
-const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao"];
-const STATUS_OPTIONS = ["Mới tạo", "Đã nhận", "Đang xử lý", "Hoàn thành"];
-const DURATION_UNITS = ["h", "ngày"];
+const PRIORITY_OPTIONS = ["Tháº¥p", "Trung bÃ¬nh", "Cao"];
+const STATUS_OPTIONS = ["Má»›i táº¡o", "ÄÃ£ phÃ¢n cÃ´ng", "Äang xá»­ lÃ½", "ÄÃ£ hoÃ n thÃ nh"];
+const COMPLETED_STATUS = "ÄÃ£ hoÃ n thÃ nh";
+const normalizeStatus = (value) => {
+  const normalized = normalizeString(value);
+  if (normalized === "HoÃ n thÃ nh") return COMPLETED_STATUS;
+  if (normalized === "ÄÃ£ nháº­n") return "ÄÃ£ phÃ¢n cÃ´ng";
+  return STATUS_OPTIONS.includes(normalized) ? normalized : STATUS_OPTIONS[0];
+};
+const DURATION_UNITS = ["h", "ngÃ y"];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -52,7 +59,7 @@ const normalizePayload = (body = {}) => ({
   durationUnit: normalizeString(body.durationUnit),
   convert: normalizeNumber(body.convert),
   bonusPoint: normalizeNumber(body.bonusPoint),
-  status: normalizeString(body.status),
+  status: normalizeStatus(body.status),
   handoverDate: body.handoverDate ? normalizeDate(body.handoverDate) : null,
   receiveDate: body.receiveDate ? normalizeDate(body.receiveDate) : null,
   expectedDate: body.expectedDate ? normalizeDate(body.expectedDate) : body.deadline ? normalizeDate(body.deadline) : null,
@@ -62,18 +69,21 @@ const normalizePayload = (body = {}) => ({
 });
 
 const validatePayload = async (payload, excludeId = "") => {
-  if (!payload.title) return { status: 400, message: "title là bắt buộc" };
-  if (!DESIGN_TYPES.includes(payload.designType)) return { status: 400, message: "designType không hợp lệ" };
-  if (!PRIORITY_OPTIONS.includes(payload.priority)) return { status: 400, message: "priority không hợp lệ" };
-  if (!payload.assigner) return { status: 400, message: "assigner là bắt buộc" };
-  if (!payload.assignee) return { status: 400, message: "assignee là bắt buộc" };
+  if (!payload.title) return { status: 400, message: "title lÃ  báº¯t buá»™c" };
+  if (!DESIGN_TYPES.includes(payload.designType)) return { status: 400, message: "designType khÃ´ng há»£p lá»‡" };
+  if (!PRIORITY_OPTIONS.includes(payload.priority)) return { status: 400, message: "priority khÃ´ng há»£p lá»‡" };
+  if (!payload.assigner) return { status: 400, message: "assigner lÃ  báº¯t buá»™c" };
+  if (!payload.assignee) return { status: 400, message: "assignee lÃ  báº¯t buá»™c" };
   if (payload.durationValue === null || payload.durationValue <= 0)
-    return { status: 400, message: "durationValue không hợp lệ" };
-  if (!DURATION_UNITS.includes(payload.durationUnit)) return { status: 400, message: "durationUnit không hợp lệ" };
-  if (payload.convert === null || payload.convert < 0) return { status: 400, message: "convert không hợp lệ" };
-  if (payload.bonusPoint === null || payload.bonusPoint < 0) return { status: 400, message: "bonusPoint không hợp lệ" };
-  if (!STATUS_OPTIONS.includes(payload.status)) return { status: 400, message: "status không hợp lệ" };
-  if (payload.visible === null) return { status: 400, message: "visible phải là kiểu boolean" };
+    return { status: 400, message: "durationValue khÃ´ng há»£p lá»‡" };
+  if (!DURATION_UNITS.includes(payload.durationUnit)) return { status: 400, message: "durationUnit khÃ´ng há»£p lá»‡" };
+  if (payload.convert === null || payload.convert < 0) return { status: 400, message: "convert khÃ´ng há»£p lá»‡" };
+  if (payload.bonusPoint === null || payload.bonusPoint < 0) return { status: 400, message: "bonusPoint khÃ´ng há»£p lá»‡" };
+  if (!STATUS_OPTIONS.includes(payload.status)) return { status: 400, message: "status khÃ´ng há»£p lá»‡" };
+  if (payload.visible === null) return { status: 400, message: "visible pháº£i lÃ  kiá»ƒu boolean" };
+  if (payload.status !== COMPLETED_STATUS) {
+    payload.completedDate = null;
+  }
 
   const escapedTitle = payload.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const duplicate = await DesignTask.findOne({
@@ -83,7 +93,7 @@ const validatePayload = async (payload, excludeId = "") => {
     isDeleted: false,
   }).lean();
   if (duplicate && String(duplicate._id) !== excludeId) {
-    return { status: 409, message: "Công việc design đã tồn tại cho nhân sự này" };
+    return { status: 409, message: "CÃ´ng viá»‡c design Ä‘Ã£ tá»“n táº¡i cho nhÃ¢n sá»± nÃ y" };
   }
 
   return null;
@@ -102,7 +112,7 @@ const toResponseItem = (doc) => ({
   convert: Number(doc.convert || 0),
   bonusPoint: Number(doc.bonusPoint || 0),
   totalPoint: Number((Number(doc.convert || 0) + Number(doc.bonusPoint || 0)).toFixed(3)),
-  status: doc.status,
+  status: normalizeStatus(doc.status),
   handoverDate: doc.handoverDate ? new Date(doc.handoverDate).toISOString() : null,
   handoverDateLabel: doc.handoverDate ? formatDateTime(doc.handoverDate) : "",
   receiveDate: doc.receiveDate ? new Date(doc.receiveDate).toISOString() : null,
@@ -167,11 +177,11 @@ export const listDesignReferences = async (req, res) => {
       title: item.title || "",
       designType: item.designType || "",
       assignee: item.assignee || "",
-      status: item.status || "Mới tạo",
+      status: normalizeStatus(item.status),
       expectedDate: item.expectedDate ? new Date(item.expectedDate).toISOString() : null,
       expectedDateLabel: item.expectedDate ? formatDateTime(item.expectedDate) : "",
       label: `${item.title || "Design"} - ${item.designType || "N/A"} - ${item.assignee || "N/A"} - ${
-        item.status || "Mới tạo"
+        normalizeStatus(item.status)
       }`,
     })),
   });
@@ -179,7 +189,7 @@ export const listDesignReferences = async (req, res) => {
 
 export const getDesignTaskById = async (req, res) => {
   const item = await DesignTask.findById(req.params.id).lean();
-  if (!item || item.isDeleted) return res.status(404).json({ message: "Không tìm thấy công việc design" });
+  if (!item || item.isDeleted) return res.status(404).json({ message: "KhÃ´ng tÃ¬m tháº¥y cÃ´ng viá»‡c design" });
   return res.json({ designTask: toResponseItem(item) });
 };
 
@@ -195,14 +205,14 @@ export const createDesignTask = async (req, res) => {
   });
 
   return res.status(201).json({
-    message: "Đã thêm công việc design",
+    message: "ÄÃ£ thÃªm cÃ´ng viá»‡c design",
     designTask: toResponseItem(created),
   });
 };
 
 export const updateDesignTask = async (req, res) => {
   const existing = await DesignTask.findById(req.params.id);
-  if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy công việc design" });
+  if (!existing || existing.isDeleted) return res.status(404).json({ message: "KhÃ´ng tÃ¬m tháº¥y cÃ´ng viá»‡c design" });
 
   const normalizedInput = normalizePayload(req.body);
   const mergedPayload = {
@@ -248,17 +258,17 @@ export const updateDesignTask = async (req, res) => {
   await existing.save();
 
   return res.json({
-    message: "Đã cập nhật công việc design",
+    message: "ÄÃ£ cáº­p nháº­t cÃ´ng viá»‡c design",
     designTask: toResponseItem(existing),
   });
 };
 
 export const deleteDesignTask = async (req, res) => {
   const item = await DesignTask.findById(req.params.id);
-  if (!item || item.isDeleted) return res.status(404).json({ message: "Không tìm thấy công việc design" });
+  if (!item || item.isDeleted) return res.status(404).json({ message: "KhÃ´ng tÃ¬m tháº¥y cÃ´ng viá»‡c design" });
   item.isDeleted = true;
   await item.save();
-  return res.json({ message: "Đã xóa công việc design" });
+  return res.json({ message: "ÄÃ£ xÃ³a cÃ´ng viá»‡c design" });
 };
 
 export const deleteDesignTasks = async (req, res) => {
@@ -269,7 +279,8 @@ export const deleteDesignTasks = async (req, res) => {
   const result = await DesignTask.updateMany(filters, { isDeleted: true });
 
   return res.json({
-    message: ids.length > 0 ? "Đã xóa các công việc design đã chọn" : "Đã xóa toàn bộ công việc design",
+    message: ids.length > 0 ? "ÄÃ£ xÃ³a cÃ¡c cÃ´ng viá»‡c design Ä‘Ã£ chá»n" : "ÄÃ£ xÃ³a toÃ n bá»™ cÃ´ng viá»‡c design",
     deletedCount: result.modifiedCount || 0,
   });
 };
+

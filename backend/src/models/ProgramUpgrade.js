@@ -52,7 +52,7 @@ const programUpgradeSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Mới tạo", "Đang xử lý", "Hoàn thành", "Tạm dừng"],
+      enum: ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"],
       index: true,
     },
     assignee: {

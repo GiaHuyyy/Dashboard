@@ -10,7 +10,7 @@ import { ImageLightbox } from "@/components/program-form/ImageLightbox";
 import { ImageUpload } from "@/components/program-form/ImageUpload";
 import FormField from "@/components/ui/form-field";
 import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
-import { MAIL_STATUS_OPTIONS, STATUS_OPTIONS } from "@/constants/program";
+import { MAIL_STATUS_OPTIONS } from "@/constants/program";
 import { businessContractApi, staffApi } from "@/lib/api-client";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { uploadApi } from "@/lib/upload";
@@ -20,16 +20,9 @@ const schema = z.object({
   contractName: z.string().trim().min(1, "Vui lòng nhập tên hợp đồng"),
   customerName: z.string().trim().min(1, "Vui lòng nhập tên khách hàng"),
   customerPhone: z.string().optional(),
-  customerEmail: z
-    .string()
-    .trim()
-    .optional()
-    .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Email khách hàng không hợp lệ"),
-  status: z.enum(STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái hợp lệ" }),
+  customerEmail: z.string().trim().email("Email khách hàng không hợp lệ"),
   mailStatus: z.enum(MAIL_STATUS_OPTIONS, { message: "Vui lòng chọn mail nhận hợp lệ" }),
   selectedSalesStaff: z.string().trim().min(1, "Vui lòng chọn nhân viên kinh doanh"),
-  salesReceiverName: z.string().trim().min(1, "Vui lòng nhập tên người nhận"),
-  salesReceiverEmail: z.string().trim().email("Email nhận không hợp lệ"),
   ccEmails: z
     .string()
     .optional()
@@ -53,11 +46,8 @@ const defaultValues = {
   customerName: "",
   customerPhone: "",
   customerEmail: "",
-  status: STATUS_OPTIONS[0],
   mailStatus: MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: "",
-  salesReceiverName: "",
-  salesReceiverEmail: "",
   ccEmails: "",
   handoverStatus: HANDOVER_STATUS_OPTIONS[0],
   handoverAt: "",
@@ -80,11 +70,8 @@ const mapDetailToForm = (contract) => ({
   customerName: contract.customerName || "",
   customerPhone: contract.customerPhone || "",
   customerEmail: contract.customerEmail || "",
-  status: contract.status || STATUS_OPTIONS[0],
   mailStatus: contract.mailStatus || MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: contract.selectedSalesStaff || "",
-  salesReceiverName: contract.salesReceiverName || "",
-  salesReceiverEmail: contract.salesReceiverEmail || "",
   ccEmails: Array.isArray(contract.ccEmails) ? contract.ccEmails.join(", ") : "",
   handoverStatus: contract.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
   handoverAt: toDateTimeLocal(contract.handoverAt),
@@ -93,9 +80,7 @@ const mapDetailToForm = (contract) => ({
 });
 
 const mapImages = (images = []) =>
-  Array.isArray(images)
-    ? images.map((url) => ({ kind: "url", url })).filter((item) => item.url)
-    : [];
+  Array.isArray(images) ? images.map((url) => ({ kind: "url", url })).filter((item) => item.url) : [];
 
 function BusinessForm() {
   const navigate = useNavigate();
@@ -250,6 +235,7 @@ function BusinessForm() {
             .filter(Boolean)
         : [],
       handoverAt: values.handoverStatus === "Đã bàn giao" ? values.handoverAt || null : null,
+      sendMail: mode === "save-mail",
     };
 
     try {
@@ -291,7 +277,7 @@ function BusinessForm() {
       <FormActions
         onSave={() => void handleSubmit((values) => persist(values, "save"))()}
         onSaveStay={() => void handleSubmit((values) => persist(values, "save-stay"))()}
-        onSaveMail={() => null}
+        onSaveMail={() => void handleSubmit((values) => persist(values, "save-mail"))()}
         onReset={() => {
           contractImages.forEach((item) => {
             if (item.kind === "file" && item.previewUrl) {
@@ -305,25 +291,41 @@ function BusinessForm() {
         isUploading={isUploadingImages}
         isEditMode={isEditMode}
         exitPath="/kinh-doanh/danh-sach"
-        showSaveMail={false}
+        showSaveMail
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Thông tin hợp đồng kinh doanh
-        </div>
+        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Thông tin hợp đồng kinh doanh</div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
-          <FormField label="Số hợp đồng" type="text"  inputProps={{ ...register("contractCode"), placeholder: "1234567QW" }} error={errors.contractCode?.message} />
-          <FormField label="Tên hợp đồng" type="text" inputProps={{ ...register("contractName"), placeholder: "Website" }} error={errors.contractName?.message} />
-          <FormField label="Tên khách hàng" type="text" inputProps={{ ...register("customerName"), placeholder: "Nguyen Van A" }} error={errors.customerName?.message} />
-          <FormField label="Số điện thoại khách hàng" type="text" inputProps={{ ...register("customerPhone"), placeholder: "+84" }} error={errors.customerPhone?.message} />
-          <FormField label="Email khách hàng" type="text" inputProps={{ ...register("customerEmail"), placeholder: "nguyenvana@email.com" }} error={errors.customerEmail?.message} />
           <FormField
-            label="Trạng thái"
-            type="select"
-            options={STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
-            selectProps={register("status")}
-            error={errors.status?.message}
+            label="Số hợp đồng"
+            type="text"
+            inputProps={{ ...register("contractCode"), placeholder: "1234567QW" }}
+            error={errors.contractCode?.message}
+          />
+          <FormField
+            label="Tên hợp đồng"
+            type="text"
+            inputProps={{ ...register("contractName"), placeholder: "Website" }}
+            error={errors.contractName?.message}
+          />
+          <FormField
+            label="Tên khách hàng"
+            type="text"
+            inputProps={{ ...register("customerName"), placeholder: "Nguyen Van A" }}
+            error={errors.customerName?.message}
+          />
+          <FormField
+            label="Số điện thoại khách hàng"
+            type="text"
+            inputProps={{ ...register("customerPhone"), placeholder: "+84" }}
+            error={errors.customerPhone?.message}
+          />
+          <FormField
+            label="Email khách hàng"
+            type="text"
+            inputProps={{ ...register("customerEmail"), placeholder: "nguyenvana@email.com" }}
+            error={errors.customerEmail?.message}
           />
 
           <div>
@@ -346,9 +348,12 @@ function BusinessForm() {
             selectProps={{ ...register("selectedSalesStaff"), disabled: salesOptions.length === 0 }}
             error={errors.selectedSalesStaff?.message}
           />
-          <FormField label="Tên người nhận mail" type="text" inputProps={{ ...register("salesReceiverName") }} error={errors.salesReceiverName?.message} />
-          <FormField label="Email người nhận mail" type="text" inputProps={{ ...register("salesReceiverEmail") }} error={errors.salesReceiverEmail?.message} />
-          <FormField label="Danh sách email cc" type="text" inputProps={{ ...register("ccEmails"), placeholder: "email1@x.com, email2@x.com" }} error={errors.ccEmails?.message} />
+          <FormField
+            label="Danh sách email cc"
+            type="text"
+            inputProps={{ ...register("ccEmails"), placeholder: "email1@x.com, email2@x.com" }}
+            error={errors.ccEmails?.message}
+          />
           <FormField
             label="Trạng thái bàn giao"
             type="select"

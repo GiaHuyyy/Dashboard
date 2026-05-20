@@ -8,7 +8,9 @@ export const MODULE_OPTIONS = [
 
 export const DURATION_UNIT_OPTIONS = ["h", "ngày"];
 
-export const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
+export const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý"];
+export const COMPLETED_STATUS = "Đã hoàn thành";
+export const STATUS_OPTIONS_WITH_COMPLETED = [...STATUS_OPTIONS, COMPLETED_STATUS];
 
 export const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
 

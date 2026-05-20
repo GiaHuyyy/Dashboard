@@ -4,7 +4,14 @@ import Program from "../models/Program.js";
 import ProgramCorrection from "../models/ProgramCorrection.js";
 
 const PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao", "Khẩn"];
-const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đã nhận", "Đang xử lý", "Hoàn thành"];
+const STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"];
+const COMPLETED_STATUS = "Đã hoàn thành";
+const normalizeStatus = (value) => {
+  const normalized = normalizeString(value);
+  if (normalized === "Hoàn thành") return COMPLETED_STATUS;
+  if (normalized === "Đã nhận") return "Đã phân công";
+  return STATUS_OPTIONS.includes(normalized) ? normalized : STATUS_OPTIONS[0];
+};
 const DURATION_UNITS = ["h", "ngày"];
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
@@ -78,7 +85,7 @@ const normalizePayload = (body = {}) => ({
   receivedAt: normalizeDate(body.receivedAt),
   dueAt: normalizeDate(body.dueAt),
   completedAt: normalizeDate(body.completedAt),
-  status: normalizeString(body.status),
+  status: normalizeStatus(body.status),
   visible: normalizeBoolean(body.visible),
   note: normalizeString(body.note),
 });
@@ -164,7 +171,7 @@ const toResponseItem = (doc) => ({
   time: doc.time || "",
   convert: doc.convert || "",
   bonusPoint: doc.bonusPoint || 0,
-  status: doc.status,
+  status: normalizeStatus(doc.status),
   assigner: doc.assigner,
   assignee: doc.assignee,
   assignedAt: toIsoString(doc.assignedAt),
@@ -178,8 +185,7 @@ const toResponseItem = (doc) => ({
 
 export const createProgramCorrection = async (req, res) => {
   const payload = normalizePayload(req.body);
-  const normalizedPayload =
-    payload.status === STATUS_OPTIONS[4] ? payload : { ...payload, completedAt: null };
+  const normalizedPayload = payload.status === COMPLETED_STATUS ? payload : { ...payload, completedAt: null };
 
   const validationResult = await validatePayload(normalizedPayload);
   if (validationResult.status) {
@@ -299,7 +305,7 @@ export const updateProgramCorrection = async (req, res) => {
     visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
-  if (mergedPayload.status !== STATUS_OPTIONS[4]) {
+  if (mergedPayload.status !== COMPLETED_STATUS) {
     mergedPayload.completedAt = null;
   }
 
