@@ -188,23 +188,30 @@ function ProgramUpgradeForm() {
     const fetchSources = async () => {
       setIsLoadingSources(true);
       try {
+        const staffResponse = await staffApi.references();
         const [programResponse, businessResponse] = await Promise.all([
           programApi.references(),
           businessContractApi.references(),
         ]);
+        const staffList = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
         const contracts = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
         setProgramReferences(programs);
         setBusinessContractReferences(contracts);
+        setStaffReferences(staffList);
         if (!isEditMode) {
           const selected = contracts[0];
           const linkedProgram = getProgramByBusinessContractId(programs, selected?.id);
+          const managerOptions = getStaffNamesByRole(staffList, "Quản lý");
+          const programmerOptions = getStaffNamesByRole(staffList, "Lập trình viên");
           const nextDefaults = {
             ...defaultValues,
             businessContractId: selected?.id || "",
             durationValue: linkedProgram?.durationValue || defaultValues.durationValue,
             durationUnit: linkedProgram?.durationUnit || defaultValues.durationUnit,
             convert: linkedProgram?.convert || defaultValues.convert,
+            assigner: managerOptions[0] || defaultValues.assigner,
+            assignee: programmerOptions[0] || defaultValues.assignee,
           };
           reset(nextDefaults);
           setInitialSnapshot(nextDefaults);
