@@ -14,7 +14,7 @@ export function ProgramInfo({
       <p className="text-md font-semibold text-slate-700">Thông tin lập trình</p>
 
       <FormField
-        label="Chọn hợp đồng"
+        label="Phiếu gốc (HĐ)"
         type="select"
         options={contractOptions.length > 0 ? contractOptions : [{ label: "Chưa có hợp đồng", value: "" }]}
         selectProps={{ ...register("businessContractId"), disabled: contractOptions.length === 0 }}
