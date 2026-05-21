@@ -142,6 +142,7 @@ function SystemCategoryManagement() {
       const response = await systemCategoryApi.update(row.id, { isActive: nextValue });
       const updated = response?.category || row;
       setRows((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...updated } : item)));
+      toast.success(`Đã ${nextValue ? "bật" : "tắt"} danh mục "${updated.name}"`);
     } catch (error) {
       toast.error(error?.message || "Không thể cập nhật trạng thái");
     }

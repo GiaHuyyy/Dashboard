@@ -163,7 +163,11 @@ function ListProgram() {
       };
 
       await programApi.update(row.id, payload);
-      await fetchPrograms();
+      setPrograms((prev) =>
+        prev.map((item) =>
+          item.id === row.id ? { ...item, ...patch } : item
+        )
+      );
       toast.success("Đã cập nhật trạng thái");
     } catch (error) {
       toast.error(error?.message || "Cập nhật trạng thái không thành công");
