@@ -300,6 +300,16 @@ export const systemCategoryApi = {
     }),
 };
 
+
+export const mailConfigurationApi = {
+  detail: () => request("/mail-configuration"),
+  update: (payload) =>
+    request("/mail-configuration", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+};
+
 export const hostPriceApi = {
   list: ({ search = "" } = {}) => {
     const searchParams = new URLSearchParams();

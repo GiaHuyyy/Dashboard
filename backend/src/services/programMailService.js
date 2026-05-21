@@ -1,20 +1,4 @@
-import nodemailer from "nodemailer";
-
-const getMailConfig = () => {
-  const host = process.env.MAIL_HOST || "";
-  const port = Number(process.env.MAIL_PORT || 587);
-  const user = process.env.MAIL_USER || "";
-  const pass = process.env.MAIL_PASS || "";
-  const from = process.env.MAIL_FROM || user;
-
-  return {
-    host,
-    port,
-    secure: port === 465,
-    auth: user && pass ? { user, pass } : null,
-    from,
-  };
-};
+import { sendConfiguredMail } from "./mailConfigurationService.js";
 
 const buildHtml = ({ program, actionLabel }) => {
   const ccEmails = Array.isArray(program.ccEmails) ? program.ccEmails.join(", ") : "";
@@ -72,20 +56,7 @@ const buildHtml = ({ program, actionLabel }) => {
 };
 
 export const sendProgramMail = async ({ program, actionLabel }) => {
-  const config = getMailConfig();
-  if (!config.host || !config.auth || !config.from) {
-    throw new Error("Thiếu cấu hình MAIL_HOST, MAIL_PORT, MAIL_USER, MAIL_PASS hoặc MAIL_FROM");
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: config.auth,
-  });
-
-  await transporter.sendMail({
-    from: config.from,
+  return sendConfiguredMail({
     to: program.salesReceiverEmail,
     cc: Array.isArray(program.ccEmails) && program.ccEmails.length > 0 ? program.ccEmails : undefined,
     subject: `[Dashboard] ${actionLabel} lập trình - ${program.contractCode || "N/A"}`,

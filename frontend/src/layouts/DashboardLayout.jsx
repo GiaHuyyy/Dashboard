@@ -106,6 +106,11 @@ const navItems = [
         path: "/cau-hinh/danh-muc-he-thong",
         activePathPrefixes: ["/cau-hinh/danh-muc-he-thong"],
       },
+      {
+        label: "Cấu hình mail",
+        path: "/cau-hinh/mail",
+        activePathPrefixes: ["/cau-hinh/mail"],
+      },
     ],
   },
   { label: "Biểu mẫu", path: "/bieu-mau", icon: FileText },

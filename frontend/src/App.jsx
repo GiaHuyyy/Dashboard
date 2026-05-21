@@ -35,6 +35,7 @@ import SourceForm from "./pages/system/SourceForm";
 import SourceManagement from "./pages/system/SourceManagement";
 import ServerManagement from "./pages/system/ServerManagement";
 import SystemCategoryManagement from "./pages/config/SystemCategoryManagement";
+import MailConfigurationManagement from "./pages/config/MailConfigurationManagement";
 import BusinessManagement from "./pages/business/BusinessManagement";
 import BusinessForm from "./pages/business/BusinessForm";
 import Login from "./pages/auth/Login";
@@ -183,6 +184,7 @@ function App() {
           <Route path="kinh-doanh/chinh-sua/:id" element={<BusinessForm />} />
           <Route path="cau-hinh" element={<Navigate to="/cau-hinh/danh-muc-he-thong" replace />} />
           <Route path="cau-hinh/danh-muc-he-thong" element={<SystemCategoryManagement />} />
+          <Route path="cau-hinh/mail" element={<MailConfigurationManagement />} />
           <Route path="bieu-mau" element={<Placeholder title="Biểu mẫu" />} />
         </Route>
         <Route path="*" element={<Navigate to="/home" replace />} />
