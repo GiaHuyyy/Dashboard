@@ -9,9 +9,46 @@ import PackagePrice from "../models/PackagePrice.js";
 import AdministrationPrice from "../models/AdministrationPrice.js";
 import AdvertisingPrice from "../models/AdvertisingPrice.js";
 import { sendProgramSourceMail } from "../services/programSourceMailService.js";
+import { getSystemSettingValue } from "../services/systemSettingService.js";
 
 const SEND_STATUS_OPTIONS = ["Chưa gửi", "Đã gửi"];
 const DOWNLOAD_STATUS_OPTIONS = ["Chưa tải", "Đã tải"];
+
+const SOURCE_SETTING_KEYS = {
+  allowSendExpiredSource: "source.allowSendExpiredSource",
+  autoMarkSentAfterMailSuccess: "source.autoMarkSentAfterMailSuccess",
+  autoSetDownloadedAt: "source.autoSetDownloadedAt",
+};
+
+const getSourceSettings = async () => ({
+  allowSendExpiredSource: (await getSystemSettingValue(SOURCE_SETTING_KEYS.allowSendExpiredSource)) !== false,
+  autoMarkSentAfterMailSuccess: (await getSystemSettingValue(SOURCE_SETTING_KEYS.autoMarkSentAfterMailSuccess)) !== false,
+  autoSetDownloadedAt: (await getSystemSettingValue(SOURCE_SETTING_KEYS.autoSetDownloadedAt)) !== false,
+});
+
+const isExpiredDate = (value) => {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getTime() < Date.now();
+};
+
+const validateCanSendSourceMail = (expiresAt, settings) => {
+  if (settings.allowSendExpiredSource) return null;
+  if (!isExpiredDate(expiresAt)) return null;
+
+  return {
+    status: 400,
+    message: "Link source đã hết hạn hiệu lực, vui lòng cập nhật hạn hiệu lực link trước khi gửi mail",
+  };
+};
+
+const applyMailSuccessState = (source, settings) => {
+  source.sentAt = new Date();
+  if (settings.autoMarkSentAfterMailSuccess) {
+    source.sendStatus = "Đã gửi";
+  }
+};
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -124,7 +161,7 @@ const normalizePayload = (body = {}) => ({
   note: normalizeString(body.note),
 });
 
-const validatePayload = async (payload) => {
+const validatePayload = async (payload, settings = { autoSetDownloadedAt: true }) => {
   if (!payload.programId) {
     return { status: 400, message: "programId là bắt buộc" };
   }
@@ -181,7 +218,8 @@ const validatePayload = async (payload) => {
     return { status: 400, message: "visible phải là kiểu boolean" };
   }
 
-  const normalizedDownloadedAt = payload.downloadStatus === "Đã tải" ? payload.downloadedAt || new Date() : null;
+  const normalizedDownloadedAt =
+    payload.downloadStatus === "Đã tải" ? (settings.autoSetDownloadedAt ? payload.downloadedAt || new Date() : payload.downloadedAt) : null;
 
   return { program, normalizedDownloadedAt };
 };
@@ -223,9 +261,17 @@ export const createProgramSource = async (req, res) => {
     visible: req.body.visible ?? true,
   });
 
-  const validationResult = await validatePayload(payload);
+  const sourceSettings = await getSourceSettings();
+  const validationResult = await validatePayload(payload, sourceSettings);
   if (validationResult.status) {
     return res.status(validationResult.status).json({ message: validationResult.message });
+  }
+
+  if (shouldSendMail) {
+    const sendValidation = validateCanSendSourceMail(payload.expiresAt, sourceSettings);
+    if (sendValidation) {
+      return res.status(sendValidation.status).json({ message: sendValidation.message });
+    }
   }
 
   const created = await ProgramSource.create({
@@ -243,8 +289,7 @@ export const createProgramSource = async (req, res) => {
         priceReferences,
         actionLabel: "Lưu gửi mail",
       });
-      created.sentAt = new Date();
-      created.sendStatus = "Đã gửi";
+      applyMailSuccessState(created, sourceSettings);
       await created.save();
     } catch (error) {
       return res.status(500).json({
@@ -359,7 +404,8 @@ export const updateProgramSource = async (req, res) => {
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
 
-  const validationResult = await validatePayload(mergedPayload);
+  const sourceSettings = await getSourceSettings();
+  const validationResult = await validatePayload(mergedPayload, sourceSettings);
   if (validationResult.status) {
     return res.status(validationResult.status).json({ message: validationResult.message });
   }
@@ -383,6 +429,11 @@ export const updateProgramSource = async (req, res) => {
   await existing.save();
 
   if (shouldSendMail) {
+    const sendValidation = validateCanSendSourceMail(existing.expiresAt, sourceSettings);
+    if (sendValidation) {
+      return res.status(sendValidation.status).json({ message: sendValidation.message });
+    }
+
     try {
       const priceReferences = await fetchPriceReferences(existing);
       await sendProgramSourceMail({
@@ -391,8 +442,7 @@ export const updateProgramSource = async (req, res) => {
         priceReferences,
         actionLabel: "Cập nhật gửi mail",
       });
-      existing.sendStatus = "Đã gửi";
-      existing.sentAt = new Date();
+      applyMailSuccessState(existing, sourceSettings);
       await existing.save();
     } catch (error) {
       return res.status(500).json({
@@ -421,6 +471,12 @@ export const sendProgramSourceMailById = async (req, res) => {
   }
 
   const program = source.programId;
+  const sourceSettings = await getSourceSettings();
+  const sendValidation = validateCanSendSourceMail(source.expiresAt, sourceSettings);
+  if (sendValidation) {
+    return res.status(sendValidation.status).json({ message: sendValidation.message });
+  }
+
   try {
     const priceReferences = await fetchPriceReferences(source);
     await sendProgramSourceMail({
@@ -433,8 +489,7 @@ export const sendProgramSourceMailById = async (req, res) => {
     return res.status(500).json({ message: error?.message || "Gửi mail thất bại" });
   }
 
-  source.sendStatus = "Đã gửi";
-  source.sentAt = new Date();
+  applyMailSuccessState(source, sourceSettings);
   await source.save();
 
   const populated = await ProgramSource.findById(source._id)

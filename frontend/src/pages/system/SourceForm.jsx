@@ -17,20 +17,21 @@ import {
   programApi,
   sourceApi,
   sslPriceApi,
+  systemSettingApi,
 } from "@/lib/api-client";
 
 const schema = z.object({
   programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc (HĐ)"),
   domain: z.string().trim().min(1, "Vui lòng chọn Domain"),
   sourceLink: z.string().trim().url("Link source không hợp lệ"),
-  expiresAt: z.string().trim().min(1, "Vui lòng chọn ngày hết hạn tải"),
+  expiresAt: z.string().trim().min(1, "Vui lòng chọn hạn hiệu lực link"),
   hostPriceId: z.string().optional(),
   sslPriceId: z.string().optional(),
   packagePriceId: z.string().optional(),
   administrationPriceId: z.string().optional(),
   advertisingPriceId: z.string().optional(),
   sendStatus: z.enum(SOURCE_SEND_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái gửi" }),
-  downloadStatus: z.enum(SOURCE_DOWNLOAD_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái tải" }),
+  downloadStatus: z.enum(SOURCE_DOWNLOAD_STATUS_OPTIONS, { message: "Vui lòng chọn xác nhận tải" }),
   downloadedAt: z.string().optional(),
   downloadCount: z.coerce.number().int("Số lượt tải phải là số nguyên").gte(0, "Số lượt tải không hợp lệ"),
   visible: z.boolean(),
@@ -62,6 +63,24 @@ const toDateTimeLocal = (value) => {
   const offset = date.getTimezoneOffset();
   const localDate = new Date(date.getTime() - offset * 60000);
   return localDate.toISOString().slice(0, 16);
+};
+
+const getSystemSettings = (response) => response?.settings || response?.systemSettings || {};
+
+const getDefaultSourceExpiresAt = (settings) => {
+  const sourceSettings = settings?.source || {};
+  const rawValue = Number(sourceSettings.defaultExpireValue ?? 7);
+  const expireValue = Number.isFinite(rawValue) && rawValue >= 0 ? rawValue : 7;
+  const expireUnit = sourceSettings.defaultExpireUnit === "hour" ? "hour" : "day";
+
+  const date = new Date();
+  if (expireUnit === "hour") {
+    date.setHours(date.getHours() + expireValue);
+  } else {
+    date.setDate(date.getDate() + expireValue);
+  }
+
+  return toDateTimeLocal(date);
 };
 
 const formatCurrency = (value) => {
@@ -147,6 +166,7 @@ function SourceForm() {
           packageResponse,
           administrationResponse,
           advertisingResponse,
+          settingResponse,
         ] = await Promise.all([
           programApi.references(),
           domainPriceApi.list(),
@@ -155,6 +175,7 @@ function SourceForm() {
           packagePriceApi.list(),
           administrationPriceApi.list(),
           advertisingPriceApi.list(),
+          systemSettingApi.detail(),
         ]);
 
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
@@ -168,6 +189,7 @@ function SourceForm() {
         const advertisingPrices = Array.isArray(advertisingResponse?.advertisingPrices)
           ? advertisingResponse.advertisingPrices
           : [];
+        const systemSettings = getSystemSettings(settingResponse);
 
         setProgramReferences(programs);
         setDomainPriceReferences(domainPrices);
@@ -184,6 +206,7 @@ function SourceForm() {
             ...defaultValues,
             programId: first?.id || "",
             domain: firstDomain?.extension || "",
+            expiresAt: getDefaultSourceExpiresAt(systemSettings),
           };
           reset(nextDefault);
           setInitialSnapshot(nextDefault);
@@ -346,7 +369,7 @@ function SourceForm() {
             />
 
             <FormField
-              label="Ngày hết hạn tải"
+              label="Hạn hiệu lực link"
               type="datetime-local"
               inputProps={{ ...register("expiresAt") }}
               error={errors.expiresAt?.message}
@@ -372,7 +395,7 @@ function SourceForm() {
             <p className="text-md font-semibold text-slate-700">Theo dõi tải source</p>
 
             <FormField
-              label="Trạng thái tải"
+              label="Xác nhận tải"
               type="select"
               options={SOURCE_DOWNLOAD_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
               selectProps={register("downloadStatus")}
@@ -380,7 +403,7 @@ function SourceForm() {
             />
 
             <FormField
-              label="Ngày tải về"
+              label="Ngày xác nhận tải"
               type="datetime-local"
               inputProps={{
                 ...register("downloadedAt"),

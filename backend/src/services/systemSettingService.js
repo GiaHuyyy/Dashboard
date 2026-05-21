@@ -53,7 +53,6 @@ const SETTING_DEFINITIONS = [
     sortOrder: 50,
     note: "Khi chọn trạng thái đã tải, tự điền ngày xác nhận tải.",
   },
-
   {
     key: "time.workingHoursPerDay",
     group: SYSTEM_SETTING_GROUPS.time,
@@ -72,7 +71,6 @@ const SETTING_DEFINITIONS = [
     sortOrder: 120,
     note: "Ví dụ: 1h / 8h = 0.125 nên mặc định nên để 3.",
   },
-
   {
     key: "upload.maxUploadSizeMb",
     group: SYSTEM_SETTING_GROUPS.upload,
@@ -100,7 +98,6 @@ const SETTING_DEFINITIONS = [
     sortOrder: 230,
     note: "Danh sách đuôi file, cách nhau bởi dấu phẩy.",
   },
-
   {
     key: "sla.warningBeforeDeadlineHours",
     group: SYSTEM_SETTING_GROUPS.sla,
@@ -139,6 +136,8 @@ const SETTING_DEFINITIONS = [
   },
 ];
 
+const SETTING_KEYS = SETTING_DEFINITIONS.map((item) => item.key);
+
 const normalizeValueByType = (value, type, defaultValue) => {
   if (type === "number") {
     const parsed = Number(value);
@@ -167,13 +166,19 @@ const getDefinitionMap = () =>
     return map;
   }, new Map());
 
+const normalizeSettingsPayload = (settings = {}) => {
+  if (settings?.settings && typeof settings.settings === "object") {
+    return settings.settings;
+  }
+
+  return settings || {};
+};
+
 const buildDefaultSettingsObject = () =>
   SETTING_DEFINITIONS.reduce((result, definition) => {
     const [group, field] = definition.key.split(".");
-
     if (!result[group]) result[group] = {};
     result[group][field] = definition.defaultValue;
-
     return result;
   }, {});
 
@@ -194,7 +199,22 @@ const buildSettingsObjectFromRows = (rows = []) => {
   return settings;
 };
 
-const buildRowsFromDefinitions = async (userId = null) => {
+const getPayloadValueByDefinition = (settings, definition) => {
+  const [group, field] = definition.key.split(".");
+  const groupValue = settings?.[group];
+
+  if (!groupValue || typeof groupValue !== "object") {
+    return { exists: false, value: undefined };
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(groupValue, field)) {
+    return { exists: false, value: undefined };
+  }
+
+  return { exists: true, value: groupValue[field] };
+};
+
+const ensureDefaultRows = async (userId = null) => {
   const rows = [];
 
   for (const definition of SETTING_DEFINITIONS) {
@@ -253,35 +273,32 @@ const buildRowsFromDefinitions = async (userId = null) => {
 export const getSystemSettingDefinitions = () => SETTING_DEFINITIONS;
 
 export const getSystemSettingRows = async (userId = null) => {
-  await buildRowsFromDefinitions(userId);
+  await ensureDefaultRows(userId);
 
-  return SystemSetting.find({
-    key: { $in: SETTING_DEFINITIONS.map((item) => item.key) },
-  })
+  return SystemSetting.find({ key: { $in: SETTING_KEYS } })
     .sort({ sortOrder: 1, createdAt: 1 })
     .lean();
 };
 
 export const getSystemSettingsObject = async () => {
-  const rows = await SystemSetting.find({
-    key: { $in: SETTING_DEFINITIONS.map((item) => item.key) },
-  }).lean();
+  await ensureDefaultRows();
 
+  const rows = await SystemSetting.find({ key: { $in: SETTING_KEYS } }).lean();
   return buildSettingsObjectFromRows(rows);
 };
 
-export const updateSystemSettingsFromObject = async (settings = {}, userId = null) => {
+export const updateSystemSettingsFromObject = async (rawSettings = {}, userId = null) => {
+  const settings = normalizeSettingsPayload(rawSettings);
+  await ensureDefaultRows(userId);
+
   const operations = [];
 
   SETTING_DEFINITIONS.forEach((definition) => {
-    const [group, field] = definition.key.split(".");
-    const rawValue = settings?.[group]?.[field];
+    const payloadValue = getPayloadValueByDefinition(settings, definition);
 
-    const normalizedValue = normalizeValueByType(
-      rawValue === undefined ? definition.defaultValue : rawValue,
-      definition.type,
-      definition.defaultValue,
-    );
+    if (!payloadValue.exists) return;
+
+    const normalizedValue = normalizeValueByType(payloadValue.value, definition.type, definition.defaultValue);
 
     operations.push({
       updateOne: {

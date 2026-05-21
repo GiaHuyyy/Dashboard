@@ -312,11 +312,14 @@ export const mailConfigurationApi = {
 
 export const systemSettingApi = {
   detail: () => request("/system-settings"),
-  update: (payload) =>
-    request("/system-settings", {
+  update: (payload) => {
+    const body = payload && Object.prototype.hasOwnProperty.call(payload, "settings") ? payload : { settings: payload };
+
+    return request("/system-settings", {
       method: "PUT",
-      body: JSON.stringify({ settings: payload }),
-    }),
+      body: JSON.stringify(body),
+    });
+  },
 };
 
 export const hostPriceApi = {

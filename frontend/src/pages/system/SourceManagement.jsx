@@ -129,7 +129,7 @@ function SourceManagement() {
           value={selectedStatus}
           onChange={(event) => setSelectedStatus(event.target.value)}
         >
-          <option value="all">Trạng thái</option>
+          <option value="all">Trạng thái gửi</option>
           {SOURCE_SEND_STATUS_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -141,7 +141,7 @@ function SourceManagement() {
       <ManagementTableCard
         searchText={searchText}
         onSearchChange={setSearchText}
-        searchPlaceholder="Tìm số HĐ, module, link"
+        searchPlaceholder="Tìm số HĐ, module, link source"
       >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
@@ -177,16 +177,16 @@ function SourceManagement() {
                 Ngày gửi
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày hết hạn tải
+                Hạn hiệu lực link
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Trạng thái
+                Trạng thái gửi
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Trạng thái tải
+                Xác nhận tải
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày tải về
+                Ngày xác nhận tải
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Số lượt tải

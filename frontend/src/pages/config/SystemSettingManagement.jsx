@@ -1,4 +1,4 @@
-import { Clock3, RotateCcw, Save, Settings2, UploadCloud } from "lucide-react";
+import { Clock3, HelpCircle, RotateCcw, Save, Settings2, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -59,6 +59,27 @@ const defaultValues = {
   },
 };
 
+const mergeSettingsWithDefault = (settings = {}) => ({
+  ...defaultValues,
+  ...settings,
+  source: {
+    ...defaultValues.source,
+    ...(settings.source || {}),
+  },
+  time: {
+    ...defaultValues.time,
+    ...(settings.time || {}),
+  },
+  upload: {
+    ...defaultValues.upload,
+    ...(settings.upload || {}),
+  },
+  sla: {
+    ...defaultValues.sla,
+    ...(settings.sla || {}),
+  },
+});
+
 const formatConvertPreview = (hours, workingHoursPerDay, roundingDigits) => {
   const parsedHours = Number(hours);
   const parsedWorkingHours = Number(workingHoursPerDay);
@@ -66,11 +87,15 @@ const formatConvertPreview = (hours, workingHoursPerDay, roundingDigits) => {
 
   if (!Number.isFinite(parsedHours) || !Number.isFinite(parsedWorkingHours) || parsedWorkingHours <= 0) return "-";
 
-  return Number((parsedHours / parsedWorkingHours).toFixed(Number.isFinite(parsedDigits) ? parsedDigits : 3)).toString();
+  return Number(
+    (parsedHours / parsedWorkingHours).toFixed(Number.isFinite(parsedDigits) ? parsedDigits : 3),
+  ).toString();
 };
 
 function SystemSettingManagement() {
   const [isLoading, setIsLoading] = useState(true);
+  const [showSourceHint, setShowSourceHint] = useState(false);
+  const [showConvertHint, setShowConvertHint] = useState(false);
 
   const {
     register,
@@ -103,26 +128,7 @@ function SystemSettingManagement() {
     setIsLoading(true);
     try {
       const response = await systemSettingApi.detail();
-      reset({
-        ...defaultValues,
-        ...(response?.systemSettings || {}),
-        source: {
-          ...defaultValues.source,
-          ...(response?.systemSettings?.source || {}),
-        },
-        time: {
-          ...defaultValues.time,
-          ...(response?.systemSettings?.time || {}),
-        },
-        upload: {
-          ...defaultValues.upload,
-          ...(response?.systemSettings?.upload || {}),
-        },
-        sla: {
-          ...defaultValues.sla,
-          ...(response?.systemSettings?.sla || {}),
-        },
-      });
+      reset(mergeSettingsWithDefault(response?.settings || {}));
     } catch (error) {
       toast.error(error?.message || "Không thể tải cấu hình SLA/tham số");
     } finally {
@@ -134,13 +140,18 @@ function SystemSettingManagement() {
     void fetchSettings();
   }, [fetchSettings]);
 
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
+        Đang tải cấu hình SLA/tham số...
+      </div>
+    );
+  }
+
   const onSubmit = async (values) => {
     try {
-      const response = await systemSettingApi.update(values);
-      reset({
-        ...defaultValues,
-        ...(response?.systemSettings || values),
-      });
+      const response = await systemSettingApi.update({ settings: values });
+      reset(mergeSettingsWithDefault(response?.settings || values));
       toast.success(response?.message || "Đã lưu cấu hình SLA/tham số");
     } catch (error) {
       toast.error(error?.message || "Không thể lưu cấu hình SLA/tham số");
@@ -187,7 +198,7 @@ function SystemSettingManagement() {
               Giới hạn upload
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              Tối đa: <span className="font-semibold text-slate-700">{maxUploadSizeMb || 0} MB</span>
+              Tối đa: <span className="font-semibold text-slate-700">{`${maxUploadSizeMb || 0} MB`}</span>
             </p>
           </div>
         </div>
@@ -195,8 +206,16 @@ function SystemSettingManagement() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-          <div className="rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
             <h2 className="text-base font-semibold text-gray-500">Cấu hình source</h2>
+            <button
+              type="button"
+              onClick={() => setShowSourceHint((prev) => !prev)}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-sky-700 hover:bg-sky-50"
+            >
+              <HelpCircle className="h-4 w-4" />
+              {showSourceHint ? "Ẩn gợi ý" : "Gợi ý"}
+            </button>
           </div>
           <div className="grid gap-4 border-x border-b border-slate-200 p-4 md:grid-cols-2">
             <FormField
@@ -215,7 +234,11 @@ function SystemSettingManagement() {
                 <option value="day">Ngày</option>
               </select>
             </div>
-            <FormField label="Cho phép gửi source đã quá hạn" type="checkbox" inputProps={register("source.allowSendExpiredSource")} />
+            <FormField
+              label="Cho phép gửi source đã quá hạn"
+              type="checkbox"
+              inputProps={register("source.allowSendExpiredSource")}
+            />
             <FormField
               label="Tự cập nhật trạng thái gửi khi gửi mail thành công"
               type="checkbox"
@@ -226,12 +249,28 @@ function SystemSettingManagement() {
               type="checkbox"
               inputProps={register("source.autoSetDownloadedAt")}
             />
+            {showSourceHint ? (
+              <div className="md:col-span-2 rounded-lg border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">
+                <span className="font-semibold">Gợi ý:</span> Hạn tải source mặc định dùng để tự điền hạn hiệu lực link
+                khi tạo source mới. Nếu tắt cho phép gửi source đã quá hạn, hệ thống sẽ chặn gửi mail khi link đã hết
+                hạn. Hai tùy chọn tự cập nhật giúp hệ thống tự đổi trạng thái gửi sau khi gửi mail thành công và tự điền
+                ngày xác nhận tải khi chọn đã tải.
+              </div>
+            ) : null}
           </div>
         </div>
 
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-          <div className="rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
             <h2 className="text-base font-semibold text-gray-500">Quy đổi điểm/ngày công</h2>
+            <button
+              type="button"
+              onClick={() => setShowConvertHint((prev) => !prev)}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-sky-700 hover:bg-sky-50"
+            >
+              <HelpCircle className="h-4 w-4" />
+              {showConvertHint ? "Ẩn công thức" : "Công thức"}
+            </button>
           </div>
           <div className="grid gap-4 border-x border-b border-slate-200 p-4 md:grid-cols-2">
             <FormField
@@ -246,11 +285,13 @@ function SystemSettingManagement() {
               inputProps={register("time.roundingDigits", { valueAsNumber: true })}
               error={errors.time?.roundingDigits?.message}
             />
-            <div className="md:col-span-2 rounded-lg border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">
-              Công thức: <span className="font-semibold">Giá trị quy đổi = Số giờ thực hiện / Số giờ tương đương 1 ngày công</span>.
-              Ví dụ nếu 1 ngày công = {workingHoursPerDay || 8} giờ thì 1 giờ = {oneHourPreview}, 8 giờ ={" "}
-              {formatConvertPreview(8, workingHoursPerDay, roundingDigits)}.
-            </div>
+            {showConvertHint ? (
+              <div className="md:col-span-2 rounded-lg border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">
+                <span className="font-semibold">Công thức:</span> Giá trị quy đổi = Số giờ thực hiện / Số giờ tương
+                đương 1 ngày công. Ví dụ nếu 1 ngày công = {workingHoursPerDay || 8} giờ thì 1 giờ = {oneHourPreview}, 8
+                giờ = {formatConvertPreview(8, workingHoursPerDay, roundingDigits)}.
+              </div>
+            ) : null}
           </div>
         </div>
 
