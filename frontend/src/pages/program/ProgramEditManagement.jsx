@@ -5,7 +5,10 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
+import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
 import { CORRECTION_COMPLETED_STATUS } from "@/constants/program-correction";
+import { useRowSelection } from "@/hooks/useRowSelection";
 import { correctionApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
@@ -13,12 +16,6 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const PRIORITY_COLORS = {
-  Thấp: "text-slate-600",
-  "Trung bình": "text-sky-700",
-  Cao: "text-amber-700",
-  Khẩn: "text-rose-700",
-};
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
@@ -42,7 +39,6 @@ function ProgramEditManagement() {
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [selectedYear, setSelectedYear] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
   const [staffReferences, setStaffReferences] = useState([]);
@@ -66,7 +62,6 @@ function ProgramEditManagement() {
       });
       const nextRows = Array.isArray(response?.corrections) ? response.corrections : [];
       setRows(nextRows);
-      setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
     } catch (error) {
       toast.error(error?.message || "Không thể tải danh sách chỉnh sửa");
     } finally {
@@ -95,8 +90,15 @@ function ProgramEditManagement() {
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
 
   const displayedRows = rows;
-  const displayedIds = displayedRows.map((item) => item.id);
-  const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
+  const displayedIds = useMemo(() => displayedRows.map((item) => item.id), [displayedRows]);
+  const {
+    selectedIds,
+    isAllSelected: isAllFilteredSelected,
+    toggleAll: handleToggleAll,
+    toggleRow: handleToggleRow,
+    clearSelection,
+    setSelectedIds,
+  } = useRowSelection(displayedIds);
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
 
   const openCreateForm = () => {
@@ -107,13 +109,10 @@ function ProgramEditManagement() {
     navigate(`/lap-trinh/quan-ly-chinh-sua/chinh-sua/${row.id}`);
   };
 
-  const handleInlineUpdate = async (rowId, patch) => {
-    const target = rows.find((item) => item.id === rowId);
-    if (!target) return;
-    if (target.status === CORRECTION_COMPLETED_STATUS) {
-      toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
-      return;
-    }
+  const handleInlineUpdate = async (rowId, patch, successMessage) => {
+  const target = rows.find((item) => item.id === rowId);
+  if (!target) return;
+
     const payload = {
       programId: target.programId,
       issueContent: target.issueContent,
@@ -135,30 +134,38 @@ function ProgramEditManagement() {
     };
 
     try {
-      const response = await correctionApi.update(rowId, payload);
-      const updated = response?.correction;
-      if (!updated) return;
-      setRows((prev) => prev.map((item) => (item.id === rowId ? updated : item)));
-    } catch (error) {
-      toast.error(error?.message || "Cập nhật không thành công");
-    }
-  };
+    const response = await correctionApi.update(rowId, payload);
+    const updated = response?.correction;
+    if (!updated) return;
+
+    setRows((prev) => prev.map((item) => (item.id === rowId ? updated : item)));
+    toast.success(successMessage || "Đã cập nhật");
+  } catch (error) {
+    toast.error(error?.message || "Cập nhật không thành công");
+  }
+};
 
   const handleStatusChange = (row, nextStatus) => {
-    if (row.status === CORRECTION_COMPLETED_STATUS) {
-      toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
-      return;
-    }
-    void handleInlineUpdate(row.id, { status: nextStatus });
-  };
+  if (nextStatus === row.status) return;
 
-  const handlePriorityChange = (row, nextPriority) => {
-    if (row.status === CORRECTION_COMPLETED_STATUS) {
-      toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
-      return;
-    }
-    void handleInlineUpdate(row.id, { priority: nextPriority });
-  };
+  if (row.status === CORRECTION_COMPLETED_STATUS) {
+    toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
+    return;
+  }
+
+  void handleInlineUpdate(row.id, { status: nextStatus }, "Đã cập nhật trạng thái");
+};
+
+const handlePriorityChange = (row, nextPriority) => {
+  if (nextPriority === row.priority) return;
+
+  if (row.status === CORRECTION_COMPLETED_STATUS) {
+    toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
+    return;
+  }
+
+  void handleInlineUpdate(row.id, { priority: nextPriority }, "Đã cập nhật mức ưu tiên");
+};
 
   const handleDeleteOne = async (rowId) => {
     try {
@@ -176,7 +183,7 @@ function ProgramEditManagement() {
       if (selectedIds.length > 0) {
         const response = await correctionApi.removeMany(selectedIds);
         setRows((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
+        clearSelection();
         toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} yêu cầu chỉnh sửa`);
       } else {
         const response = await correctionApi.removeMany([]);
@@ -189,24 +196,6 @@ function ProgramEditManagement() {
       setDeleteOpen(false);
       setDeleteRow(null);
     }
-  };
-
-  const handleToggleAll = (checked) => {
-    if (checked) {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((id) => !displayedIds.includes(id)));
-  };
-
-  const handleToggleRow = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) {
-        if (prev.includes(id)) return prev;
-        return [...prev, id];
-      }
-      return prev.filter((item) => item !== id);
-    });
   };
 
   const openDeleteMany = () => {
@@ -364,44 +353,23 @@ function ProgramEditManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.module}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    {row.status === CORRECTION_COMPLETED_STATUS ? (
-                      <span className={`font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}>
-                        {row.priority}
-                      </span>
-                    ) : (
-                      <select
-                        className={`w-full rounded border border-slate-200 px-2 py-1.5 ${
-                          PRIORITY_COLORS[row.priority] || "text-slate-700"
-                        }`}
-                        value={row.priority}
-                        onChange={(event) => handlePriorityChange(row, event.target.value)}
-                      >
-                        {priorityCategories.values.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <InlinePrioritySelect
+                      value={row.priority}
+                      options={priorityCategories.values}
+                      isCompleted={row.status === CORRECTION_COMPLETED_STATUS}
+                      onChange={(nextValue) => handlePriorityChange(row, nextValue)}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    {row.status === CORRECTION_COMPLETED_STATUS ? (
-                      <span className="font-semibold text-emerald-700">{CORRECTION_COMPLETED_STATUS}</span>
-                    ) : (
-                      <select
-                        className="w-full rounded border border-slate-200 px-2 py-1.5"
-                        value={row.status}
-                        onChange={(event) => handleStatusChange(row, event.target.value)}
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <InlineStatusSelect
+                      value={row.status}
+                      options={statusOptions}
+                      isCompleted={row.status === CORRECTION_COMPLETED_STATUS}
+                      completedLabel={CORRECTION_COMPLETED_STATUS}
+                      onChange={(nextValue) => handleStatusChange(row, nextValue)}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.assigner}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>

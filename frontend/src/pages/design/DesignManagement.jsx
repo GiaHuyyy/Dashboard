@@ -5,18 +5,14 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
+import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useRowSelection } from "@/hooks/useRowSelection";
 import { designApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
-
-const PRIORITY_COLORS = {
-  Thấp: "text-slate-600",
-  "Trung bình": "text-sky-700",
-  Cao: "text-amber-700",
-  Khẩn: "text-rose-700",
-};
 
 const DESIGN_TYPES = ["all", "Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const COMPLETED_STATUS = "Đã hoàn thành";
@@ -26,7 +22,6 @@ function DesignManagement() {
   const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
   const [updatingStatusId, setUpdatingStatusId] = useState("");
@@ -42,6 +37,18 @@ function DesignManagement() {
     [statusCategories.values],
   );
   const statusFilterOptions = useMemo(() => ["all", ...(statusCategories.values || [])], [statusCategories.values]);
+
+  const displayedRows = useMemo(() => rows, [rows]);
+  const displayedIds = useMemo(() => displayedRows.map((item) => item.id), [displayedRows]);
+
+  const {
+    selectedIds,
+    isAllSelected: isAllFilteredSelected,
+    toggleAll: handleToggleAll,
+    toggleRow: handleToggleRow,
+    clearSelection,
+    setSelectedIds,
+  } = useRowSelection(displayedIds);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -60,15 +67,12 @@ function DesignManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchText, selectedType, selectedStatus, selectedAssignee]);
+  }, [searchText, selectedType, selectedStatus, selectedAssignee, setSelectedIds]);
 
   useEffect(() => {
     void fetchRows();
   }, [fetchRows]);
 
-  const displayedRows = useMemo(() => rows, [rows]);
-  const displayedIds = displayedRows.map((item) => item.id);
-  const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
   const assigneeOptions = useMemo(
     () => ["all", ...Array.from(new Set(rows.map((item) => item.assignee).filter(Boolean)))],
@@ -77,21 +81,6 @@ function DesignManagement() {
 
   const openCreate = () => navigate("/design/them-moi");
   const openEdit = (row) => navigate(`/design/chinh-sua/${row.id}`);
-
-  const handleToggleAll = (checked) => {
-    if (checked) {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((id) => !displayedIds.includes(id)));
-  };
-
-  const handleToggleRow = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) return prev.includes(id) ? prev : [...prev, id];
-      return prev.filter((item) => item !== id);
-    });
-  };
 
   const handleDelete = async () => {
     try {
@@ -113,7 +102,7 @@ function DesignManagement() {
     } finally {
       setDeleteOpen(false);
       setDeleteRow(null);
-      setSelectedIds([]);
+      clearSelection();
     }
   };
 
@@ -318,30 +307,13 @@ function DesignManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.designType}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    {row.status === COMPLETED_STATUS ? (
-                      <span className={`font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-600"}`}>
-                        {row.priority}
-                      </span>
-                    ) : (
-                      <select
-                        className={`w-full rounded border border-slate-200 px-2 py-1.5 ${
-                          PRIORITY_COLORS[row.priority] || "text-slate-700"
-                        }`}
-                        value={row.priority}
-                        disabled={updatingPriorityId === row.id}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => {
-                          event.stopPropagation();
-                          handlePriorityChange(row, event.target.value);
-                        }}
-                      >
-                        {priorityCategories.values.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <InlinePrioritySelect
+                      value={row.priority}
+                      options={priorityCategories.values}
+                      isCompleted={row.status === COMPLETED_STATUS}
+                      disabled={updatingPriorityId === row.id}
+                      onChange={(nextValue) => handlePriorityChange(row, nextValue)}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.durationLabel}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
@@ -349,26 +321,14 @@ function DesignManagement() {
                   <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    {row.status === COMPLETED_STATUS ? (
-                      <span className="font-semibold text-emerald-700">{COMPLETED_STATUS}</span>
-                    ) : (
-                      <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
-                        value={row.status}
-                        disabled={updatingStatusId === row.id}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => {
-                          event.stopPropagation();
-                          handleStatusChange(row, event.target.value);
-                        }}
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <InlineStatusSelect
+                      value={row.status}
+                      options={statusOptions}
+                      isCompleted={row.status === COMPLETED_STATUS}
+                      completedLabel={COMPLETED_STATUS}
+                      disabled={updatingStatusId === row.id}
+                      onChange={(nextValue) => handleStatusChange(row, nextValue)}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.handoverDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.receiveDateLabel || "-"}</TableCell>

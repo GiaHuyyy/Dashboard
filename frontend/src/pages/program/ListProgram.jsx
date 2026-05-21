@@ -5,10 +5,13 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
+import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { COMPLETED_STATUS } from "@/constants/program";
+import { useRowSelection } from "@/hooks/useRowSelection";
 import { programApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 
@@ -20,7 +23,6 @@ function ListProgram() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeRow, setActiveRow] = useState(null);
-  const [selectedIds, setSelectedIds] = useState([]);
   const [deleteMode, setDeleteMode] = useState("single");
   const [updatingRowId, setUpdatingRowId] = useState("");
 
@@ -43,7 +45,6 @@ function ListProgram() {
       const response = await programApi.list(selectedModule);
       const nextPrograms = response?.programs || [];
       setPrograms(nextPrograms);
-      setSelectedIds((prev) => prev.filter((id) => nextPrograms.some((item) => item.id === id)));
     } catch (error) {
       toast.error(error?.message || "Không thể tải danh sách lập trình");
     } finally {
@@ -84,26 +85,19 @@ function ListProgram() {
     setActiveRow(null);
   };
 
-  const handleRowCheckboxChange = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) {
-        if (prev.includes(id)) return prev;
-        return [...prev, id];
-      }
-      return prev.filter((item) => item !== id);
-    });
-  };
+  const filteredIds = useMemo(() => filteredPrograms.map((item) => item.id), [filteredPrograms]);
+  const {
+    selectedIds,
+    isAllSelected: isAllFilteredSelected,
+    toggleAll: handleToggleAll,
+    toggleRow: handleRowCheckboxChange,
+    clearSelection,
+    syncWithData,
+  } = useRowSelection(filteredIds);
 
-  const filteredIds = filteredPrograms.map((item) => item.id);
-  const isAllFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id));
-
-  const handleToggleAll = (checked) => {
-    if (checked) {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
-  };
+  useEffect(() => {
+    syncWithData(programs.map((item) => item.id));
+  }, [programs, syncWithData]);
 
   const handleConfirmDelete = async () => {
     try {
@@ -118,7 +112,7 @@ function ListProgram() {
         toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) chương trình`);
       }
 
-      setSelectedIds([]);
+      clearSelection();
       closeDelete();
       await fetchPrograms();
     } catch (error) {
@@ -320,27 +314,13 @@ function ListProgram() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.module}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    {row.processingStatus === COMPLETED_STATUS ? (
-                      <span className="text-slate-600">{row.priority || "-"}</span>
-                    ) : (
-                      <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
-                        value={row.priority || ""}
-                        disabled={updatingRowId === row.id}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => {
-                          event.stopPropagation();
-                          handleInlinePriorityUpdate(row, event.target.value);
-                        }}
-                      >
-                        {!row.priority && <option value="">Chưa chọn</option>}
-                        {priorityCategories.values.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <InlinePrioritySelect
+                      value={row.priority || ""}
+                      options={priorityCategories.values}
+                      isCompleted={row.processingStatus === COMPLETED_STATUS}
+                      disabled={updatingRowId === row.id}
+                      onChange={(nextValue) => handleInlinePriorityUpdate(row, nextValue)}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
@@ -348,25 +328,14 @@ function ListProgram() {
                     className="border border-slate-200 p-4"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    {row.processingStatus === COMPLETED_STATUS ? (
-                      <span className="font-semibold text-emerald-700">{COMPLETED_STATUS}</span>
-                    ) : (
-                      <select
-                        className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm"
-                        value={row.processingStatus || ""}
-                        disabled={updatingRowId === row.id}
-                        onChange={(event) => {
-                          event.stopPropagation();
-                          void handleInlineStatusUpdate(row, event.target.value);
-                        }}
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <InlineStatusSelect
+                      value={row.processingStatus || ""}
+                      options={statusOptions}
+                      isCompleted={row.processingStatus === COMPLETED_STATUS}
+                      completedLabel={COMPLETED_STATUS}
+                      disabled={updatingRowId === row.id}
+                      onChange={(nextValue) => handleInlineStatusUpdate(row, nextValue)}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assigner || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee || "-"}</TableCell>

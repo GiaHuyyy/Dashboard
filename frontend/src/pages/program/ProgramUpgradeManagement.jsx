@@ -5,20 +5,16 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/program/ManagementActions";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
+import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
 import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";
+import { useRowSelection } from "@/hooks/useRowSelection";
 import { staffApi, upgradeApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-const PRIORITY_COLORS = {
-  Thấp: "text-slate-600",
-  "Trung bình": "text-sky-700",
-  Cao: "text-amber-700",
-  Khẩn: "text-rose-700",
-};
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
@@ -41,7 +37,6 @@ function ProgramUpgradeManagement() {
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [selectedYear, setSelectedYear] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
   const [staffReferences, setStaffReferences] = useState([]);
@@ -65,7 +60,6 @@ function ProgramUpgradeManagement() {
       });
       const nextRows = Array.isArray(response?.upgrades) ? response.upgrades : [];
       setRows(nextRows);
-      setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
     } catch (error) {
       toast.error(error?.message || "Không thể tải danh sách nâng cấp");
     } finally {
@@ -94,35 +88,21 @@ function ProgramUpgradeManagement() {
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
 
   const displayedRows = rows;
-  const displayedIds = displayedRows.map((item) => item.id);
-  const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
+  const displayedIds = useMemo(() => displayedRows.map((item) => item.id), [displayedRows]);
+  const {
+    selectedIds,
+    isAllSelected: isAllFilteredSelected,
+    toggleAll: handleToggleAll,
+    toggleRow: handleToggleRow,
+    clearSelection,
+    setSelectedIds,
+  } = useRowSelection(displayedIds);
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
 
-  const handleToggleAll = (checked) => {
-    if (checked) {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((id) => !displayedIds.includes(id)));
-  };
-
-  const handleToggleRow = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) {
-        if (prev.includes(id)) return prev;
-        return [...prev, id];
-      }
-      return prev.filter((item) => item !== id);
-    });
-  };
-
-  const handleInlineUpdate = async (rowId, patch) => {
+  const handleInlineUpdate = async (rowId, patch, successMessage) => {
     const target = rows.find((item) => item.id === rowId);
     if (!target) return;
-    if (target.status === UPGRADE_COMPLETED_STATUS) {
-      toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
-      return;
-    }
+
     const payload = {
       programId: target.programId,
       upgradeItem: target.upgradeItem,
@@ -146,26 +126,34 @@ function ProgramUpgradeManagement() {
       const response = await upgradeApi.update(rowId, payload);
       const updated = response?.upgrade;
       if (!updated) return;
+
       setRows((prev) => prev.map((item) => (item.id === rowId ? updated : item)));
+      toast.success(successMessage || "Đã cập nhật");
     } catch (error) {
       toast.error(error?.message || "Cập nhật không thành công");
     }
   };
 
   const handleStatusChange = (row, nextStatus) => {
+    if (nextStatus === row.status) return;
+
     if (row.status === UPGRADE_COMPLETED_STATUS) {
       toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
       return;
     }
-    void handleInlineUpdate(row.id, { status: nextStatus });
+
+    void handleInlineUpdate(row.id, { status: nextStatus }, "Đã cập nhật trạng thái");
   };
 
   const handlePriorityChange = (row, nextPriority) => {
+    if (nextPriority === row.priority) return;
+
     if (row.status === UPGRADE_COMPLETED_STATUS) {
       toast.error("Không thể chỉnh sửa yêu cầu nâng cấp đã hoàn thành");
       return;
     }
-    void handleInlineUpdate(row.id, { priority: nextPriority });
+
+    void handleInlineUpdate(row.id, { priority: nextPriority }, "Đã cập nhật mức ưu tiên");
   };
 
   const handleDeleteOne = async (rowId) => {
@@ -184,7 +172,7 @@ function ProgramUpgradeManagement() {
       if (selectedIds.length > 0) {
         const response = await upgradeApi.removeMany(selectedIds);
         setRows((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
+        clearSelection();
         toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} yêu cầu nâng cấp`);
       } else {
         const response = await upgradeApi.removeMany([]);
@@ -356,44 +344,23 @@ function ProgramUpgradeManagement() {
                   <TableCell className="border border-slate-200 p-4 text-left">{row.module}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.upgradeItem}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    {row.status === UPGRADE_COMPLETED_STATUS ? (
-                      <span className={`font-semibold ${PRIORITY_COLORS[row.priority] || "text-slate-700"}`}>
-                        {row.priority}
-                      </span>
-                    ) : (
-                      <select
-                        className={`w-full rounded border border-slate-200 px-2 py-1.5 ${
-                          PRIORITY_COLORS[row.priority] || "text-slate-700"
-                        }`}
-                        value={row.priority}
-                        onChange={(event) => handlePriorityChange(row, event.target.value)}
-                      >
-                        {priorityCategories.values.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <InlinePrioritySelect
+                      value={row.priority}
+                      options={priorityCategories.values}
+                      isCompleted={row.status === UPGRADE_COMPLETED_STATUS}
+                      onChange={(nextValue) => handlePriorityChange(row, nextValue)}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
-                    {row.status === UPGRADE_COMPLETED_STATUS ? (
-                      <span className="font-semibold text-emerald-700">{UPGRADE_COMPLETED_STATUS}</span>
-                    ) : (
-                      <select
-                        className="w-full rounded border border-slate-200 px-2 py-1.5"
-                        value={row.status}
-                        onChange={(event) => handleStatusChange(row, event.target.value)}
-                      >
-                        {statusOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <InlineStatusSelect
+                      value={row.status}
+                      options={statusOptions}
+                      isCompleted={row.status === UPGRADE_COMPLETED_STATUS}
+                      completedLabel={UPGRADE_COMPLETED_STATUS}
+                      onChange={(nextValue) => handleStatusChange(row, nextValue)}
+                    />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
@@ -411,18 +378,10 @@ function ProgramUpgradeManagement() {
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {formatDateTime(row.assignedAt)}
-                  </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {formatDateTime(row.receivedAt)}
-                  </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {formatDateTime(row.dueAt)}
-                  </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {formatDateTime(row.completedAt)}
-                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{formatDateTime(row.assignedAt)}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{formatDateTime(row.receivedAt)}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{formatDateTime(row.dueAt)}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{formatDateTime(row.completedAt)}</TableCell>
                   <TableCell
                     className="border border-slate-200 p-4 text-center"
                     onClick={(event) => event.stopPropagation()}
