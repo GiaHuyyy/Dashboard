@@ -310,6 +310,15 @@ export const mailConfigurationApi = {
     }),
 };
 
+export const systemSettingApi = {
+  detail: () => request("/system-settings"),
+  update: (payload) =>
+    request("/system-settings", {
+      method: "PUT",
+      body: JSON.stringify({ settings: payload }),
+    }),
+};
+
 export const hostPriceApi = {
   list: ({ search = "" } = {}) => {
     const searchParams = new URLSearchParams();

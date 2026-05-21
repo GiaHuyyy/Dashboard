@@ -19,6 +19,7 @@ import uploadRoutes from "./upload.js";
 import businessContractRoutes from "./business-contract.js";
 import systemCategoryRoutes from "./system-category.js";
 import mailConfigurationRoutes from "./mail-configuration.js";
+import systemSettingRoutes from "./system-setting.js";
 import authenticate from "../middleware/authenticate.js";
 import authorizeRoles from "../middleware/authorizeRoles.js";
 
@@ -47,6 +48,7 @@ router.use("/upload", uploadRoutes);
 router.use("/business-contracts", businessContractRoutes);
 router.use("/system-categories", systemCategoryRoutes);
 router.use("/mail-configuration", mailConfigurationRoutes);
+router.use("/system-settings", systemSettingRoutes);
 
 router.get("/protected", authenticate, (req, res) => {
   res.json({
