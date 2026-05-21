@@ -148,6 +148,7 @@ function ListProgram() {
         durationValue: program.durationValue,
         durationUnit: program.durationUnit,
         convert: program.convert,
+        bonusPoint: Number(program.bonusPoint) || 0,
         assigner: program.assigner,
         assignee: program.assignee,
         businessContractId: program.businessContractId,
