@@ -8,9 +8,8 @@ import { z } from "zod";
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";
-import { businessContractApi, programApi, staffApi, upgradeApi, systemSettingApi } from "@/lib/api-client";
+import { businessContractApi, programApi, staffApi, upgradeApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
-import { calculateConvertByDuration, getConvertSettings, DEFAULT_CONVERT_SETTINGS } from "@/lib/convert";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -93,6 +92,19 @@ const mapUpgradeToForm = (item) => ({
   note: item.note || "",
 });
 
+const formatNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return Number(parsed.toFixed(3)).toString();
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  const numeric = Number(durationValue);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  if (durationUnit === "ngày") return formatNumber(numeric);
+  if (durationUnit === "h") return formatNumber(numeric / 8);
+  return "";
+};
 
 const getProgramByBusinessContractId = (programs, businessContractId) =>
   programs.find((item) => item.businessContractId === businessContractId) || null;
@@ -105,10 +117,10 @@ function ProgramUpgradeForm() {
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
+  const [isDefaultSelectionReady, setIsDefaultSelectionReady] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
-  const [convertSettings, setConvertSettings] = useState(DEFAULT_CONVERT_SETTINGS);
 
   const {
     control,
@@ -143,21 +155,50 @@ function ProgramUpgradeForm() {
   const businessContractRegister = register("businessContractId");
 
   useEffect(() => {
-    if (isEditMode) return;
+    if (isEditMode) {
+      setIsDefaultSelectionReady(true);
+      return;
+    }
+
+    if (isLoadingSources || priorityCategories.isLoading || statusCategories.isLoading) return;
+
     const nextPriority = priorityCategories.options?.[0]?.value || "";
     const nextStatus = statusValues?.[0] || "";
-    if (nextPriority && !getValues("priority")) {
-      setValue("priority", nextPriority, { shouldValidate: true });
+    const currentPriority = getValues("priority");
+    const currentStatus = getValues("status");
+
+    const shouldSetPriority = nextPriority && !currentPriority;
+    const shouldSetStatus = nextStatus && (!currentStatus || !statusValues.includes(currentStatus));
+
+    if (shouldSetPriority) {
+      setValue("priority", nextPriority, { shouldValidate: true, shouldDirty: false });
     }
-    if (nextStatus && !getValues("status")) {
-      setValue("status", nextStatus, { shouldValidate: true });
+
+    if (shouldSetStatus) {
+      setValue("status", nextStatus, { shouldValidate: true, shouldDirty: false });
     }
-  }, [getValues, isEditMode, priorityCategories.options, setValue, statusValues]);
+
+    setInitialSnapshot((prev) => ({
+      ...prev,
+      ...(shouldSetPriority ? { priority: nextPriority } : {}),
+      ...(shouldSetStatus ? { status: nextStatus } : {}),
+    }));
+    setIsDefaultSelectionReady(true);
+  }, [
+    getValues,
+    isEditMode,
+    isLoadingSources,
+    priorityCategories.isLoading,
+    priorityCategories.options,
+    setValue,
+    statusCategories.isLoading,
+    statusValues,
+  ]);
 
   useEffect(() => {
-    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit, convertSettings);
+    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
-  }, [convertSettings, selectedDurationUnit, selectedDurationValue, setValue]);
+  }, [selectedDurationUnit, selectedDurationValue, setValue]);
 
   useEffect(() => {
     if (selectedStatus === UPGRADE_COMPLETED_STATUS) return;
@@ -170,18 +211,18 @@ function ProgramUpgradeForm() {
   useEffect(() => {
     const fetchSources = async () => {
       setIsLoadingSources(true);
+      setIsDefaultSelectionReady(isEditMode);
       try {
-        const requests = [staffApi.references(), programApi.references(), businessContractApi.references(), systemSettingApi.detail()];
+        const requests = [staffApi.references(), programApi.references(), businessContractApi.references()];
         if (isEditMode) {
           requests.push(upgradeApi.detail(id));
         }
 
-        const [staffResponse, programResponse, businessResponse, settingResponse, detailResponse] = await Promise.all([...requests]);
+        const [staffResponse, programResponse, businessResponse, detailResponse] = await Promise.all([...requests]);
 
         const staffList = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
         const contracts = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
-        setConvertSettings(getConvertSettings(settingResponse?.settings));
         setStaffReferences(staffList);
         setProgramReferences(programs);
         setBusinessContractReferences(contracts);
@@ -200,6 +241,7 @@ function ProgramUpgradeForm() {
           });
           reset(formValues);
           setInitialSnapshot(formValues);
+          setIsDefaultSelectionReady(true);
           return;
         }
 
@@ -239,7 +281,7 @@ function ProgramUpgradeForm() {
       priority: values.priority,
       durationValue: values.durationValue,
       durationUnit: values.durationUnit,
-      convert: calculateConvertByDuration(values.durationValue, values.durationUnit, convertSettings),
+      convert: values.convert,
       bonusPoint: values.bonusPoint,
       status: values.status,
       assigner: values.assigner,
@@ -300,7 +342,7 @@ function ProgramUpgradeForm() {
       () => toast.error("Vui lòng kiểm tra lại thông tin form"),
     )();
 
-  if (isLoadingSources) {
+  if (isLoadingSources || (!isEditMode && !isDefaultSelectionReady)) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
     );

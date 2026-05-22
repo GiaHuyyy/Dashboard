@@ -11,6 +11,7 @@ import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { businessContractApi, designApi, programApi, staffApi, systemSettingApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { calculateConvertByDuration, getConvertSettings, DEFAULT_CONVERT_SETTINGS } from "@/lib/convert";
+import { getSlaDueAt } from "@/lib/sla";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -154,7 +155,15 @@ function ProgramForm() {
         const nextDesignReferences = Array.isArray(designResponse?.designTasks) ? designResponse.designTasks : [];
         const nextBusinessReferences = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
         const nextProgramReferences = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
-        setConvertSettings(getConvertSettings(settingResponse?.settings));
+        const settings = settingResponse?.settings || {};
+        setConvertSettings(getConvertSettings(settings));
+
+        if (!isEditMode && !getValues("dueAt")) {
+          setValue("dueAt", getSlaDueAt(settings, "programDefaultDueDays", 3), {
+            shouldValidate: true,
+            shouldDirty: false,
+          });
+        }
 
         setStaffReferences(nextStaffReferences);
         setDesignReferences(nextDesignReferences);
@@ -174,7 +183,7 @@ function ProgramForm() {
       }
     };
     void fetchReferences();
-  }, [isEditMode, setValue]);
+  }, [getValues, isEditMode, setValue]);
 
   const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));

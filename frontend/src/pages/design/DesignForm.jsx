@@ -8,8 +8,7 @@ import { z } from "zod";
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
-import { designApi, staffApi, systemSettingApi } from "@/lib/api-client";
-import { calculateConvertByDuration, getConvertSettings, DEFAULT_CONVERT_SETTINGS } from "@/lib/convert";
+import { designApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
@@ -22,6 +21,19 @@ const isValidDateValue = (value) => {
   return !Number.isNaN(date.getTime());
 };
 
+const formatNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return Number(parsed.toFixed(3));
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  const numeric = Number(durationValue);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  if (durationUnit === "ngày") return formatNumber(numeric);
+  if (durationUnit === "h") return formatNumber(numeric / 8);
+  return 0;
+};
 
 const schema = z.object({
   title: z.string().trim().min(1, "Vui lòng nhập hạng mục design"),
@@ -87,7 +99,6 @@ function DesignForm() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
-  const [convertSettings, setConvertSettings] = useState(DEFAULT_CONVERT_SETTINGS);
   const [pendingSubmit, setPendingSubmit] = useState(null);
 
   const {
@@ -119,21 +130,34 @@ function DesignForm() {
   );
 
   useEffect(() => {
-    if (isEditMode) return;
+    if (isEditMode || isLoadingReference || isLoadingDetail) return;
+
     const nextPriority = priorityCategories.options?.[0]?.value || "";
     const nextStatus = formStatusValues?.[0] || "";
-    if (nextPriority && !getValues("priority")) {
-      setValue("priority", nextPriority, { shouldValidate: true });
+    const currentPriority = getValues("priority");
+    const currentStatus = getValues("status");
+
+    if (nextPriority && !currentPriority) {
+      setValue("priority", nextPriority, { shouldValidate: true, shouldDirty: false });
     }
-    if (nextStatus && !getValues("status")) {
-      setValue("status", nextStatus, { shouldValidate: true });
+
+    if (nextStatus && (!currentStatus || !formStatusValues.includes(currentStatus))) {
+      setValue("status", nextStatus, { shouldValidate: true, shouldDirty: false });
     }
-  }, [formStatusValues, getValues, isEditMode, priorityCategories.options, setValue]);
+
+    if (nextPriority || nextStatus) {
+      setInitialSnapshot((prev) => ({
+        ...prev,
+        ...(!prev.priority && nextPriority ? { priority: nextPriority } : {}),
+        ...((!prev.status || !formStatusValues.includes(prev.status)) && nextStatus ? { status: nextStatus } : {}),
+      }));
+    }
+  }, [formStatusValues, getValues, isEditMode, isLoadingDetail, isLoadingReference, priorityCategories.options, setValue]);
 
   useEffect(() => {
-    const nextConvert = calculateConvertByDuration(durationValue, durationUnit, convertSettings);
+    const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
     setValue("convert", nextConvert, { shouldValidate: true });
-  }, [convertSettings, durationUnit, durationValue, setValue]);
+  }, [durationUnit, durationValue, setValue]);
 
   useEffect(() => {
     if (selectedStatus === COMPLETED_STATUS) return;
@@ -144,9 +168,8 @@ function DesignForm() {
     const fetchStaffReferences = async () => {
       setIsLoadingReference(true);
       try {
-        const [response, settingResponse] = await Promise.all([staffApi.references(), systemSettingApi.detail()]);
+        const response = await staffApi.references();
         const staffs = Array.isArray(response?.staffs) ? response.staffs : [];
-        setConvertSettings(getConvertSettings(settingResponse?.settings));
         setStaffReferences(staffs);
 
         if (!isEditMode) {
