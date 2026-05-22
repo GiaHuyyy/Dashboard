@@ -84,6 +84,18 @@ const navItems = [
     ],
   },
   {
+    label: "Phân quyền",
+    path: "/phan-quyen",
+    icon: FileText,
+    children: [
+      {
+        label: "Tài khoản người dùng",
+        path: "/phan-quyen/tai-khoan",
+        activePathPrefixes: ["/phan-quyen/tai-khoan"],
+      },
+    ],
+  },
+  {
     label: "Quản lý kinh doanh",
     path: "/kinh-doanh",
     icon: FileText,

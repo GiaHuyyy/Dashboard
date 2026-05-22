@@ -42,7 +42,8 @@ import EmailTemplateForm from "./pages/template/EmailTemplateForm";
 import BusinessManagement from "./pages/business/BusinessManagement";
 import BusinessForm from "./pages/business/BusinessForm";
 import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
+import UserManagement from "./pages/users/UserManagement";
+import UserForm from "./pages/users/UserForm";
 import { fetchCurrentUser, logoutUser } from "./store/auth-slice";
 
 function RequireAuth({ children, isAuthenticated, isInitializing, isSessionExpiredModalOpen }) {
@@ -117,14 +118,6 @@ function App() {
           }
         />
         <Route
-          path="/register"
-          element={
-            <RedirectIfAuth isAuthenticated={isAuthenticated} isInitializing={isInitializing}>
-              <Register />
-            </RedirectIfAuth>
-          }
-        />
-        <Route
           element={
             <RequireAuth
               isAuthenticated={isAuthenticated}
@@ -189,6 +182,10 @@ function App() {
           <Route path="cau-hinh/danh-muc-he-thong" element={<SystemCategoryManagement />} />
           <Route path="cau-hinh/mail" element={<MailConfigurationManagement />} />
           <Route path="cau-hinh/tham-so" element={<SystemSettingManagement />} />
+          <Route path="phan-quyen" element={<Navigate to="/phan-quyen/tai-khoan" replace />} />
+          <Route path="phan-quyen/tai-khoan" element={<UserManagement />} />
+          <Route path="phan-quyen/tai-khoan/them-moi" element={<UserForm />} />
+          <Route path="phan-quyen/tai-khoan/chinh-sua/:id" element={<UserForm />} />
           <Route path="bieu-mau" element={<Navigate to="/bieu-mau/mau-email" replace />} />
           <Route path="bieu-mau/mau-email" element={<EmailTemplateManagement />} />
           <Route path="bieu-mau/mau-email/them-moi" element={<EmailTemplateForm />} />

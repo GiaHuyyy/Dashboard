@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -24,8 +24,8 @@ function Login() {
   } = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      userName: "admin1",
-      password: "123456",
+      userName: "",
+      password: "",
     },
   });
 
@@ -79,13 +79,6 @@ function Login() {
               {isLoading ? "Đang xử lý..." : "Đăng nhập"}
             </button>
           </form>
-
-          <p className="mt-6 text-center text-sm text-slate-500">
-            Chưa có tài khoản?{" "}
-            <Link className="font-semibold text-sky-600 hover:text-sky-700" to="/register">
-              Đăng ký
-            </Link>
-          </p>
         </div>
       </div>
     </div>

@@ -3,27 +3,46 @@ import bcrypt from "bcryptjs";
 
 const BCRYPT_HASH_REGEX = /^\$2[aby]\$\d{2}\$/;
 
+export const USER_ROLES = ["super_admin", "admin", "manager", "developer", "designer", "sale", "viewer", "user"];
+
 const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     userName: {
       type: String,
       required: true,
+      trim: true,
       unique: true,
+      index: true,
     },
 
     password: {
       type: String,
       required: true,
     },
+
     role: {
       type: String,
-      enum: ["admin", "user"],
+      enum: USER_ROLES,
       default: "user",
+      index: true,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+
+    note: {
+      type: String,
+      trim: true,
+      default: "",
     },
   },
   {

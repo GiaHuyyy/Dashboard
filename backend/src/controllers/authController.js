@@ -4,6 +4,7 @@ import User from "../models/User.js";
 
 const BCRYPT_HASH_REGEX = /^\$2[aby]\$\d{2}\$/;
 const COOKIE_NAME = process.env.JWT_COOKIE_NAME || "access_token";
+const ALLOW_PUBLIC_REGISTER = process.env.ALLOW_PUBLIC_REGISTER === "true";
 
 const getCookieOptions = () => ({
   httpOnly: true,
@@ -35,9 +36,16 @@ const sanitizeUser = (user) => ({
   name: user.name,
   userName: user.userName,
   role: user.role,
+  isActive: user.isActive !== false,
 });
 
 export const register = async (req, res) => {
+  if (!ALLOW_PUBLIC_REGISTER) {
+    return res.status(403).json({
+      message: "Dashboard nội bộ không cho đăng ký tự do. Vui lòng liên hệ quản trị viên để được cấp tài khoản.",
+    });
+  }
+
   const { name, userName, password } = req.body;
 
   if (!process.env.JWT_SECRET) {
@@ -50,7 +58,7 @@ export const register = async (req, res) => {
     });
   }
 
-  const existingUser = await User.findOne({ userName });
+  const existingUser = await User.findOne({ userName: String(userName).trim() });
   if (existingUser) {
     return res.status(409).json({ message: "userName đã tồn tại" });
   }
@@ -60,6 +68,7 @@ export const register = async (req, res) => {
     userName,
     password,
     role: "user",
+    isActive: true,
   });
 
   const token = createToken(user);
@@ -85,9 +94,13 @@ export const login = async (req, res) => {
     });
   }
 
-  const user = await User.findOne({ userName });
+  const user = await User.findOne({ userName: String(userName).trim() });
   if (!user) {
     return res.status(401).json({ message: "Thông tin đăng nhập không hợp lệ" });
+  }
+
+  if (user.isActive === false) {
+    return res.status(403).json({ message: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên." });
   }
 
   const isValidPassword = await user.comparePassword(password);
@@ -117,7 +130,11 @@ export const me = async (req, res) => {
     return res.status(404).json({ message: "Người dùng không tồn tại" });
   }
 
-  return res.json(user);
+  if (user.isActive === false) {
+    return res.status(403).json({ message: "Tài khoản đã bị khóa" });
+  }
+
+  return res.json(sanitizeUser(user));
 };
 
 export const logout = async (req, res) =>
