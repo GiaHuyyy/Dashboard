@@ -5,6 +5,18 @@ const BCRYPT_HASH_REGEX = /^\$2[aby]\$\d{2}\$/;
 
 export const USER_ROLES = ["super_admin", "admin", "manager", "developer", "designer", "sale", "viewer", "user"];
 
+const normalizeRoles = (roles, fallbackRole = "user") => {
+  const input = Array.isArray(roles) ? roles : roles ? [roles] : [];
+  const normalized = input
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter((item) => USER_ROLES.includes(item));
+
+  const unique = Array.from(new Set(normalized));
+  if (unique.length > 0) return unique;
+
+  return USER_ROLES.includes(fallbackRole) ? [fallbackRole] : ["user"];
+};
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -26,10 +38,18 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Giữ role để tương thích dữ liệu/token cũ. Quyền chính thức dùng roles.
     role: {
       type: String,
       enum: USER_ROLES,
       default: "user",
+      index: true,
+    },
+
+    roles: {
+      type: [String],
+      enum: USER_ROLES,
+      default: ["user"],
       index: true,
     },
 
@@ -50,6 +70,11 @@ const userSchema = new mongoose.Schema(
   },
 );
 
+userSchema.pre("validate", function syncRoles() {
+  this.roles = normalizeRoles(this.roles, this.role);
+  this.role = this.roles[0] || "user";
+});
+
 userSchema.pre("save", async function save() {
   if (!this.isModified("password")) {
     return;
@@ -69,6 +94,8 @@ userSchema.methods.comparePassword = async function comparePassword(password) {
 
   return this.password === password;
 };
+
+export const getUserRoles = (user) => normalizeRoles(user?.roles, user?.role);
 
 const User = mongoose.model("User", userSchema);
 

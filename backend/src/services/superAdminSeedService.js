@@ -3,7 +3,9 @@ import User from "../models/User.js";
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 
 export const seedSuperAdmin = async () => {
-  const existingSuperAdmin = await User.findOne({ role: "super_admin" }).select("_id userName").lean();
+  const existingSuperAdmin = await User.findOne({ $or: [{ roles: "super_admin" }, { role: "super_admin" }] })
+    .select("_id userName")
+    .lean();
   if (existingSuperAdmin) return;
 
   const name = normalizeString(process.env.SUPER_ADMIN_NAME) || "Super Admin";
@@ -20,12 +22,13 @@ export const seedSuperAdmin = async () => {
 
   const existingUser = await User.findOne({ userName });
   if (existingUser) {
-    if (existingUser.role !== "super_admin") {
-      existingUser.role = "super_admin";
-      existingUser.isActive = true;
-      await existingUser.save();
-      console.log(`[SUPER_ADMIN] Đã nâng tài khoản ${userName} thành super_admin`);
-    }
+    const roles = Array.isArray(existingUser.roles) ? existingUser.roles : [];
+    if (!roles.includes("super_admin")) roles.unshift("super_admin");
+    existingUser.roles = Array.from(new Set(roles));
+    existingUser.role = existingUser.roles[0] || "super_admin";
+    existingUser.isActive = true;
+    await existingUser.save();
+    console.log(`[SUPER_ADMIN] Đã nâng tài khoản ${userName} thành super_admin`);
     return;
   }
 
@@ -34,6 +37,7 @@ export const seedSuperAdmin = async () => {
     userName,
     password,
     role: "super_admin",
+    roles: ["super_admin"],
     isActive: true,
     note: "Tài khoản quản trị cao nhất được tạo tự động khi khởi tạo hệ thống.",
   });

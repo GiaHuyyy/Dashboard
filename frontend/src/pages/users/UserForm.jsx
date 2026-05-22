@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -16,7 +16,7 @@ const schema = z
     userName: z.string().trim().min(3, "Tên đăng nhập tối thiểu 3 ký tự"),
     password: z.string(),
     confirmPassword: z.string(),
-    role: z.string().trim().min(1, "Vui lòng chọn vai trò"),
+    roles: z.array(z.string()).min(1, "Vui lòng chọn ít nhất một vai trò"),
     isActive: z.boolean(),
     note: z.string().trim().optional(),
   })
@@ -45,7 +45,7 @@ const defaultValues = {
   userName: "",
   password: "",
   confirmPassword: "",
-  role: "user",
+  roles: ["user"],
   isActive: true,
   note: "",
 };
@@ -56,6 +56,7 @@ function UserForm() {
   const isEditMode = Boolean(id);
 
   const {
+    control,
     register,
     handleSubmit,
     reset,
@@ -84,7 +85,7 @@ function UserForm() {
           userName: user.userName || "",
           password: "",
           confirmPassword: "",
-          role: user.role || "user",
+          roles: Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : [user.role || "user"],
           isActive: Boolean(user.isActive),
           note: user.note || "",
         });
@@ -101,7 +102,7 @@ function UserForm() {
     const payload = {
       name: values.name,
       userName: values.userName,
-      role: values.role,
+      roles: values.roles,
       isActive: values.isActive,
       note: values.note || "",
     };
@@ -175,13 +176,45 @@ function UserForm() {
             }}
             error={errors.confirmPassword?.message}
           />
-          <FormField
-            label="Vai trò"
-            type="select"
-            options={USER_ROLE_OPTIONS.map((item) => ({ label: item.label, value: item.value }))}
-            selectProps={register("role")}
-            error={errors.role?.message}
-          />
+
+          <div className="lg:col-span-2">
+            <p className="mb-2 text-sm font-semibold text-slate-600">Vai trò</p>
+            <Controller
+              control={control}
+              name="roles"
+              render={({ field }) => {
+                const selectedRoles = Array.isArray(field.value) ? field.value : [];
+
+                return (
+                  <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-2 lg:grid-cols-4">
+                    {USER_ROLE_OPTIONS.map((item) => {
+                      const checked = selectedRoles.includes(item.value);
+
+                      return (
+                        <label key={item.value} className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => {
+                              if (event.target.checked) {
+                                field.onChange(Array.from(new Set([...selectedRoles, item.value])));
+                                return;
+                              }
+
+                              field.onChange(selectedRoles.filter((role) => role !== item.value));
+                            }}
+                          />
+                          {item.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                );
+              }}
+            />
+            {errors.roles?.message ? <p className="mt-1 text-xs text-rose-600">{errors.roles.message}</p> : null}
+          </div>
+
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input type="checkbox" {...register("isActive")} />
             Đang hoạt động
@@ -194,7 +227,7 @@ function UserForm() {
             error={errors.note?.message}
           />
           <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800 lg:col-span-2">
-            Tài khoản nội bộ do quản trị viên cấp. Không chia sẻ tài khoản cho người khác và nên đổi mật khẩu tạm sau khi nhận tài khoản.
+            Tài khoản nội bộ do quản trị viên cấp. Một tài khoản có thể có nhiều vai trò, ví dụ vừa Lập trình viên vừa Thiết kế.
           </div>
         </div>
       </div>

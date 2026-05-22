@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-import User from "../models/User.js";
+import User, { getUserRoles } from "../models/User.js";
 
 const BCRYPT_HASH_REGEX = /^\$2[aby]\$\d{2}\$/;
 const COOKIE_NAME = process.env.JWT_COOKIE_NAME || "access_token";
@@ -20,10 +20,13 @@ const getClearCookieOptions = () => ({
 });
 
 const createToken = (user) => {
+  const roles = getUserRoles(user);
+
   return jwt.sign(
     {
       sub: user._id.toString(),
-      role: user.role,
+      role: roles[0],
+      roles,
       userName: user.userName,
     },
     process.env.JWT_SECRET,
@@ -31,13 +34,18 @@ const createToken = (user) => {
   );
 };
 
-const sanitizeUser = (user) => ({
-  id: user._id,
-  name: user.name,
-  userName: user.userName,
-  role: user.role,
-  isActive: user.isActive !== false,
-});
+const sanitizeUser = (user) => {
+  const roles = getUserRoles(user);
+
+  return {
+    id: user._id,
+    name: user.name,
+    userName: user.userName,
+    role: roles[0],
+    roles,
+    isActive: user.isActive !== false,
+  };
+};
 
 export const register = async (req, res) => {
   if (!ALLOW_PUBLIC_REGISTER) {
@@ -68,6 +76,7 @@ export const register = async (req, res) => {
     userName,
     password,
     role: "user",
+    roles: ["user"],
     isActive: true,
   });
 
@@ -111,6 +120,15 @@ export const login = async (req, res) => {
   // Upgrade existing plain-text passwords to bcrypt hash after a successful login.
   if (!BCRYPT_HASH_REGEX.test(user.password)) {
     user.password = password;
+  }
+
+  const roles = getUserRoles(user);
+  if (JSON.stringify(user.roles || []) !== JSON.stringify(roles) || user.role !== roles[0]) {
+    user.roles = roles;
+    user.role = roles[0];
+  }
+
+  if (user.isModified()) {
     await user.save();
   }
 

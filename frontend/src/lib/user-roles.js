@@ -10,3 +10,9 @@ export const USER_ROLE_OPTIONS = [
 ];
 
 export const getUserRoleLabel = (value) => USER_ROLE_OPTIONS.find((item) => item.value === value)?.label || value || "-";
+
+export const getUserRoleLabels = (roles) => {
+  const values = Array.isArray(roles) ? roles : roles ? [roles] : [];
+  if (values.length === 0) return "-";
+  return values.map(getUserRoleLabel).join(", ");
+};

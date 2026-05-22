@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { userApi } from "@/lib/api-client";
-import { USER_ROLE_OPTIONS, getUserRoleLabel } from "@/lib/user-roles";
+import { USER_ROLE_OPTIONS, getUserRoleLabels } from "@/lib/user-roles";
 
 function UserManagement() {
   const navigate = useNavigate();
@@ -150,7 +150,7 @@ function UserManagement() {
                     {row.name}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.userName}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{getUserRoleLabel(row.role)}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{getUserRoleLabels(row.roles || row.role)}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <span
                       className={`rounded-full border px-3 py-1 text-xs font-semibold ${
@@ -185,7 +185,7 @@ function UserManagement() {
                         variant="danger-outline"
                         iconOnly
                         className="text-rose-700"
-                        disabled={row.role === "super_admin"}
+                        disabled={(row.roles || [row.role]).includes("super_admin")}
                       />
                     </div>
                   </TableCell>
