@@ -118,7 +118,18 @@ const navItems = [
       },
     ],
   },
-  { label: "Biểu mẫu", path: "/bieu-mau", icon: FileText },
+  {
+    label: "Biểu mẫu",
+    path: "/bieu-mau",
+    icon: FileText,
+    children: [
+      {
+        label: "Thư viện mẫu email",
+        path: "/bieu-mau/mau-email",
+        activePathPrefixes: ["/bieu-mau/mau-email"],
+      },
+    ],
+  },
 ];
 
 const linkBase = "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition";

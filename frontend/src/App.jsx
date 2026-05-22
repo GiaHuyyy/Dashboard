@@ -6,7 +6,7 @@ import Modal from "@/components/ui/modal";
 import { SESSION_EXPIRED_EVENT } from "@/lib/api-client";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Home from "./pages/home/Home";
-import Placeholder from "./pages/Placeholder";
+// import Placeholder from "./pages/Placeholder";
 import ProgramCorrectionForm from "./pages/program/ProgramCorrectionForm";
 import ListProgram from "./pages/program/ListProgram";
 import ProgramEditManagement from "./pages/program/ProgramEditManagement";
@@ -37,6 +37,8 @@ import ServerManagement from "./pages/system/ServerManagement";
 import SystemCategoryManagement from "./pages/config/SystemCategoryManagement";
 import MailConfigurationManagement from "./pages/config/MailConfigurationManagement";
 import SystemSettingManagement from "./pages/config/SystemSettingManagement";
+import EmailTemplateManagement from "./pages/template/EmailTemplateManagement";
+import EmailTemplateForm from "./pages/template/EmailTemplateForm";
 import BusinessManagement from "./pages/business/BusinessManagement";
 import BusinessForm from "./pages/business/BusinessForm";
 import Login from "./pages/auth/Login";
@@ -187,7 +189,10 @@ function App() {
           <Route path="cau-hinh/danh-muc-he-thong" element={<SystemCategoryManagement />} />
           <Route path="cau-hinh/mail" element={<MailConfigurationManagement />} />
           <Route path="cau-hinh/tham-so" element={<SystemSettingManagement />} />
-          <Route path="bieu-mau" element={<Placeholder title="Biểu mẫu" />} />
+          <Route path="bieu-mau" element={<Navigate to="/bieu-mau/mau-email" replace />} />
+          <Route path="bieu-mau/mau-email" element={<EmailTemplateManagement />} />
+          <Route path="bieu-mau/mau-email/them-moi" element={<EmailTemplateForm />} />
+          <Route path="bieu-mau/mau-email/chinh-sua/:id" element={<EmailTemplateForm />} />
         </Route>
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
