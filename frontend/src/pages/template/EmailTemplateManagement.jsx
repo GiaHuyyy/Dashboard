@@ -23,7 +23,6 @@ const TEMPLATE_STATUS_OPTIONS = [
 ];
 
 const getTypeLabel = (value) => TEMPLATE_TYPES.find((item) => item.value === value)?.label || value;
-const getStatusLabel = (value) => TEMPLATE_STATUS_OPTIONS.find((item) => item.value === value)?.label || value;
 
 function EmailTemplateManagement() {
   const navigate = useNavigate();
@@ -37,6 +36,7 @@ function EmailTemplateManagement() {
   const [deleteRow, setDeleteRow] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewRow, setPreviewRow] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState("");
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -107,6 +107,21 @@ function EmailTemplateManagement() {
     setPreviewRow(row);
     setPreviewOpen(true);
   };
+  const handleStatusChange = async (row, nextStatus) => {
+    if (!row?.id || nextStatus === row.status) return;
+
+    setUpdatingStatusId(row.id);
+    try {
+      const response = await emailTemplateApi.update(row.id, { status: nextStatus });
+      const updated = response?.template || { ...row, status: nextStatus };
+      setRows((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...updated } : item)));
+      toast.success("Đã cập nhật trạng thái mẫu email");
+    } catch (error) {
+      toast.error(error?.message || "Không thể cập nhật trạng thái mẫu email");
+    } finally {
+      setUpdatingStatusId("");
+    }
+  };
 
   return (
     <>
@@ -121,32 +136,32 @@ function EmailTemplateManagement() {
       />
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <select
-          value={activeType}
-          onChange={(event) => setActiveType(event.target.value)}
-          className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-        >
-          <option value="all">Tất cả</option>
-          {TEMPLATE_TYPES.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+          <select
+            value={activeType}
+            onChange={(event) => setActiveType(event.target.value)}
+            className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+          >
+            <option value="all">Tất cả</option>
+            {TEMPLATE_TYPES.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-        >
-          <option value="all">Tất cả trạng thái</option>
-          {TEMPLATE_STATUS_OPTIONS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+          >
+            <option value="all">Tất cả trạng thái</option>
+            {TEMPLATE_STATUS_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
       <ManagementTableCard
         title="Danh sách mẫu email"
@@ -226,17 +241,24 @@ function EmailTemplateManagement() {
                   <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
                     {row.name}
                   </TableCell>
-                  <TableCell className="max-w-[280px] truncate border border-slate-200 p-4 text-left">
+                  <TableCell className="max-w-70 truncate border border-slate-200 p-4 text-left">
                     {row.subject}
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        row.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                  <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
+                    <select
+                      value={row.status || "draft"}
+                      disabled={updatingStatusId === row.id}
+                      onChange={(event) => void handleStatusChange(row, event.target.value)}
+                      className={`w-full min-w-30 rounded-md border border-slate-200 px-2 py-1.5 text-sm font-medium focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 ${
+                        row.status === "active" ? "text-emerald-700" : "text-amber-700"
                       }`}
                     >
-                      {getStatusLabel(row.status)}
-                    </span>
+                      {TEMPLATE_STATUS_OPTIONS.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     {row.isDefault ? <span className="font-semibold text-sky-700">Default</span> : "-"}

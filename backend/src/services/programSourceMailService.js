@@ -1,4 +1,5 @@
 import { sendConfiguredMail } from "./mailConfigurationService.js";
+import { renderDefaultEmailTemplate } from "./emailTemplateRenderService.js";
 
 const formatDateTime = (value) => {
   if (!value) return "";
@@ -108,7 +109,12 @@ const buildPriceRows = ({ source, priceReferences = {} }) => {
   return rows.join("");
 };
 
-const buildHtml = ({ program, source, actionLabel, priceReferences }) => {
+const buildSourceLinkHtml = (sourceLink) => {
+  if (!sourceLink) return "";
+  return `<a href="${sourceLink}" target="_blank" rel="noopener noreferrer">${sourceLink}</a>`;
+};
+
+const buildFallbackHtml = ({ program, source, actionLabel, priceReferences }) => {
   const ccEmails = Array.isArray(program.ccEmails) ? program.ccEmails.join(", ") : "";
   const priceRows = buildPriceRows({ source, priceReferences });
   return `
@@ -119,12 +125,9 @@ const buildHtml = ({ program, source, actionLabel, priceReferences }) => {
         ${buildRow("Số hợp đồng", program.contractCode || "")}
         ${buildRow("Module", program.module || "")}
         ${buildRow("Domain", source.domain || "")}
-        ${buildRow(
-          "Link source",
-          `<a href="${source.sourceLink}" target="_blank" rel="noopener noreferrer">${source.sourceLink}</a>`,
-        )}
-        ${buildRow("Ngày hết hạn tải", formatDateTime(source.expiresAt) || "-")}
-        ${buildRow("Trạng thái tải", source.downloadStatus || "Chưa tải")}
+        ${buildRow("Link source", buildSourceLinkHtml(source.sourceLink))}
+        ${buildRow("Hạn hiệu lực link", formatDateTime(source.expiresAt) || "-")}
+        ${buildRow("Xác nhận tải", source.downloadStatus || "Chưa tải")}
         ${buildRow("Số lượt tải", `${source.downloadCount || 0} lượt tải`)}
         ${priceRows}
         ${buildRow("Email nhận", program.salesReceiverEmail || "")}
@@ -134,15 +137,62 @@ const buildHtml = ({ program, source, actionLabel, priceReferences }) => {
   `;
 };
 
+const buildTemplateVariables = ({ program, source, actionLabel, priceReferences }) => {
+  const priceRows = buildPriceRows({ source, priceReferences });
+  const ccEmails = Array.isArray(program.ccEmails) ? program.ccEmails.join(", ") : "";
+
+  return {
+  actionLabel: actionLabel || "Gửi",
+  actionLabelLower: (actionLabel || "Gửi").toLowerCase(),
+  contractCode: program.contractCode || "",
+  contractName: program.contractName || "",
+  customerName: program.customerName || program.salesReceiverName || "",
+  customerEmail: program.customerEmail || "",
+  salesReceiverName: program.salesReceiverName || "",
+  salesReceiverEmail: program.salesReceiverEmail || "",
+  module: program.module || "",
+  projectName: program.contractName || program.contractCode || "",
+  domain: source.domain || "",
+  sourceLink: source.sourceLink || "",
+  expiresAt: formatDateTime(source.expiresAt) || "-",
+  sendStatus: source.sendStatus || "",
+  downloadStatus: source.downloadStatus || "",
+  downloadedAt: formatDateTime(source.downloadedAt) || "",
+  downloadCount: String(source.downloadCount || 0),
+  ccEmails: ccEmails || "Không có",
+  note: source.note || "",
+  priceRows,
+};
+};
+
+const buildMailContent = async ({ program, source, actionLabel, priceReferences }) => {
+  const variables = buildTemplateVariables({ program, source, actionLabel, priceReferences });
+
+  return renderDefaultEmailTemplate({
+    templateType: "source",
+    variables,
+    htmlVariables: {
+      sourceLink: buildSourceLinkHtml(source.sourceLink),
+      priceRows: variables.priceRows,
+    },
+    fallback: () => ({
+      subject: `[Dashboard] ${actionLabel} source - ${program.contractCode || "N/A"}`,
+      html: buildFallbackHtml({ program, source, actionLabel, priceReferences }),
+    }),
+  });
+};
+
 export const sendProgramSourceMail = async ({ program, source, actionLabel, priceReferences }) => {
   if (!program?.salesReceiverEmail) {
     throw new Error("Phiếu gốc chưa có email kinh doanh nhận");
   }
 
+  const content = await buildMailContent({ program, source, actionLabel, priceReferences });
+
   return sendConfiguredMail({
     to: program.salesReceiverEmail,
     cc: Array.isArray(program.ccEmails) && program.ccEmails.length > 0 ? program.ccEmails : undefined,
-    subject: `[Dashboard] ${actionLabel} source - ${program.contractCode || "N/A"}`,
-    html: buildHtml({ program, source, actionLabel, priceReferences }),
+    subject: content.subject,
+    html: content.html,
   });
 };

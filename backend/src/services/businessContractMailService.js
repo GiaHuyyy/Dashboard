@@ -1,16 +1,39 @@
 import { sendConfiguredMail } from "./mailConfigurationService.js";
+import { renderDefaultEmailTemplate } from "./emailTemplateRenderService.js";
 
-const buildHtml = ({ contract, actionLabel }) => {
-  const ccEmails = Array.isArray(contract.ccEmails) ? contract.ccEmails.join(", ") : "";
+const formatDateTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
+const formatCurrency = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return `${parsed.toLocaleString("vi-VN")} đ`;
+};
+
+const buildImageHtml = (contract) => {
   const images = Array.isArray(contract.contractImages) ? contract.contractImages : [];
 
-  const imageHtml = images
+  return images
     .filter(Boolean)
     .map(
       (url) =>
         `<a href="${url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin:6px;"><img src="${url}" alt="Contract" style="max-width:240px;max-height:160px;border:1px solid #e2e8f0;border-radius:6px;object-fit:cover;" /></a>`,
     )
     .join("");
+};
+
+const buildFallbackHtml = ({ contract, actionLabel }) => {
+  const ccEmails = Array.isArray(contract.ccEmails) ? contract.ccEmails.join(", ") : "";
+  const imageHtml = buildImageHtml(contract);
 
   return `
     <div style="font-family: Arial, sans-serif; font-size: 14px; color: #334155; line-height: 1.6;">
@@ -31,11 +54,54 @@ const buildHtml = ({ contract, actionLabel }) => {
   `;
 };
 
+const buildTemplateVariables = ({ contract, actionLabel }) => ({
+  actionLabel: actionLabel || "Cập nhật",
+  actionLabelLower: (actionLabel || "Cập nhật").toLowerCase(),
+  contractCode: contract.contractCode || "",
+  contractName: contract.contractName || "",
+  contractValue: formatCurrency(contract.contractValue),
+  customerName: contract.customerName || "",
+  customerPhone: contract.customerPhone || "",
+  customerEmail: contract.customerEmail || "",
+  status: contract.status || "",
+  mailStatus: contract.mailStatus || "",
+  handoverStatus: contract.handoverStatus || "",
+  handoverAt: formatDateTime(contract.handoverAt) || "",
+  signedDate: formatDateTime(contract.createdAt) || "",
+  selectedSalesStaff: contract.selectedSalesStaff || "",
+  salesReceiverName: contract.salesReceiverName || "",
+  salesReceiverEmail: contract.salesReceiverEmail || "",
+  ccEmails: Array.isArray(contract.ccEmails) ? contract.ccEmails.join(", ") : "",
+  note: contract.note || "",
+});
+
+const buildMailContent = async ({ contract, actionLabel }) => {
+  const variables = buildTemplateVariables({ contract, actionLabel });
+  const imageHtml = buildImageHtml(contract);
+
+  return renderDefaultEmailTemplate({
+    templateType: "contract",
+    variables,
+    htmlVariables: {
+      contractImages: imageHtml || "Không có",
+      contractImagesBlock: imageHtml
+        ? `<div style="margin-top:18px;"><h3 style="margin:8px 0 6px;color:#0f172a;">Ảnh hợp đồng</h3><div style="display:flex;flex-wrap:wrap;">${imageHtml}</div></div>`
+        : "",
+    },
+    fallback: () => ({
+      subject: `[Dashboard] ${actionLabel} hợp đồng - ${contract.contractCode || "N/A"}`,
+      html: buildFallbackHtml({ contract, actionLabel }),
+    }),
+  });
+};
+
 export const sendBusinessContractMail = async ({ contract, actionLabel }) => {
+  const content = await buildMailContent({ contract, actionLabel });
+
   return sendConfiguredMail({
     to: contract.customerEmail,
     cc: Array.isArray(contract.ccEmails) && contract.ccEmails.length > 0 ? contract.ccEmails : undefined,
-    subject: `[Dashboard] ${actionLabel} hợp đồng - ${contract.contractCode || "N/A"}`,
-    html: buildHtml({ contract, actionLabel }),
+    subject: content.subject,
+    html: content.html,
   });
 };

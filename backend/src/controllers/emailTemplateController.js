@@ -7,54 +7,53 @@ const TEMPLATE_STATUSES = ["draft", "active"];
 
 const DEFAULT_TEMPLATES = [
   {
-    templateType: "program",
-    name: "Thông báo phiếu lập trình",
-    subject: "[{{contractCode}}] Thông tin phiếu lập trình {{module}}",
-    body:
-      "Xin chào {{assignee}},\n\nPhiếu lập trình {{contractCode}} - {{module}} đã được tạo/cập nhật.\n\nMô tả: {{description}}\nTrạng thái: {{status}}\nNgày dự kiến: {{dueAt}}\n\nTrân trọng.",
-    status: "draft",
-    isDefault: true,
-    note: "Mẫu mặc định cho phiếu lập trình.",
-  },
-  {
     templateType: "source",
     name: "Gửi link source",
-    subject: "[{{contractCode}}] Link source {{module}}",
-    body:
-      "Xin chào,\n\nHệ thống gửi link source cho hợp đồng {{contractCode}}.\n\nModule: {{module}}\nLink source: {{sourceLink}}\nHạn hiệu lực link: {{expiresAt}}\n\nTrân trọng.",
+    subject: "[Dashboard] {{actionLabel}} source - {{contractCode}}",
+    body: `
+<div style="font-family: Arial, sans-serif; font-size: 14px; color: #334155; line-height: 1.6;">
+  <h2 style="margin: 0 0 12px; color: #0f172a;">{{actionLabel}} source</h2>
+  <p style="margin: 0 0 12px;">Hệ thống đã {{actionLabelLower}} source với thông tin như sau:</p>
+  <table style="border-collapse: collapse; width: 100%; max-width: 720px;">
+    <tr><td style="padding: 6px 0; width: 180px;"><strong>Số hợp đồng</strong></td><td style="padding: 6px 0;">{{contractCode}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Module</strong></td><td style="padding: 6px 0;">{{module}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Domain</strong></td><td style="padding: 6px 0;">{{domain}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Link source</strong></td><td style="padding: 6px 0;">{{sourceLink}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Hạn hiệu lực link</strong></td><td style="padding: 6px 0;">{{expiresAt}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Xác nhận tải</strong></td><td style="padding: 6px 0;">{{downloadStatus}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Số lượt tải</strong></td><td style="padding: 6px 0;">{{downloadCount}} lượt tải</td></tr>
+    {{priceRows}}
+    <tr><td style="padding: 6px 0;"><strong>Email nhận</strong></td><td style="padding: 6px 0;">{{salesReceiverEmail}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Email cc</strong></td><td style="padding: 6px 0;">{{ccEmails}}</td></tr>
+  </table>
+</div>`.trim(),
     status: "draft",
     isDefault: true,
-    note: "Mẫu mặc định để gửi link source.",
+    note: "Mẫu mặc định để gửi link source, giữ đầy đủ trường giống email hard-code.",
   },
   {
     templateType: "contract",
-    name: "Thông báo bàn giao hợp đồng",
-    subject: "[{{contractCode}}] Thông tin bàn giao hợp đồng",
-    body:
-      "Xin chào,\n\nHợp đồng {{contractCode}} đã được cập nhật thông tin bàn giao.\n\nKhách hàng: {{customerName}}\nTrạng thái: {{handoverStatus}}\n\nTrân trọng.",
+    name: "Thông báo hợp đồng kinh doanh",
+    subject: "[Dashboard] {{actionLabel}} hợp đồng - {{contractCode}}",
+    body: `
+<div style="font-family: Arial, sans-serif; font-size: 14px; color: #334155; line-height: 1.6;">
+  <h2 style="margin: 0 0 12px; color: #0f172a;">{{actionLabel}} hợp đồng kinh doanh</h2>
+  <p style="margin: 0 0 12px;">Hệ thống đã {{actionLabelLower}} với thông tin như sau:</p>
+  <table style="border-collapse: collapse; width: 100%; max-width: 720px;">
+    <tr><td style="padding: 6px 0; width: 180px;"><strong>Số hợp đồng</strong></td><td style="padding: 6px 0;">{{contractCode}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Tên hợp đồng</strong></td><td style="padding: 6px 0;">{{contractName}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Khách hàng</strong></td><td style="padding: 6px 0;">{{customerName}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Số điện thoại</strong></td><td style="padding: 6px 0;">{{customerPhone}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Email khách hàng</strong></td><td style="padding: 6px 0;">{{customerEmail}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Mail nhận</strong></td><td style="padding: 6px 0;">{{mailStatus}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Nhân viên kinh doanh</strong></td><td style="padding: 6px 0;">{{selectedSalesStaff}}</td></tr>
+    <tr><td style="padding: 6px 0;"><strong>Email CC</strong></td><td style="padding: 6px 0;">{{ccEmails}}</td></tr>
+  </table>
+  {{contractImagesBlock}}
+</div>`.trim(),
     status: "draft",
     isDefault: true,
-    note: "Mẫu mặc định cho hợp đồng kinh doanh.",
-  },
-  {
-    templateType: "correction",
-    name: "Thông báo yêu cầu chỉnh sửa",
-    subject: "[{{contractCode}}] Yêu cầu chỉnh sửa {{module}}",
-    body:
-      "Xin chào {{assignee}},\n\nCó yêu cầu chỉnh sửa cho hợp đồng {{contractCode}}.\n\nModule: {{module}}\nNội dung: {{description}}\nTrạng thái: {{status}}\n\nTrân trọng.",
-    status: "draft",
-    isDefault: true,
-    note: "Mẫu mặc định cho yêu cầu chỉnh sửa.",
-  },
-  {
-    templateType: "upgrade",
-    name: "Thông báo yêu cầu nâng cấp",
-    subject: "[{{contractCode}}] Yêu cầu nâng cấp {{module}}",
-    body:
-      "Xin chào {{assignee}},\n\nCó yêu cầu nâng cấp cho hợp đồng {{contractCode}}.\n\nModule: {{module}}\nNội dung: {{description}}\nTrạng thái: {{status}}\n\nTrân trọng.",
-    status: "draft",
-    isDefault: true,
-    note: "Mẫu mặc định cho yêu cầu nâng cấp.",
+    note: "Mẫu mặc định cho hợp đồng kinh doanh, giữ đầy đủ trường giống email hard-code.",
   },
 ];
 
@@ -128,6 +127,7 @@ const toResponseItem = (doc) => ({
 
 const seedDefaults = async (userId) => {
   if (!userId) return;
+
   const count = await EmailTemplate.countDocuments({ isDeleted: false });
   if (count > 0) return;
 
@@ -236,7 +236,10 @@ export const updateEmailTemplate = async (req, res) => {
     subject: normalizedInput.subject || existing.subject,
     body: typeof req.body.body === "string" ? normalizedInput.body : existing.body,
     status: normalizedInput.status || existing.status,
-    isDefault: typeof req.body.isDefault === "boolean" || typeof req.body.isDefault === "string" ? normalizedInput.isDefault : existing.isDefault,
+    isDefault:
+      typeof req.body.isDefault === "boolean" || typeof req.body.isDefault === "string"
+        ? normalizedInput.isDefault
+        : existing.isDefault,
     note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
   };
 
