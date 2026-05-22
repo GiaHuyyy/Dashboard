@@ -8,8 +8,9 @@ import { z } from "zod";
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";
-import { businessContractApi, programApi, staffApi, upgradeApi } from "@/lib/api-client";
+import { businessContractApi, programApi, staffApi, upgradeApi, systemSettingApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { calculateConvertByDuration, getConvertSettings, DEFAULT_CONVERT_SETTINGS } from "@/lib/convert";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -92,19 +93,6 @@ const mapUpgradeToForm = (item) => ({
   note: item.note || "",
 });
 
-const formatNumber = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return "";
-  return Number(parsed.toFixed(3)).toString();
-};
-
-const calculateConvertByDuration = (durationValue, durationUnit) => {
-  const numeric = Number(durationValue);
-  if (!Number.isFinite(numeric) || numeric <= 0) return "";
-  if (durationUnit === "ngày") return formatNumber(numeric);
-  if (durationUnit === "h") return formatNumber(numeric / 8);
-  return "";
-};
 
 const getProgramByBusinessContractId = (programs, businessContractId) =>
   programs.find((item) => item.businessContractId === businessContractId) || null;
@@ -120,6 +108,7 @@ function ProgramUpgradeForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
+  const [convertSettings, setConvertSettings] = useState(DEFAULT_CONVERT_SETTINGS);
 
   const {
     control,
@@ -166,9 +155,9 @@ function ProgramUpgradeForm() {
   }, [getValues, isEditMode, priorityCategories.options, setValue, statusValues]);
 
   useEffect(() => {
-    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
+    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit, convertSettings);
     setValue("convert", convertedValue, { shouldValidate: true });
-  }, [selectedDurationUnit, selectedDurationValue, setValue]);
+  }, [convertSettings, selectedDurationUnit, selectedDurationValue, setValue]);
 
   useEffect(() => {
     if (selectedStatus === UPGRADE_COMPLETED_STATUS) return;
@@ -182,16 +171,17 @@ function ProgramUpgradeForm() {
     const fetchSources = async () => {
       setIsLoadingSources(true);
       try {
-        const requests = [staffApi.references(), programApi.references(), businessContractApi.references()];
+        const requests = [staffApi.references(), programApi.references(), businessContractApi.references(), systemSettingApi.detail()];
         if (isEditMode) {
           requests.push(upgradeApi.detail(id));
         }
 
-        const [staffResponse, programResponse, businessResponse, detailResponse] = await Promise.all([...requests]);
+        const [staffResponse, programResponse, businessResponse, settingResponse, detailResponse] = await Promise.all([...requests]);
 
         const staffList = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const programs = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
         const contracts = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
+        setConvertSettings(getConvertSettings(settingResponse?.settings));
         setStaffReferences(staffList);
         setProgramReferences(programs);
         setBusinessContractReferences(contracts);
@@ -249,7 +239,7 @@ function ProgramUpgradeForm() {
       priority: values.priority,
       durationValue: values.durationValue,
       durationUnit: values.durationUnit,
-      convert: values.convert,
+      convert: calculateConvertByDuration(values.durationValue, values.durationUnit, convertSettings),
       bonusPoint: values.bonusPoint,
       status: values.status,
       assigner: values.assigner,

@@ -1,15 +1,67 @@
 import "dotenv/config";
 import cloudinary from "cloudinary";
 
+import { getSystemSettingsObject } from "../services/systemSettingService.js";
+
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+const DEFAULT_UPLOAD_SETTINGS = {
+  maxUploadSizeMb: 5,
+  allowedExtensions: "jpg,png,jpeg,webp",
+};
+
+const EXTENSION_MIME_MAP = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
+
+const normalizeExtensions = (value) =>
+  String(value || "")
+    .split(",")
+    .map((item) => item.trim().replace(/^\./, "").toLowerCase())
+    .filter(Boolean);
+
+const getImageUploadSettings = async () => {
+  const settings = await getSystemSettingsObject();
+  const upload = settings?.upload || {};
+  const configuredExtensions = normalizeExtensions(upload.allowedExtensions || DEFAULT_UPLOAD_SETTINGS.allowedExtensions);
+  const imageExtensions = configuredExtensions.filter((item) => EXTENSION_MIME_MAP[item]);
+
+  return {
+    maxUploadSizeMb: Number(upload.maxUploadSizeMb || DEFAULT_UPLOAD_SETTINGS.maxUploadSizeMb),
+    allowedExtensions: imageExtensions.length > 0 ? imageExtensions : normalizeExtensions(DEFAULT_UPLOAD_SETTINGS.allowedExtensions),
+  };
+};
+
+const getFileExtension = (filename = "") => filename.split(".").pop()?.toLowerCase() || "";
+
+
 export const uploadContractImage = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "Không có file được gửi" });
+  }
+
+  const uploadSettings = await getImageUploadSettings();
+  const fileExtension = getFileExtension(req.file.originalname);
+  const allowedMimes = uploadSettings.allowedExtensions.map((item) => EXTENSION_MIME_MAP[item]).filter(Boolean);
+  const maxSizeBytes = uploadSettings.maxUploadSizeMb * 1024 * 1024;
+
+  if (!uploadSettings.allowedExtensions.includes(fileExtension) || !allowedMimes.includes(req.file.mimetype)) {
+    return res.status(400).json({
+      message: `Chỉ chấp nhận ảnh định dạng ${uploadSettings.allowedExtensions.join(", ").toUpperCase()}`,
+    });
+  }
+
+  if (req.file.size > maxSizeBytes) {
+    return res.status(400).json({
+      message: `Kích thước file tối đa ${uploadSettings.maxUploadSizeMb}MB`,
+    });
   }
 
   const missingVars = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"].filter(

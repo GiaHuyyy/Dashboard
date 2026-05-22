@@ -4,6 +4,7 @@ import BusinessContract from "../models/BusinessContract.js";
 import DesignTask from "../models/DesignTask.js";
 import Program from "../models/Program.js";
 import { sendProgramMail } from "../services/programMailService.js";
+import { getSystemSettingsObject } from "../services/systemSettingService.js";
 import { getActiveCategoryNames } from "../utils/system-category.js";
 
 const DURATION_UNITS = ["h", "ngày"];
@@ -48,13 +49,25 @@ const parseCcEmails = (ccEmails) => {
     .map((item) => item.trim())
     .filter(Boolean);
 };
-const formatNumber = (value) => {
+const formatNumber = (value, roundingDigits = 3) => {
   if (!Number.isFinite(value)) return "";
-  return Number(value.toFixed(3)).toString();
+  const safeDigits = Number.isFinite(Number(roundingDigits)) ? Math.min(Math.max(Math.trunc(Number(roundingDigits)), 0), 6) : 3;
+  return Number(value.toFixed(safeDigits)).toString();
 };
-const calculateConvertByDuration = (durationValue, durationUnit) => {
-  if (durationUnit === "ngày") return formatNumber(durationValue);
-  if (durationUnit === "h") return formatNumber(durationValue / 8);
+const getConvertSettings = async () => {
+  const settings = await getSystemSettingsObject();
+  return settings?.time || {};
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit, convertSettings = {}) => {
+  const workingHoursPerDay = Number(convertSettings.workingHoursPerDay || 8);
+  const roundingDigits = Number(convertSettings.roundingDigits ?? 3);
+
+  if (durationUnit === "ngày") return formatNumber(durationValue, roundingDigits);
+  if (durationUnit === "h") {
+    if (!Number.isFinite(workingHoursPerDay) || workingHoursPerDay <= 0) return "";
+    return formatNumber(durationValue / workingHoursPerDay, roundingDigits);
+  }
   return "";
 };
 const hasValidEmailLocalPart = (email) => {
@@ -85,12 +98,12 @@ const toIsoString = (value) => {
   return date.toISOString();
 };
 
-const normalizeProgramPayload = (body = {}) => {
+const normalizeProgramPayload = (body = {}, convertSettings = {}) => {
   const module = normalizeString(body.module);
   const durationValue = normalizeNumber(body.durationValue);
   const durationUnit = normalizeString(body.durationUnit);
-  const time = durationValue !== null ? `${formatNumber(durationValue)} ${durationUnit}` : "";
-  const convert = durationValue !== null ? calculateConvertByDuration(durationValue, durationUnit) : "";
+  const time = durationValue !== null ? `${formatNumber(durationValue, convertSettings.roundingDigits)} ${durationUnit}` : "";
+  const convert = durationValue !== null ? calculateConvertByDuration(durationValue, durationUnit, convertSettings) : "";
   const bonusPoint = normalizeNumber(body.bonusPoint);
 
   return {
@@ -295,7 +308,8 @@ const toMailPayload = (payload) => ({
 });
 
 export const validateProgram = async (req, res) => {
-  const payload = normalizeProgramPayload(req.body);
+  const convertSettings = await getConvertSettings();
+  const payload = normalizeProgramPayload(req.body, convertSettings);
   const currentProgramId = normalizeString(req.body.currentProgramId);
   const validationError = await validateProgramPayload(payload, {
     checkDuplicate: true,
@@ -309,7 +323,8 @@ export const validateProgram = async (req, res) => {
 
 export const createProgram = async (req, res) => {
   const shouldSendMail = normalizeBoolean(req.body.sendMail) === true;
-  const payload = normalizeProgramPayload(req.body);
+  const convertSettings = await getConvertSettings();
+  const payload = normalizeProgramPayload(req.body, convertSettings);
   const validationError = await validateProgramPayload(payload, { checkDuplicate: true });
   if (validationError) {
     return res.status(validationError.status).json({ message: validationError.message });
@@ -493,7 +508,8 @@ export const updateProgram = async (req, res) => {
     return res.status(404).json({ message: "Không tìm thấy chương trình" });
   }
 
-  const payload = normalizeProgramPayload(req.body);
+  const convertSettings = await getConvertSettings();
+  const payload = normalizeProgramPayload(req.body, convertSettings);
   const validationError = await validateProgramPayload(payload, {
     checkDuplicate: true,
     excludeProgramId: toObjectIdString(existingProgram._id),

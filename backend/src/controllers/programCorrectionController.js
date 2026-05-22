@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 import Program from "../models/Program.js";
 import ProgramCorrection from "../models/ProgramCorrection.js";
+import { getSystemSettingsObject } from "../services/systemSettingService.js";
 import { getActiveCategoryNames } from "../utils/system-category.js";
 
 const COMPLETED_STATUS = "Đã hoàn thành";
@@ -55,15 +56,27 @@ const parsePositiveInteger = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
-const formatNumber = (value) => {
+const formatNumber = (value, roundingDigits = 3) => {
   if (!Number.isFinite(value)) return "";
-  return Number(value.toFixed(3)).toString();
+  const safeDigits = Number.isFinite(Number(roundingDigits)) ? Math.min(Math.max(Math.trunc(Number(roundingDigits)), 0), 6) : 3;
+  return Number(value.toFixed(safeDigits)).toString();
 };
 
-const calculateConvertByDuration = (durationValue, durationUnit) => {
+const getConvertSettings = async () => {
+  const settings = await getSystemSettingsObject();
+  return settings?.time || {};
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit, convertSettings = {}) => {
+  const workingHoursPerDay = Number(convertSettings.workingHoursPerDay || 8);
+  const roundingDigits = Number(convertSettings.roundingDigits ?? 3);
+
   if (!Number.isFinite(durationValue) || durationValue <= 0) return "";
-  if (durationUnit === "ngày") return formatNumber(durationValue);
-  if (durationUnit === "h") return formatNumber(durationValue / 8);
+  if (durationUnit === "ngày") return formatNumber(durationValue, roundingDigits);
+  if (durationUnit === "h") {
+    if (!Number.isFinite(workingHoursPerDay) || workingHoursPerDay <= 0) return "";
+    return formatNumber(durationValue / workingHoursPerDay, roundingDigits);
+  }
   return "";
 };
 
@@ -165,10 +178,12 @@ const validatePayload = async (payload) => {
     return { status: 400, message: "Ngày dự kiến không được nhỏ hơn ngày giao" };
   }
 
+  const convertSettings = await getConvertSettings();
+
   return {
     targetProgram,
-    time: `${formatNumber(payload.durationValue)} ${payload.durationUnit}`,
-    convert: calculateConvertByDuration(payload.durationValue, payload.durationUnit),
+    time: `${formatNumber(payload.durationValue, convertSettings.roundingDigits)} ${payload.durationUnit}`,
+    convert: calculateConvertByDuration(payload.durationValue, payload.durationUnit, convertSettings),
   };
 };
 

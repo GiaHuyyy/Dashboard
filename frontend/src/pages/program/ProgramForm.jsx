@@ -8,25 +8,13 @@ import { z } from "zod";
 import { FormActions } from "@/components/program-form/FormActions";
 import { ProgramInfo } from "@/components/program-form/ProgramInfo";
 import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
-import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
+import { businessContractApi, designApi, programApi, staffApi, systemSettingApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { calculateConvertByDuration, getConvertSettings, DEFAULT_CONVERT_SETTINGS } from "@/lib/convert";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 
-const formatNumber = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return "";
-  return Number(parsed.toFixed(3)).toString();
-};
-
-const calculateConvertByDuration = (durationValue, durationUnit) => {
-  const numeric = Number(durationValue);
-  if (!Number.isFinite(numeric) || numeric <= 0) return "";
-  if (durationUnit === "ngày") return formatNumber(numeric);
-  if (durationUnit === "h") return formatNumber(numeric / 8);
-  return "";
-};
 
 const toDateTimeLocal = (value) => {
   if (!value) return "";
@@ -103,6 +91,7 @@ function ProgramForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
+  const [convertSettings, setConvertSettings] = useState(DEFAULT_CONVERT_SETTINGS);
 
   const {
     control,
@@ -154,16 +143,18 @@ function ProgramForm() {
   useEffect(() => {
     const fetchReferences = async () => {
       try {
-        const [staffResponse, designResponse, businessResponse, programResponse] = await Promise.all([
+        const [staffResponse, designResponse, businessResponse, programResponse, settingResponse] = await Promise.all([
           staffApi.references(),
           designApi.references(),
           businessContractApi.references(),
           programApi.references(),
+          systemSettingApi.detail(),
         ]);
         const nextStaffReferences = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const nextDesignReferences = Array.isArray(designResponse?.designTasks) ? designResponse.designTasks : [];
         const nextBusinessReferences = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
         const nextProgramReferences = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
+        setConvertSettings(getConvertSettings(settingResponse?.settings));
 
         setStaffReferences(nextStaffReferences);
         setDesignReferences(nextDesignReferences);
@@ -226,9 +217,9 @@ function ProgramForm() {
   }, [getValues, moduleCategories.options, priorityCategories.options, processingStatusValues, setValue]);
 
   useEffect(() => {
-    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
+    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit, convertSettings);
     setValue("convert", convertedValue, { shouldValidate: true });
-  }, [selectedDurationValue, selectedDurationUnit, setValue]);
+  }, [convertSettings, selectedDurationValue, selectedDurationUnit, setValue]);
 
   useEffect(() => {
     if (!selectedDesign) {
@@ -320,7 +311,7 @@ function ProgramForm() {
     const shouldSendMail = mode === "save-mail";
     const payload = {
       ...values,
-      convert: calculateConvertByDuration(values.durationValue, values.durationUnit),
+      convert: calculateConvertByDuration(values.durationValue, values.durationUnit, convertSettings),
       bonusPoint: values.bonusPoint,
       sendMail: shouldSendMail,
       receivedAt: values.receivedAt || null,
