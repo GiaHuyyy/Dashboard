@@ -1,5 +1,4 @@
-import { Copy, Eye } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
@@ -7,7 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { FormActions } from "@/components/program-form/FormActions";
-import { Button } from "@/components/ui/button-v2";
+import { EmailTemplateEditor } from "@/components/template/EmailTemplateEditor";
 import FormField from "@/components/ui/form-field";
 import { emailTemplateApi } from "@/lib/api-client";
 
@@ -21,17 +20,34 @@ const TEMPLATE_STATUS_OPTIONS = [
   { value: "active", label: "Đang dùng" },
 ];
 
-const VARIABLE_GROUPS = [
-  "{{contractCode}}",
-  "{{customerName}}",
-  "{{module}}",
-  "{{description}}",
-  "{{assignee}}",
-  "{{status}}",
-  "{{dueAt}}",
-  "{{sourceLink}}",
-  "{{expiresAt}}",
-];
+const VARIABLE_OPTIONS = {
+  source: [
+    "{{contractCode}}",
+    "{{module}}",
+    "{{domain}}",
+    "{{sourceLink}}",
+    "{{expiresAt}}",
+    "{{downloadStatus}}",
+    "{{downloadCount}}",
+    "{{priceRows}}",
+    "{{toEmail}}",
+    "{{ccEmails}}",
+    "{{note}}",
+  ],
+  contract: [
+    "{{actionLabel}}",
+    "{{actionLabelLower}}",
+    "{{contractCode}}",
+    "{{contractName}}",
+    "{{customerName}}",
+    "{{customerPhone}}",
+    "{{customerEmail}}",
+    "{{mailStatus}}",
+    "{{selectedSalesStaff}}",
+    "{{ccEmails}}",
+    "{{contractImagesBlock}}",
+  ],
+};
 
 const schema = z.object({
   templateType: z.enum(["source", "contract"], { message: "Vui lòng chọn loại mẫu" }),
@@ -70,8 +86,6 @@ function EmailTemplateForm() {
   const returnPath = "/bieu-mau/mau-email";
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
-  const [showVariables, setShowVariables] = useState(true);
-  const [showPreview, setShowPreview] = useState(false);
 
   const {
     register,
@@ -85,8 +99,15 @@ function EmailTemplateForm() {
     defaultValues,
   });
 
-  const subject = watch("subject");
   const body = watch("body");
+  const templateType = watch("templateType");
+  const variables = VARIABLE_OPTIONS[templateType] || VARIABLE_OPTIONS.source;
+
+  const pageTitle = isEditMode ? "Cập nhật mẫu email" : "Thêm mẫu email";
+  const typeLabel = useMemo(
+    () => TEMPLATE_TYPES.find((item) => item.value === templateType)?.label || "Source",
+    [templateType],
+  );
 
   const fetchDetail = useCallback(async () => {
     if (!isEditMode) return;
@@ -114,17 +135,8 @@ function EmailTemplateForm() {
     void fetchDetail();
   }, [fetchDetail]);
 
-  const copyVariable = async (variable) => {
-    try {
-      await navigator.clipboard.writeText(variable);
-      toast.success(`Đã copy ${variable}`);
-    } catch {
-      toast.error("Không thể copy biến dữ liệu");
-    }
-  };
-
-  const insertToSubject = (variable) => {
-    setValue("subject", `${subject || ""} ${variable}`.trim(), { shouldValidate: true, shouldDirty: true });
+  const updateBody = (nextBody) => {
+    setValue("body", nextBody, { shouldValidate: true, shouldDirty: true });
   };
 
   const onSubmit = async (values, mode = "save") => {
@@ -214,60 +226,20 @@ function EmailTemplateForm() {
           </div>
 
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-md font-semibold text-slate-700">Biến dữ liệu</p>
-              <button
-                type="button"
-                onClick={() => setShowVariables((prev) => !prev)}
-                className="text-sm font-semibold text-sky-700"
-              >
-                {showVariables ? "Ẩn gợi ý" : "Hiện gợi ý"}
-              </button>
-            </div>
-            {showVariables ? (
-              <div className="rounded-lg border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">
-                <p>
-                  Bấm biến để copy, hoặc dùng nút chèn vào tiêu đề. Khi gửi mail hệ thống sẽ thay biến bằng dữ liệu
-                  thật.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {VARIABLE_GROUPS.map((variable) => (
-                    <button
-                      type="button"
-                      key={variable}
-                      onClick={() => copyVariable(variable)}
-                      className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100"
-                    >
-                      {variable}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    icon={Copy}
-                    variant="primary-outline"
-                    size="sm"
-                    label="Chèn {{contractCode}} vào tiêu đề"
-                    onClick={() => insertToSubject("{{contractCode}}")}
-                  />
-                  <Button
-                    icon={Copy}
-                    variant="primary-outline"
-                    size="sm"
-                    label="Chèn {{customerName}} vào tiêu đề"
-                    onClick={() => insertToSubject("{{customerName}}")}
-                  />
-                </div>
-              </div>
-            ) : null}
-
+            <p className="text-md font-semibold text-slate-700">Gợi ý sử dụng mẫu</p>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-              <p className="font-semibold text-slate-700">Gợi ý</p>
+              <p className="font-semibold text-slate-700">Lưu ý</p>
               <p className="mt-1">
                 Mẫu Source nên có <span className="font-semibold">{"{{sourceLink}}"}</span> và{" "}
                 <span className="font-semibold">{"{{expiresAt}}"}</span>. Mẫu Hợp đồng nên có{" "}
                 <span className="font-semibold">{"{{contractCode}}"}</span> và{" "}
                 <span className="font-semibold">{"{{customerName}}"}</span>.
+              </p>
+            </div>
+            <div className="rounded-lg border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">
+              <p className="font-semibold">Chèn biến dữ liệu</p>
+              <p className="mt-1">
+                Sau khi đặt con trỏ trong phần Nội dung mẫu, bấm biến dữ liệu bên dưới editor để chèn đúng vị trí.
               </p>
             </div>
           </div>
@@ -278,36 +250,23 @@ function EmailTemplateForm() {
             inputProps={register("subject")}
             error={errors.subject?.message}
           />
-          <FormField
-            label="Nội dung mẫu"
-            type="textarea"
-            className="lg:col-span-2"
-            inputProps={{ ...register("body"), rows: 12 }}
-            error={errors.body?.message}
-          />
-        </div>
-      </div>
 
-      <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-2 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-          <p className="text-base font-semibold text-gray-500">Preview</p>
-          <button
-            type="button"
-            onClick={() => setShowPreview((prev) => !prev)}
-            className="flex items-center gap-1 text-sm font-semibold text-sky-700"
-          >
-            <Eye className="h-4 w-4" />
-            {showPreview ? "Ẩn preview" : "Hiện preview"}
-          </button>
-        </div>
-        {showPreview ? (
-          <div className="border-x border-b border-slate-200 p-5">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <p className="font-semibold text-slate-800">{subject || "Tiêu đề email"}</p>
-              <div className="mt-3 whitespace-pre-wrap leading-6">{body || "Nội dung mẫu email"}</div>
+          <div className="lg:col-span-2">
+            <input type="hidden" {...register("body")} />
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <label className="block text-sm font-medium text-slate-600">Nội dung mẫu</label>
+              <span className="text-xs text-slate-500">
+                Đặt con trỏ trong nội dung, rồi bấm biến dữ liệu bên dưới để chèn vào đúng vị trí.
+              </span>
             </div>
+            <EmailTemplateEditor
+              value={body}
+              onChange={updateBody}
+              variables={variables}
+              error={errors.body?.message}
+            />
           </div>
-        ) : null}
+        </div>
       </div>
     </form>
   );
