@@ -44,6 +44,7 @@ import BusinessForm from "./pages/business/BusinessForm";
 import Login from "./pages/auth/Login";
 import UserManagement from "./pages/users/UserManagement";
 import UserForm from "./pages/users/UserForm";
+import RolePermissionManagement from "./pages/permissions/RolePermissionManagement";
 import { fetchCurrentUser, logoutUser } from "./store/auth-slice";
 
 function RequireAuth({ children, isAuthenticated, isInitializing, isSessionExpiredModalOpen }) {
@@ -186,6 +187,7 @@ function App() {
           <Route path="phan-quyen/tai-khoan" element={<UserManagement />} />
           <Route path="phan-quyen/tai-khoan/them-moi" element={<UserForm />} />
           <Route path="phan-quyen/tai-khoan/chinh-sua/:id" element={<UserForm />} />
+          <Route path="phan-quyen/vai-tro" element={<RolePermissionManagement />} />
           <Route path="bieu-mau" element={<Navigate to="/bieu-mau/mau-email" replace />} />
           <Route path="bieu-mau/mau-email" element={<EmailTemplateManagement />} />
           <Route path="bieu-mau/mau-email/them-moi" element={<EmailTemplateForm />} />

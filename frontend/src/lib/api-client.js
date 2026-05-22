@@ -86,6 +86,16 @@ export const userApi = {
     }),
 };
 
+
+export const rolePermissionApi = {
+  list: () => request("/role-permissions"),
+  update: (role, permissions) =>
+    request(`/role-permissions/${role}`, {
+      method: "PUT",
+      body: JSON.stringify({ permissions }),
+    }),
+};
+
 export const programApi = {
   list: (module) => {
     const searchParams = new URLSearchParams();

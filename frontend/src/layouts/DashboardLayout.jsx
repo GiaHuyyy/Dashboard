@@ -93,6 +93,11 @@ const navItems = [
         path: "/phan-quyen/tai-khoan",
         activePathPrefixes: ["/phan-quyen/tai-khoan"],
       },
+      {
+        label: "Vai trò & quyền",
+        path: "/phan-quyen/vai-tro",
+        activePathPrefixes: ["/phan-quyen/vai-tro"],
+      },
     ],
   },
   {
