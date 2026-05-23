@@ -178,39 +178,31 @@ function SystemCategoryManagement() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        {CATEGORY_TABS.map((tab) => {
-          const isActive = tab.value === activeType;
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => setActiveType(tab.value)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                isActive
-                  ? "border-sky-500 bg-sky-50 text-sky-700"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <ManagementActions
+        onAdd={openCreate}
+        onDeleteAll={() => {
+          setDeleteRow(null);
+          setDeleteOpen(true);
+        }}
+        addDisabled={!canUpdate}
+        addTitle={!canUpdate ? "Bạn không có quyền thêm danh mục" : undefined}
+        deleteDisabled={rows.length === 0 || !canUpdate}
+        deleteTitle={!canUpdate ? "Bạn không có quyền xóa danh mục" : undefined}
+        deleteLabel={deleteManyLabel}
+      />
 
-      <div className="mt-4">
-        <ManagementActions
-          onAdd={openCreate}
-          onDeleteAll={() => {
-            setDeleteRow(null);
-            setDeleteOpen(true);
-          }}
-          addDisabled={!canUpdate}
-          addTitle={!canUpdate ? "Bạn không có quyền thêm danh mục" : undefined}
-          deleteDisabled={rows.length === 0 || !canUpdate}
-          deleteTitle={!canUpdate ? "Bạn không có quyền xóa danh mục" : undefined}
-          deleteLabel={deleteManyLabel}
-        />
+     <div className="mt-4 flex flex-wrap items-center gap-3">
+        <select
+          className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+          value={activeType}
+          onChange={(event) => setActiveType(event.target.value)}
+        >
+          {CATEGORY_TABS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <ManagementTableCard
@@ -301,7 +293,14 @@ function SystemCategoryManagement() {
                     onClick={(event) => event.stopPropagation()}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      <Button icon={SquarePen} variant="primary-outline" iconOnly onClick={() => openEdit(row)} disabled={!canUpdate} title={!canUpdate ? "Bạn không có quyền sửa danh mục" : undefined} />
+                      <Button
+                        icon={SquarePen}
+                        variant="primary-outline"
+                        iconOnly
+                        onClick={() => openEdit(row)}
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền sửa danh mục" : undefined}
+                      />
                       <Button
                         icon={Trash2}
                         variant="danger-outline"
@@ -387,7 +386,13 @@ function SystemCategoryManagement() {
                 setDeleteRow(null);
               }}
             />
-            <Button variant="danger" label="Xóa" onClick={handleDelete} disabled={!canUpdate} title={!canUpdate ? "Bạn không có quyền xóa danh mục" : undefined} />
+            <Button
+              variant="danger"
+              label="Xóa"
+              onClick={handleDelete}
+              disabled={!canUpdate}
+              title={!canUpdate ? "Bạn không có quyền xóa danh mục" : undefined}
+            />
           </div>
         }
       >
