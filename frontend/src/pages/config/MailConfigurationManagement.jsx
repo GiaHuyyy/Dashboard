@@ -1,4 +1,4 @@
-import { Mail, Save, ShieldCheck } from "lucide-react";
+import { Mail, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -219,6 +219,7 @@ function MailConfigurationManagement() {
 
           <div className="flex flex-wrap items-center justify-end gap-2 md:col-span-2">
             <Button
+            icon={RotateCcw}
               variant="secondary"
               label="Tải lại"
               onClick={() => void fetchConfiguration()}

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { authApi } from "@/lib/api-client";
+import { hasPermission } from "@/lib/permissions";
 import { logoutUser } from "@/store/auth-slice";
 
 const navItems = [
@@ -16,9 +17,10 @@ const navItems = [
       {
         label: "Quản lý source",
         path: "/he-thong/source",
+        permission: "source.view",
         activePathPrefixes: ["/he-thong/source/"],
       },
-      { label: "Quản lý server", path: "/he-thong/server" },
+      { label: "Quản lý server", path: "/he-thong/server", permission: "server.view" },
     ],
   },
   {
@@ -26,12 +28,12 @@ const navItems = [
     path: "/bang-gia",
     icon: FileText,
     children: [
-      { label: "Bảng giá host", path: "/bang-gia/host", activePathPrefixes: ["/bang-gia/host/"] },
-      { label: "Bảng giá ssl", path: "/bang-gia/ssl", activePathPrefixes: ["/bang-gia/ssl/"] },
-      { label: "Bảng giá tên miền", path: "/bang-gia/ten-mien", activePathPrefixes: ["/bang-gia/ten-mien/"] },
-      { label: "Bảng giá trọn gói", path: "/bang-gia/tron-goi", activePathPrefixes: ["/bang-gia/tron-goi/"] },
-      { label: "Bảng giá quản trị", path: "/bang-gia/quan-tri", activePathPrefixes: ["/bang-gia/quan-tri/"] },
-      { label: "Bảng giá quảng cáo", path: "/bang-gia/quang-cao", activePathPrefixes: ["/bang-gia/quang-cao/"] },
+      { label: "Bảng giá host", path: "/bang-gia/host", permission: "price.view", activePathPrefixes: ["/bang-gia/host/"] },
+      { label: "Bảng giá ssl", path: "/bang-gia/ssl", permission: "price.view", activePathPrefixes: ["/bang-gia/ssl/"] },
+      { label: "Bảng giá tên miền", path: "/bang-gia/ten-mien", permission: "price.view", activePathPrefixes: ["/bang-gia/ten-mien/"] },
+      { label: "Bảng giá trọn gói", path: "/bang-gia/tron-goi", permission: "price.view", activePathPrefixes: ["/bang-gia/tron-goi/"] },
+      { label: "Bảng giá quản trị", path: "/bang-gia/quan-tri", permission: "price.view", activePathPrefixes: ["/bang-gia/quan-tri/"] },
+      { label: "Bảng giá quảng cáo", path: "/bang-gia/quang-cao", permission: "price.view", activePathPrefixes: ["/bang-gia/quang-cao/"] },
     ],
   },
   {
@@ -42,20 +44,23 @@ const navItems = [
       {
         label: "Danh sách lập trình",
         path: "/lap-trinh/danh-sach",
+        permission: "program.view",
         activePaths: ["/lap-trinh/them-moi"],
         activePathPrefixes: ["/lap-trinh/chinh-sua/"],
       },
       {
         label: "Danh sách nâng cấp",
         path: "/lap-trinh/nang-cap",
+        permission: "upgrade.view",
         activePathPrefixes: ["/lap-trinh/nang-cap/"],
       },
       {
         label: "Quản lý chỉnh sửa",
         path: "/lap-trinh/chinh-sua",
+        permission: "correction.view",
         activePathPrefixes: ["/lap-trinh/quan-ly-chinh-sua/"],
       },
-      { label: "Quản lý điểm", path: "/lap-trinh/quan-ly-diem" },
+      { label: "Quản lý điểm", path: "/lap-trinh/quan-ly-diem", permission: "program.updatePoint" },
     ],
   },
   {
@@ -66,9 +71,10 @@ const navItems = [
       {
         label: "Danh sách design",
         path: "/design/danh-sach",
+        permission: "design.view",
         activePathPrefixes: ["/design/them-moi", "/design/chinh-sua/"],
       },
-      { label: "Quản lý điểm", path: "/design/quan-ly-diem" },
+      { label: "Quản lý điểm", path: "/design/quan-ly-diem", permission: "design.updatePoint" },
     ],
   },
   {
@@ -79,6 +85,7 @@ const navItems = [
       {
         label: "Danh sách nhân sự",
         path: "/nhan-su/danh-sach",
+        permission: "staff.view",
         activePathPrefixes: ["/nhan-su/chinh-sua/", "/nhan-su/them-moi"],
       },
     ],
@@ -91,11 +98,13 @@ const navItems = [
       {
         label: "Tài khoản người dùng",
         path: "/phan-quyen/tai-khoan",
+        permission: "permission.user.view",
         activePathPrefixes: ["/phan-quyen/tai-khoan"],
       },
       {
         label: "Vai trò & quyền",
         path: "/phan-quyen/vai-tro",
+        permission: "permission.role.view",
         activePathPrefixes: ["/phan-quyen/vai-tro"],
       },
     ],
@@ -108,6 +117,7 @@ const navItems = [
       {
         label: "Danh sách hợp đồng",
         path: "/kinh-doanh/danh-sach",
+        permission: "contract.view",
         activePaths: ["/kinh-doanh/them-moi"],
         activePathPrefixes: ["/kinh-doanh/chinh-sua/"],
       },
@@ -121,16 +131,19 @@ const navItems = [
       {
         label: "Danh mục hệ thống",
         path: "/cau-hinh/danh-muc-he-thong",
+        permission: "config.category.view",
         activePathPrefixes: ["/cau-hinh/danh-muc-he-thong"],
       },
       {
         label: "Cấu hình mail",
         path: "/cau-hinh/mail",
+        permission: "config.mail.view",
         activePathPrefixes: ["/cau-hinh/mail"],
       },
       {
         label: "Cấu hình SLA/tham số",
         path: "/cau-hinh/tham-so",
+        permission: "config.setting.view",
         activePathPrefixes: ["/cau-hinh/tham-so"],
       },
     ],
@@ -143,6 +156,7 @@ const navItems = [
       {
         label: "Thư viện mẫu email",
         path: "/bieu-mau/mau-email",
+        permission: "template.view",
         activePathPrefixes: ["/bieu-mau/mau-email"],
       },
     ],
@@ -150,6 +164,7 @@ const navItems = [
 ];
 
 const linkBase = "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition";
+const disabledMessage = "Bạn không có quyền truy cập chức năng này";
 
 function DashboardLayout() {
   const dispatch = useDispatch();
@@ -158,6 +173,13 @@ function DashboardLayout() {
   const { user } = useSelector((state) => state.auth);
   const [openSections, setOpenSections] = useState({});
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const canAccess = (item) => hasPermission(user, item?.permission);
+  const getFirstAllowedChild = (item) => item.children?.find((child) => canAccess(child));
+  const isItemDisabled = (item) => {
+    if (item.children) return !getFirstAllowedChild(item);
+    return !canAccess(item);
+  };
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -207,6 +229,10 @@ function DashboardLayout() {
     setOpenSections((prev) => ({ ...prev, [path]: !prev[path] }));
   };
 
+  const handleDisabledClick = () => {
+    toast.error(disabledMessage);
+  };
+
   const handleLogout = async () => {
     try {
       await dispatch(logoutUser()).unwrap();
@@ -235,64 +261,111 @@ function DashboardLayout() {
 
             <nav className="flex-1 overflow-y-auto px-4 py-5">
               <ul className="space-y-2">
-                {navItems.map((item) => (
-                  <li key={item.path}>
-                    <NavLink
-                      to={item.children ? item.children[0].path : item.path}
-                      onClick={(event) => {
-                        if (item.children) {
-                          event.preventDefault();
-                          toggleSection(item.path);
-                          navigate(item.children[0].path);
+                {navItems.map((item) => {
+                  const itemDisabled = isItemDisabled(item);
+                  const firstAllowedChild = getFirstAllowedChild(item);
+                  const itemTargetPath = item.children ? firstAllowedChild?.path || item.children[0].path : item.path;
+
+                  return (
+                    <li key={item.path}>
+                      <NavLink
+                        to={itemTargetPath}
+                        title={itemDisabled ? disabledMessage : undefined}
+                        aria-disabled={itemDisabled}
+                        onClick={(event) => {
+                          if (itemDisabled) {
+                            event.preventDefault();
+                            handleDisabledClick();
+                            return;
+                          }
+
+                          if (item.children) {
+                            event.preventDefault();
+                            toggleSection(item.path);
+                            navigate(itemTargetPath);
+                          }
+                        }}
+                        className={({ isActive }) =>
+                          [
+                            linkBase,
+                            itemDisabled
+                              ? "cursor-not-allowed text-slate-600 opacity-55 hover:bg-transparent"
+                              : isActive || location.pathname.startsWith(item.path)
+                                ? "bg-white/15 text-white"
+                                : "text-gray-400 hover:bg-white/10",
+                          ].join(" ")
                         }
-                      }}
-                      className={({ isActive }) =>
-                        [
-                          linkBase,
-                          isActive || location.pathname.startsWith(item.path)
-                            ? "bg-white/15 text-white"
-                            : "text-gray-400 hover:bg-white/10",
-                        ].join(" ")
-                      }
-                    >
-                      <item.icon className={`h-4 w-4 text-gray-300 ${openSections[item.path] ? "text-white" : ""}`} />
-                      {item.label}
-                      <span className="ml-auto">
-                        {item.children && (
-                          <ChevronLeft
-                            className={`h-4 w-4 text-gray-500 transition ${openSections[item.path] ? "-rotate-90 text-white" : ""}`}
-                          />
-                        )}
-                      </span>
-                    </NavLink>
-                    {item.children && openSections[item.path] && (
-                      <ul className="mt-2 space-y-1 pl-6">
-                        {item.children.map((child) => (
-                          <li key={child.path}>
-                            <NavLink
-                              to={child.path}
-                              className={() =>
-                                [
-                                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition",
-                                  isChildActive(child) ? "bg-white/15 text-white" : "text-slate-300 hover:bg-white/10",
-                                ].join(" ")
-                              }
-                            >
-                              <span
-                                className={`relative flex h-3 w-3 items-center justify-center rounded-full border ${
-                                  isChildActive(child) ? "border-white" : "border-slate-500"
-                                }`}
-                              >
-                                {isChildActive(child) && <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
-                              </span>
-                              {child.label}
-                            </NavLink>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
+                      >
+                        <item.icon
+                          className={`h-4 w-4 ${
+                            itemDisabled ? "text-slate-600" : openSections[item.path] ? "text-white" : "text-gray-300"
+                          }`}
+                        />
+                        {item.label}
+                        <span className="ml-auto">
+                          {item.children && (
+                            <ChevronLeft
+                              className={`h-4 w-4 transition ${
+                                itemDisabled
+                                  ? "text-slate-700"
+                                  : openSections[item.path]
+                                    ? "-rotate-90 text-white"
+                                    : "text-gray-500"
+                              }`}
+                            />
+                          )}
+                        </span>
+                      </NavLink>
+                      {item.children && openSections[item.path] && (
+                        <ul className="mt-2 space-y-1 pl-6">
+                          {item.children.map((child) => {
+                            const childDisabled = !canAccess(child);
+                            return (
+                              <li key={child.path}>
+                                <NavLink
+                                  to={child.path}
+                                  title={childDisabled ? disabledMessage : undefined}
+                                  aria-disabled={childDisabled}
+                                  onClick={(event) => {
+                                    if (childDisabled) {
+                                      event.preventDefault();
+                                      handleDisabledClick();
+                                    }
+                                  }}
+                                  className={() =>
+                                    [
+                                      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition",
+                                      childDisabled
+                                        ? "cursor-not-allowed text-slate-600 opacity-55 hover:bg-transparent"
+                                        : isChildActive(child)
+                                          ? "bg-white/15 text-white"
+                                          : "text-slate-300 hover:bg-white/10",
+                                    ].join(" ")
+                                  }
+                                >
+                                  <span
+                                    className={`relative flex h-3 w-3 items-center justify-center rounded-full border ${
+                                      childDisabled
+                                        ? "border-slate-700"
+                                        : isChildActive(child)
+                                          ? "border-white"
+                                          : "border-slate-500"
+                                    }`}
+                                  >
+                                    {!childDisabled && isChildActive(child) && (
+                                      <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                                    )}
+                                  </span>
+                                  {child.label}
+                                </NavLink>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </nav>
           </aside>

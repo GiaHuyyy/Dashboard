@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 
 import User, { getUserRoles } from "../models/User.js";
+import { getPermissionsForRoles } from "../services/rolePermissionService.js";
 
 const BCRYPT_HASH_REGEX = /^\$2[aby]\$\d{2}\$/;
 const COOKIE_NAME = process.env.JWT_COOKIE_NAME || "access_token";
@@ -34,8 +35,9 @@ const createToken = (user) => {
   );
 };
 
-const sanitizeUser = (user) => {
+const sanitizeUser = async (user) => {
   const roles = getUserRoles(user);
+  const permissions = await getPermissionsForRoles(roles);
 
   return {
     id: user._id,
@@ -43,6 +45,7 @@ const sanitizeUser = (user) => {
     userName: user.userName,
     role: roles[0],
     roles,
+    permissions,
     isActive: user.isActive !== false,
   };
 };
@@ -86,7 +89,7 @@ export const register = async (req, res) => {
 
   return res.status(201).json({
     message: "Đăng ký thành công",
-    user: sanitizeUser(user),
+    user: await sanitizeUser(user),
   });
 };
 
@@ -138,7 +141,7 @@ export const login = async (req, res) => {
 
   return res.json({
     message: "Đăng nhập thành công",
-    user: sanitizeUser(user),
+    user: await sanitizeUser(user),
   });
 };
 
@@ -152,7 +155,7 @@ export const me = async (req, res) => {
     return res.status(403).json({ message: "Tài khoản đã bị khóa" });
   }
 
-  return res.json(sanitizeUser(user));
+  return res.json(await sanitizeUser(user));
 };
 
 export const logout = async (req, res) =>
