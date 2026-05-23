@@ -15,6 +15,7 @@ import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePermission } from "@/lib/permissions";
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
@@ -31,6 +32,12 @@ const formatDateTime = (value) => {
 };
 function ProgramUpgradeManagement() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canCreate = can("upgrade.create");
+  const canUpdate = can("upgrade.update");
+  const canDelete = can("upgrade.delete");
+  const canUpdateStatus = can("upgrade.updateStatus");
+
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAssignee, setSelectedAssignee] = useState("Tất cả");
@@ -195,7 +202,10 @@ function ProgramUpgradeManagement() {
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        deleteDisabled={rows.length === 0}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? "Bạn không có quyền thêm mới" : undefined}
+        deleteDisabled={rows.length === 0 || !canDelete}
+        deleteTitle={!canDelete ? "Bạn không có quyền xóa" : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -403,6 +413,8 @@ function ProgramUpgradeManagement() {
                         }}
                         variant="primary-outline"
                         iconOnly
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền sửa" : undefined}
                         className="text-sky-500"
                       />
                       <Button
@@ -414,6 +426,8 @@ function ProgramUpgradeManagement() {
                         }}
                         variant="danger-outline"
                         iconOnly
+                        disabled={!canDelete}
+                        title={!canDelete ? "Bạn không có quyền xóa" : undefined}
                         className="text-rose-700"
                       />
                     </div>

@@ -16,6 +16,7 @@ export function FormActions({
   saveMailLabel,
   saveStayLabel,
   readOnlyMode = false,
+  saveMailDisabled = false,
 }) {
   const navigate = useNavigate();
   const isDisabled = isSubmitting || isUploading;
@@ -37,7 +38,7 @@ export function FormActions({
           icon={Save}
           label={primarySaveMailLabel}
           onClick={onSaveMail}
-          disabled={isDisabled || readOnlyMode}
+          disabled={isDisabled || readOnlyMode || saveMailDisabled}
           variant="info"
         />
       )}

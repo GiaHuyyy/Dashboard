@@ -4,9 +4,11 @@ import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { staffApi } from "@/lib/api-client";
+import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { STAFF_ROLE_OPTIONS, getDepartmentByRole } from "@/lib/staff-roles";
 
@@ -32,6 +34,8 @@ function StaffForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "staff.update" : "staff.create");
 
   const {
     register,
@@ -79,7 +83,13 @@ function StaffForm() {
     void fetchDetail();
   }, [id, isEditMode, navigate, reset]);
 
+  const isReadOnlyMode = !canSave;
+
   const onSubmit = async (values, mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
     try {
       if (isEditMode) {
         await staffApi.update(id, values);
@@ -109,6 +119,7 @@ function StaffForm() {
         isUploading={false}
         isEditMode={isEditMode}
         exitPath="/nhan-su/danh-sach"
+        readOnlyMode={isReadOnlyMode}
         showSaveMail={false}
       />
 

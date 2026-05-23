@@ -4,6 +4,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
@@ -11,6 +12,7 @@ import { CORRECTION_COMPLETED_STATUS } from "@/constants/program-correction";
 import { businessContractApi, correctionApi, programApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
+import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 
@@ -108,11 +110,12 @@ function ProgramCorrectionForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "correction.update" : "correction.create");
   const [programReferences, setProgramReferences] = useState([]);
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
-  const [isDefaultSelectionReady, setIsDefaultSelectionReady] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
@@ -138,7 +141,8 @@ function ProgramCorrectionForm() {
     () => getProgramByBusinessContractId(programReferences, selectedBusinessContractId),
     [programReferences, selectedBusinessContractId],
   );
-  const isReadOnlyMode = isEditMode && initialSnapshot.status === CORRECTION_COMPLETED_STATUS;
+  const isCompletedReadOnlyMode = isEditMode && initialSnapshot.status === CORRECTION_COMPLETED_STATUS;
+  const isReadOnlyMode = !canSave || isCompletedReadOnlyMode;
   const priorityCategories = useSystemCategoryOptions("priority");
   const statusCategories = useSystemCategoryOptions("status");
   const statusValues = useMemo(() => {
@@ -153,45 +157,16 @@ function ProgramCorrectionForm() {
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
 
   useEffect(() => {
-    if (isEditMode) {
-      setIsDefaultSelectionReady(true);
-      return;
-    }
-
-    if (isLoadingSources || priorityCategories.isLoading || statusCategories.isLoading) return;
-
+    if (isEditMode) return;
     const nextPriority = priorityCategories.options?.[0]?.value || "";
     const nextStatus = statusValues?.[0] || "";
-    const currentPriority = getValues("priority");
-    const currentStatus = getValues("status");
-
-    const shouldSetPriority = nextPriority && !currentPriority;
-    const shouldSetStatus = nextStatus && (!currentStatus || !statusValues.includes(currentStatus));
-
-    if (shouldSetPriority) {
-      setValue("priority", nextPriority, { shouldValidate: true, shouldDirty: false });
+    if (nextPriority && !getValues("priority")) {
+      setValue("priority", nextPriority, { shouldValidate: true });
     }
-
-    if (shouldSetStatus) {
-      setValue("status", nextStatus, { shouldValidate: true, shouldDirty: false });
+    if (nextStatus && !getValues("status")) {
+      setValue("status", nextStatus, { shouldValidate: true });
     }
-
-    setInitialSnapshot((prev) => ({
-      ...prev,
-      ...(shouldSetPriority ? { priority: nextPriority } : {}),
-      ...(shouldSetStatus ? { status: nextStatus } : {}),
-    }));
-    setIsDefaultSelectionReady(true);
-  }, [
-    getValues,
-    isEditMode,
-    isLoadingSources,
-    priorityCategories.isLoading,
-    priorityCategories.options,
-    setValue,
-    statusCategories.isLoading,
-    statusValues,
-  ]);
+  }, [getValues, isEditMode, priorityCategories.options, setValue, statusValues]);
 
   useEffect(() => {
     const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
@@ -206,7 +181,6 @@ function ProgramCorrectionForm() {
   useEffect(() => {
     const fetchSources = async () => {
       setIsLoadingSources(true);
-      setIsDefaultSelectionReady(isEditMode);
       try {
         const requests = [staffApi.references(), programApi.references(), businessContractApi.references()];
         if (isEditMode) {
@@ -236,7 +210,6 @@ function ProgramCorrectionForm() {
           });
           reset(formValues);
           setInitialSnapshot(formValues);
-          setIsDefaultSelectionReady(true);
           return;
         }
 
@@ -321,6 +294,10 @@ function ProgramCorrectionForm() {
   };
 
   const onSubmit = async (values, mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
     if (isReadOnlyMode) {
       return;
     }
@@ -338,7 +315,7 @@ function ProgramCorrectionForm() {
       () => toast.error("Vui lòng kiểm tra lại thông tin form"),
     )();
 
-  if (isLoadingSources || (!isEditMode && !isDefaultSelectionReady)) {
+  if (isLoadingSources) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
     );

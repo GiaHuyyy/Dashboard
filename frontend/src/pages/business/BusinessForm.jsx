@@ -4,10 +4,12 @@ import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { ImageLightbox } from "@/components/program-form/ImageLightbox";
 import { ImageUpload } from "@/components/program-form/ImageUpload";
+import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
 import { MAIL_STATUS_OPTIONS } from "@/constants/program";
@@ -89,6 +91,10 @@ function BusinessForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "contract.update" : "contract.create");
+  const canSendMail = hasPermission(currentUser, "contract.sendMail");
+  const isReadOnlyMode = !canSave;
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [contractImages, setContractImages] = useState([]);
@@ -220,6 +226,14 @@ function BusinessForm() {
   };
 
   const persist = async (values, mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
+    if (mode === "save-mail" && !canSendMail) {
+      toast.error("Bạn không có quyền gửi mail hợp đồng");
+      return;
+    }
     let uploadedContractImages = [];
     try {
       uploadedContractImages = await uploadNewImages();
@@ -296,6 +310,8 @@ function BusinessForm() {
         isUploading={isUploadingImages}
         isEditMode={isEditMode}
         exitPath="/kinh-doanh/danh-sach"
+        readOnlyMode={isReadOnlyMode}
+        saveMailDisabled={!canSendMail}
         showSaveMail
       />
 

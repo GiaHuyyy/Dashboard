@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
+import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { sslPriceApi } from "@/lib/api-client";
 
@@ -32,6 +34,9 @@ function SslPriceForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "price.update" : "price.create");
+  const isReadOnlyMode = !canSave;
   const [formData, setFormData] = useState(defaultValues);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [isLoading, setIsLoading] = useState(Boolean(id));
@@ -82,6 +87,10 @@ function SslPriceForm() {
   });
 
   const persist = async (mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
     const parsed = formSchema.safeParse(formData);
     if (!parsed.success) {
       const nextErrors = {};
@@ -141,6 +150,7 @@ function SslPriceForm() {
         isUploading={false}
         isEditMode={isEditMode}
         exitPath="/bang-gia/ssl"
+        readOnlyMode={isReadOnlyMode}
         showSaveMail={false}
       />
 

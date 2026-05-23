@@ -10,9 +10,16 @@ import { sourceApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePermission } from "@/lib/permissions";
 
 function SourceManagement() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canCreate = can("source.create");
+  const canUpdate = can("source.update");
+  const canDelete = can("source.delete");
+  const canSendMail = can("source.sendMail");
+
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -119,7 +126,10 @@ function SourceManagement() {
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        deleteDisabled={rows.length === 0}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? "Bạn không có quyền thêm source" : undefined}
+        deleteDisabled={rows.length === 0 || !canDelete}
+        deleteTitle={!canDelete ? "Bạn không có quyền xóa source" : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -264,7 +274,8 @@ function SourceManagement() {
                         label={sendingRowId === row.id ? "Đang gửi" : "Gửi lại"}
                         variant="info"
                         size="sm"
-                        disabled={sendingRowId === row.id}
+                        disabled={sendingRowId === row.id || !canSendMail}
+                        title={!canSendMail ? "Bạn không có quyền gửi mail source" : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           void handleSendAgain(row.id);
@@ -302,6 +313,8 @@ function SourceManagement() {
                         }}
                         variant="primary-outline"
                         iconOnly
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền sửa source" : undefined}
                         className="text-sky-500"
                       />
                       <Button
@@ -312,6 +325,8 @@ function SourceManagement() {
                         }}
                         variant="danger-outline"
                         iconOnly
+                        disabled={!canDelete}
+                        title={!canDelete ? "Bạn không có quyền xóa source" : undefined}
                         className="text-rose-700"
                       />
                     </div>

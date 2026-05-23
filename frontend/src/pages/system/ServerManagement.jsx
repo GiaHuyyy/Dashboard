@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button-v2";
 import { ManagementTableCard } from "@/components/program/ManagementTableCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePermission } from "@/lib/permissions";
 
 const initialServers = [
   {
@@ -54,6 +55,9 @@ const initialServers = [
 const formatValue = (used, limit) => `${used.toFixed(2)} GB/${limit ? `${limit} GB` : "unlimited"}`;
 
 function ServerManagement() {
+  const { can } = usePermission();
+  const canUpdate = can("server.update");
+
   const [rows] = useState(initialServers);
   const [searchText, setSearchText] = useState("");
   const [filterIp, setFilterIp] = useState("all");
@@ -84,7 +88,7 @@ function ServerManagement() {
   return (
     <>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button icon={RefreshCw} label="Đồng bộ server" variant="info" className="bg-cyan-500" onClick={() => toast.success("Đã đồng bộ dữ liệu mẫu")} />
+        <Button icon={RefreshCw} label="Đồng bộ server" variant="info" className="bg-cyan-500" onClick={() => toast.success("Đã đồng bộ dữ liệu mẫu")} disabled={!canUpdate} title={!canUpdate ? "Bạn không có quyền đồng bộ server" : undefined} />
         <select
           className="w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={filterIp}

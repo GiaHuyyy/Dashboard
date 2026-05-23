@@ -4,8 +4,10 @@ import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
+import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { designApi, staffApi } from "@/lib/api-client";
@@ -94,6 +96,8 @@ function DesignForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "design.update" : "design.create");
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingReference, setIsLoadingReference] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -130,29 +134,16 @@ function DesignForm() {
   );
 
   useEffect(() => {
-    if (isEditMode || isLoadingReference || isLoadingDetail) return;
-
+    if (isEditMode) return;
     const nextPriority = priorityCategories.options?.[0]?.value || "";
     const nextStatus = formStatusValues?.[0] || "";
-    const currentPriority = getValues("priority");
-    const currentStatus = getValues("status");
-
-    if (nextPriority && !currentPriority) {
-      setValue("priority", nextPriority, { shouldValidate: true, shouldDirty: false });
+    if (nextPriority && !getValues("priority")) {
+      setValue("priority", nextPriority, { shouldValidate: true });
     }
-
-    if (nextStatus && (!currentStatus || !formStatusValues.includes(currentStatus))) {
-      setValue("status", nextStatus, { shouldValidate: true, shouldDirty: false });
+    if (nextStatus && !getValues("status")) {
+      setValue("status", nextStatus, { shouldValidate: true });
     }
-
-    if (nextPriority || nextStatus) {
-      setInitialSnapshot((prev) => ({
-        ...prev,
-        ...(!prev.priority && nextPriority ? { priority: nextPriority } : {}),
-        ...((!prev.status || !formStatusValues.includes(prev.status)) && nextStatus ? { status: nextStatus } : {}),
-      }));
-    }
-  }, [formStatusValues, getValues, isEditMode, isLoadingDetail, isLoadingReference, priorityCategories.options, setValue]);
+  }, [formStatusValues, getValues, isEditMode, priorityCategories.options, setValue]);
 
   useEffect(() => {
     const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
@@ -287,7 +278,13 @@ function DesignForm() {
     }
   };
 
+  const isReadOnlyMode = !canSave;
+
   const onSubmit = async (values, mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
     if (values.status === COMPLETED_STATUS && initialSnapshot.status !== COMPLETED_STATUS) {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
@@ -319,6 +316,7 @@ function DesignForm() {
         isUploading={false}
         isEditMode={isEditMode}
         exitPath="/design/danh-sach"
+        readOnlyMode={isReadOnlyMode}
         showSaveMail={false}
       />
 

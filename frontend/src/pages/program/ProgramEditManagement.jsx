@@ -15,6 +15,7 @@ import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePermission } from "@/lib/permissions";
 
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
@@ -33,6 +34,12 @@ const formatDateTime = (value) => {
 
 function ProgramEditManagement() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canCreate = can("correction.create");
+  const canUpdate = can("correction.update");
+  const canDelete = can("correction.delete");
+  const canUpdateStatus = can("correction.updateStatus");
+
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProgrammer, setSelectedProgrammer] = useState("Tất cả");
@@ -208,7 +215,10 @@ const handlePriorityChange = (row, nextPriority) => {
       <ManagementActions
         onAdd={openCreateForm}
         onDeleteAll={openDeleteMany}
-        deleteDisabled={rows.length === 0}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? "Bạn không có quyền thêm mới" : undefined}
+        deleteDisabled={rows.length === 0 || !canDelete}
+        deleteTitle={!canDelete ? "Bạn không có quyền xóa" : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -420,6 +430,8 @@ const handlePriorityChange = (row, nextPriority) => {
                         }}
                         variant="primary-outline"
                         iconOnly
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền sửa" : undefined}
                         className="text-sky-500"
                       />
                       <Button
@@ -431,6 +443,8 @@ const handlePriorityChange = (row, nextPriority) => {
                         }}
                         variant="danger-outline"
                         iconOnly
+                        disabled={!canDelete}
+                        title={!canDelete ? "Bạn không có quyền xóa" : undefined}
                         className="text-rose-700"
                       />
                     </div>

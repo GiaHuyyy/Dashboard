@@ -4,18 +4,31 @@ import { useForm, useWatch } from "react-hook-form";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { ProgramInfo } from "@/components/program-form/ProgramInfo";
 import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
-import { businessContractApi, designApi, programApi, staffApi, systemSettingApi } from "@/lib/api-client";
+import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
-import { calculateConvertByDuration, getConvertSettings, DEFAULT_CONVERT_SETTINGS } from "@/lib/convert";
-import { getSlaDueAt } from "@/lib/sla";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
+import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 
+const formatNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return Number(parsed.toFixed(3)).toString();
+};
+
+const calculateConvertByDuration = (durationValue, durationUnit) => {
+  const numeric = Number(durationValue);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  if (durationUnit === "ngày") return formatNumber(numeric);
+  if (durationUnit === "h") return formatNumber(numeric / 8);
+  return "";
+};
 
 const toDateTimeLocal = (value) => {
   if (!value) return "";
@@ -82,6 +95,8 @@ function ProgramForm() {
   const { id: programId } = useParams();
   const returnPath = location.state?.sourcePath || "/lap-trinh/danh-sach";
   const isEditMode = Boolean(programId);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "program.update" : "program.create");
   const businessContractFromState = location.state?.businessContract || null;
 
   const [isLoadingProgram, setIsLoadingProgram] = useState(false);
@@ -92,7 +107,6 @@ function ProgramForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
-  const [convertSettings, setConvertSettings] = useState(DEFAULT_CONVERT_SETTINGS);
 
   const {
     control,
@@ -113,7 +127,8 @@ function ProgramForm() {
   const selectedDesignTaskId = useWatch({ control, name: "designTaskId" });
   const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
   const selectedProcessingStatus = useWatch({ control, name: "processingStatus" });
-  const isReadOnlyMode = isEditMode && initialSnapshot.processingStatus === COMPLETED_STATUS;
+  const isCompletedReadOnlyMode = isEditMode && initialSnapshot.processingStatus === COMPLETED_STATUS;
+  const isReadOnlyMode = !canSave || isCompletedReadOnlyMode;
 
   const moduleCategories = useSystemCategoryOptions("module");
   const priorityCategories = useSystemCategoryOptions("priority");
@@ -144,26 +159,16 @@ function ProgramForm() {
   useEffect(() => {
     const fetchReferences = async () => {
       try {
-        const [staffResponse, designResponse, businessResponse, programResponse, settingResponse] = await Promise.all([
+        const [staffResponse, designResponse, businessResponse, programResponse] = await Promise.all([
           staffApi.references(),
           designApi.references(),
           businessContractApi.references(),
           programApi.references(),
-          systemSettingApi.detail(),
         ]);
         const nextStaffReferences = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const nextDesignReferences = Array.isArray(designResponse?.designTasks) ? designResponse.designTasks : [];
         const nextBusinessReferences = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
         const nextProgramReferences = Array.isArray(programResponse?.programs) ? programResponse.programs : [];
-        const settings = settingResponse?.settings || {};
-        setConvertSettings(getConvertSettings(settings));
-
-        if (!isEditMode && !getValues("dueAt")) {
-          setValue("dueAt", getSlaDueAt(settings, "programDefaultDueDays", 3), {
-            shouldValidate: true,
-            shouldDirty: false,
-          });
-        }
 
         setStaffReferences(nextStaffReferences);
         setDesignReferences(nextDesignReferences);
@@ -183,7 +188,7 @@ function ProgramForm() {
       }
     };
     void fetchReferences();
-  }, [getValues, isEditMode, setValue]);
+  }, [isEditMode, setValue]);
 
   const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
@@ -226,9 +231,9 @@ function ProgramForm() {
   }, [getValues, moduleCategories.options, priorityCategories.options, processingStatusValues, setValue]);
 
   useEffect(() => {
-    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit, convertSettings);
+    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
     setValue("convert", convertedValue, { shouldValidate: true });
-  }, [convertSettings, selectedDurationValue, selectedDurationUnit, setValue]);
+  }, [selectedDurationValue, selectedDurationUnit, setValue]);
 
   useEffect(() => {
     if (!selectedDesign) {
@@ -320,7 +325,7 @@ function ProgramForm() {
     const shouldSendMail = mode === "save-mail";
     const payload = {
       ...values,
-      convert: calculateConvertByDuration(values.durationValue, values.durationUnit, convertSettings),
+      convert: calculateConvertByDuration(values.durationValue, values.durationUnit),
       bonusPoint: values.bonusPoint,
       sendMail: shouldSendMail,
       receivedAt: values.receivedAt || null,
@@ -377,6 +382,10 @@ function ProgramForm() {
   };
 
   const onSubmit = async (values, mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
     if (isReadOnlyMode) return;
     if (values.processingStatus === COMPLETED_STATUS && initialSnapshot.processingStatus !== COMPLETED_STATUS) {
       setPendingSubmit({ values, mode });

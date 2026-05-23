@@ -12,8 +12,9 @@ import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { systemCategoryApi } from "@/lib/api-client";
+import { usePermission } from "@/lib/permissions";
 
-const CATEGORY_TYPES = [
+const CATEGORY_TABS = [
   { value: "module", label: "Module", description: "Danh mục module" },
   { value: "status", label: "Trạng thái", description: "Danh mục trạng thái" },
   { value: "priority", label: "Ưu tiên", description: "Danh mục ưu tiên" },
@@ -33,6 +34,9 @@ const defaultValues = {
 
 function SystemCategoryManagement() {
   const [activeType, setActiveType] = useState("module");
+  const { can } = usePermission();
+  const canUpdate = can("config.category.update");
+
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
@@ -52,7 +56,7 @@ function SystemCategoryManagement() {
     defaultValues,
   });
 
-  const activeTab = useMemo(() => CATEGORY_TYPES.find((item) => item.value === activeType), [activeType]);
+  const activeTab = useMemo(() => CATEGORY_TABS.find((item) => item.value === activeType), [activeType]);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -174,29 +178,39 @@ function SystemCategoryManagement() {
 
   return (
     <>
-      <ManagementActions
-        onAdd={openCreate}
-        onDeleteAll={() => {
-          setDeleteRow(null);
-          setDeleteOpen(true);
-        }}
-        deleteDisabled={rows.length === 0}
-        deleteLabel={deleteManyLabel}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        {CATEGORY_TABS.map((tab) => {
+          const isActive = tab.value === activeType;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setActiveType(tab.value)}
+              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                isActive
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <select
-          value={activeType}
-          onChange={(event) => setActiveType(event.target.value)}
-          className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-        >
-          {/* <option value="all">Tất cả</option> */}
-          {CATEGORY_TYPES.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+      <div className="mt-4">
+        <ManagementActions
+          onAdd={openCreate}
+          onDeleteAll={() => {
+            setDeleteRow(null);
+            setDeleteOpen(true);
+          }}
+          addDisabled={!canUpdate}
+          addTitle={!canUpdate ? "Bạn không có quyền thêm danh mục" : undefined}
+          deleteDisabled={rows.length === 0 || !canUpdate}
+          deleteTitle={!canUpdate ? "Bạn không có quyền xóa danh mục" : undefined}
+          deleteLabel={deleteManyLabel}
+        />
       </div>
 
       <ManagementTableCard
@@ -287,11 +301,13 @@ function SystemCategoryManagement() {
                     onClick={(event) => event.stopPropagation()}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      <Button icon={SquarePen} variant="primary-outline" iconOnly onClick={() => openEdit(row)} />
+                      <Button icon={SquarePen} variant="primary-outline" iconOnly onClick={() => openEdit(row)} disabled={!canUpdate} title={!canUpdate ? "Bạn không có quyền sửa danh mục" : undefined} />
                       <Button
                         icon={Trash2}
                         variant="danger-outline"
                         iconOnly
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền xóa danh mục" : undefined}
                         onClick={() => {
                           setDeleteRow(row);
                           setDeleteOpen(true);
@@ -329,7 +345,8 @@ function SystemCategoryManagement() {
               variant="primary"
               label={editingRow ? "Cập nhật" : "Thêm mới"}
               onClick={handleSubmit(onSubmit)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !canUpdate}
+              title={!canUpdate ? "Bạn không có quyền lưu danh mục" : undefined}
             />
           </div>
         }
@@ -370,7 +387,7 @@ function SystemCategoryManagement() {
                 setDeleteRow(null);
               }}
             />
-            <Button variant="danger" label="Xóa" onClick={handleDelete} />
+            <Button variant="danger" label="Xóa" onClick={handleDelete} disabled={!canUpdate} title={!canUpdate ? "Bạn không có quyền xóa danh mục" : undefined} />
           </div>
         }
       >

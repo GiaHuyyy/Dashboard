@@ -10,9 +10,16 @@ import { businessContractApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePermission } from "@/lib/permissions";
 
 function BusinessManagement() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canCreate = can("contract.create");
+  const canUpdate = can("contract.update");
+  const canDelete = can("contract.delete");
+  const canSendMail = can("contract.sendMail");
+
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -116,7 +123,10 @@ function BusinessManagement() {
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        deleteDisabled={rows.length === 0}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? "Bạn không có quyền thêm hợp đồng" : undefined}
+        deleteDisabled={rows.length === 0 || !canDelete}
+        deleteTitle={!canDelete ? "Bạn không có quyền xóa hợp đồng" : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -208,7 +218,8 @@ function BusinessManagement() {
                         label={handoverRowId === row.id ? "Đang bàn giao" : "Bàn giao"}
                         variant="info"
                         size="sm"
-                        disabled={handoverRowId === row.id || row.handoverStatus === "Đã bàn giao"}
+                        disabled={handoverRowId === row.id || row.handoverStatus === "Đã bàn giao" || !canSendMail}
+                        title={!canSendMail ? "Bạn không có quyền gửi mail/bàn giao hợp đồng" : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           void handleHandover(row);
@@ -222,6 +233,8 @@ function BusinessManagement() {
                         }}
                         variant="primary-outline"
                         iconOnly
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền sửa hợp đồng" : undefined}
                       />
                       <Button
                         icon={Trash2}
@@ -232,6 +245,8 @@ function BusinessManagement() {
                         }}
                         variant="danger-outline"
                         iconOnly
+                        disabled={!canDelete}
+                        title={!canDelete ? "Bạn không có quyền xóa hợp đồng" : undefined}
                       />
                     </div>
                   </TableCell>

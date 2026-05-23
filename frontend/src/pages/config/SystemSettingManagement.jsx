@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button-v2";
 import FormField from "@/components/ui/form-field";
 import { systemSettingApi } from "@/lib/api-client";
+import { usePermission } from "@/lib/permissions";
 
 const formSchema = z.object({
   source: z.object({
@@ -94,6 +95,9 @@ const formatConvertPreview = (hours, workingHoursPerDay, roundingDigits) => {
 
 function SystemSettingManagement() {
   const [isLoading, setIsLoading] = useState(true);
+  const { can } = usePermission();
+  const canUpdate = can("config.setting.update");
+
   const [showSourceHint, setShowSourceHint] = useState(false);
   const [showConvertHint, setShowConvertHint] = useState(false);
 
@@ -366,7 +370,8 @@ function SystemSettingManagement() {
             icon={Save}
             variant="primary"
             label={isSubmitting ? "Đang lưu..." : "Lưu cấu hình"}
-            disabled={isLoading || isSubmitting}
+            disabled={isLoading || isSubmitting || !canUpdate}
+            title={!canUpdate ? "Bạn không có quyền lưu cấu hình tham số" : undefined}
           />
         </div>
       </form>

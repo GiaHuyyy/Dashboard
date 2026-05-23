@@ -13,12 +13,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { designApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { usePermission } from "@/lib/permissions";
 
 const DESIGN_TYPES = ["all", "Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const COMPLETED_STATUS = "Đã hoàn thành";
 
 function DesignManagement() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canCreate = can("design.create");
+  const canUpdate = can("design.update");
+  const canDelete = can("design.delete");
+  const canUpdateStatus = can("design.updateStatus");
+
   const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -163,7 +170,10 @@ function DesignManagement() {
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        deleteDisabled={rows.length === 0}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? "Bạn không có quyền thêm mới" : undefined}
+        deleteDisabled={rows.length === 0 || !canDelete}
+        deleteTitle={!canDelete ? "Bạn không có quyền xóa" : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -311,7 +321,7 @@ function DesignManagement() {
                       value={row.priority}
                       options={priorityCategories.values}
                       isCompleted={row.status === COMPLETED_STATUS}
-                      disabled={updatingPriorityId === row.id}
+                      disabled={updatingPriorityId === row.id || !canUpdateStatus}
                       onChange={(nextValue) => handlePriorityChange(row, nextValue)}
                     />
                   </TableCell>
@@ -326,7 +336,7 @@ function DesignManagement() {
                       options={statusOptions}
                       isCompleted={row.status === COMPLETED_STATUS}
                       completedLabel={COMPLETED_STATUS}
-                      disabled={updatingStatusId === row.id}
+                      disabled={updatingStatusId === row.id || !canUpdateStatus}
                       onChange={(nextValue) => handleStatusChange(row, nextValue)}
                     />
                   </TableCell>
@@ -348,6 +358,8 @@ function DesignManagement() {
                         icon={SquarePen}
                         iconOnly
                         variant="primary-outline"
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền sửa" : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           openEdit(row);
@@ -357,6 +369,8 @@ function DesignManagement() {
                         icon={Trash2}
                         iconOnly
                         variant="danger-outline"
+                        disabled={!canDelete}
+                        title={!canDelete ? "Bạn không có quyền xóa" : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           setDeleteRow(row);

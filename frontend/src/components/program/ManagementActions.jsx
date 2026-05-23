@@ -7,6 +7,9 @@ export function ManagementActions({
   onDeleteAll,
   deleteLabel = "Xóa tất cả",
   deleteDisabled = false,
+  addDisabled = false,
+  addTitle,
+  deleteTitle,
   showDeleteAll = true,
 }) {
   return (
@@ -19,6 +22,8 @@ export function ManagementActions({
         size="lg"
         className="shadow-sm"
         gap="gap-1"
+        disabled={addDisabled}
+        title={addTitle}
       />
       {showDeleteAll && (
         <Button
@@ -30,6 +35,7 @@ export function ManagementActions({
           className="shadow-sm"
           gap="gap-1"
           disabled={deleteDisabled}
+          title={deleteTitle}
         />
       )}
     </div>

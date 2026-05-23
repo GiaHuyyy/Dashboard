@@ -9,9 +9,15 @@ import { staffApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePermission } from "@/lib/permissions";
 
 function StaffManagement() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canCreate = can("staff.create");
+  const canUpdate = can("staff.update");
+  const canDelete = can("staff.delete");
+
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
@@ -54,6 +60,8 @@ function StaffManagement() {
       <ManagementActions
         onAdd={() => navigate("/nhan-su/them-moi")}
         onDeleteAll={() => null}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? "Bạn không có quyền thêm nhân sự" : undefined}
         deleteDisabled
         deleteLabel={`Đang hoạt động: ${activeCount}`}
       />
@@ -135,6 +143,8 @@ function StaffManagement() {
                         }}
                         variant="primary-outline"
                         iconOnly
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền sửa" : undefined}
                         className="text-sky-500"
                       />
                       <Button
@@ -146,6 +156,8 @@ function StaffManagement() {
                         }}
                         variant="danger-outline"
                         iconOnly
+                        disabled={!canDelete}
+                        title={!canDelete ? "Bạn không có quyền xóa" : undefined}
                         className="text-rose-700"
                       />
                     </div>

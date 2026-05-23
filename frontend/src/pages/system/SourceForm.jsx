@@ -4,8 +4,10 @@ import { useForm, useWatch } from "react-hook-form";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
+import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { SOURCE_DOWNLOAD_STATUS_OPTIONS, SOURCE_SEND_STATUS_OPTIONS } from "@/constants/program-source";
 import {
@@ -117,6 +119,9 @@ function SourceForm() {
   const location = useLocation();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "source.update" : "source.create");
+  const canSendMail = hasPermission(currentUser, "source.sendMail");
   const returnPath = location.state?.sourcePath || "/he-thong/source";
   const [programReferences, setProgramReferences] = useState([]);
   const [domainPriceReferences, setDomainPriceReferences] = useState([]);
@@ -298,7 +303,17 @@ function SourceForm() {
     navigate(returnPath);
   };
 
+  const isReadOnlyMode = !canSave;
+
   const onSubmit = async (values, mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
+    if (mode === "save-mail" && !canSendMail) {
+      toast.error("Bạn không có quyền gửi mail source");
+      return;
+    }
     await persistSource(values, mode);
   };
 
@@ -325,6 +340,8 @@ function SourceForm() {
         isUploading={false}
         isEditMode={isEditMode}
         exitPath={returnPath}
+        readOnlyMode={isReadOnlyMode}
+        saveMailDisabled={!canSendMail}
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">

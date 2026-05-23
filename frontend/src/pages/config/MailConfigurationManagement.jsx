@@ -1,4 +1,4 @@
-import { Mail, RotateCcw, Save, ShieldCheck } from "lucide-react";
+import { Mail, Save, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button-v2";
 import FormField from "@/components/ui/form-field";
 import { mailConfigurationApi } from "@/lib/api-client";
+import { usePermission } from "@/lib/permissions";
 
 const formSchema = z
   .object({
@@ -49,6 +50,9 @@ const defaultValues = {
 
 function MailConfigurationManagement() {
   const [isLoading, setIsLoading] = useState(true);
+  const { can } = usePermission();
+  const canUpdate = can("config.mail.update");
+
   const [hasSmtpPassword, setHasSmtpPassword] = useState(false);
   const [updatedAt, setUpdatedAt] = useState("");
 
@@ -219,11 +223,11 @@ function MailConfigurationManagement() {
 
           <div className="flex flex-wrap items-center justify-end gap-2 md:col-span-2">
             <Button
-            icon={RotateCcw}
               variant="secondary"
               label="Tải lại"
               onClick={() => void fetchConfiguration()}
-              disabled={isLoading || isSubmitting}
+              disabled={isLoading || isSubmitting || !canUpdate}
+              title={!canUpdate ? "Bạn không có quyền lưu cấu hình mail" : undefined}
             />
             <Button
               type="submit"

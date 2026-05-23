@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
+import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { hostPriceApi } from "@/lib/api-client";
 
@@ -47,6 +49,9 @@ function HostPriceForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "price.update" : "price.create");
+  const isReadOnlyMode = !canSave;
   const [formData, setFormData] = useState(defaultValues);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const [isLoading, setIsLoading] = useState(Boolean(id));
@@ -103,6 +108,10 @@ function HostPriceForm() {
   });
 
   const persist = async (mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
     const parsed = formSchema.safeParse(formData);
     if (!parsed.success) {
       const nextErrors = {};
@@ -167,6 +176,7 @@ function HostPriceForm() {
         isUploading={false}
         isEditMode={isEditMode}
         exitPath="/bang-gia/host"
+        readOnlyMode={isReadOnlyMode}
         showSaveMail={false}
       />
 

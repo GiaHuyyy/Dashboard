@@ -14,9 +14,16 @@ import { COMPLETED_STATUS } from "@/constants/program";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { programApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { usePermission } from "@/lib/permissions";
 
 function ListProgram() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canCreate = can("program.create");
+  const canUpdate = can("program.update");
+  const canDelete = can("program.delete");
+  const canUpdateStatus = can("program.updateStatus");
+
   const [selectedModule, setSelectedModule] = useState("all");
   const [searchText, setSearchText] = useState("");
   const [programs, setPrograms] = useState([]);
@@ -194,7 +201,10 @@ function ListProgram() {
         onAdd={() => navigate("/lap-trinh/them-moi")}
         onDeleteAll={openDeleteMany}
         deleteLabel={deleteManyLabel}
-        deleteDisabled={programs.length === 0}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? "Bạn không có quyền thêm mới" : undefined}
+        deleteDisabled={programs.length === 0 || !canDelete}
+        deleteTitle={!canDelete ? "Bạn không có quyền xóa" : undefined}
       />
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -318,7 +328,7 @@ function ListProgram() {
                       value={row.priority || ""}
                       options={priorityCategories.values}
                       isCompleted={row.processingStatus === COMPLETED_STATUS}
-                      disabled={updatingRowId === row.id}
+                      disabled={updatingRowId === row.id || !canUpdateStatus}
                       onChange={(nextValue) => handleInlinePriorityUpdate(row, nextValue)}
                     />
                   </TableCell>
@@ -333,7 +343,7 @@ function ListProgram() {
                       options={statusOptions}
                       isCompleted={row.processingStatus === COMPLETED_STATUS}
                       completedLabel={COMPLETED_STATUS}
-                      disabled={updatingRowId === row.id}
+                      disabled={updatingRowId === row.id || !canUpdateStatus}
                       onChange={(nextValue) => handleInlineStatusUpdate(row, nextValue)}
                     />
                   </TableCell>
@@ -375,6 +385,8 @@ function ListProgram() {
                         }}
                         variant="primary-outline"
                         iconOnly
+                        disabled={!canUpdate}
+                        title={!canUpdate ? "Bạn không có quyền sửa" : undefined}
                         className="text-sky-500"
                       />
                       <Button
@@ -385,6 +397,8 @@ function ListProgram() {
                         }}
                         variant="danger-outline"
                         iconOnly
+                        disabled={!canDelete}
+                        title={!canDelete ? "Bạn không có quyền xóa" : undefined}
                         className="text-rose-700"
                       />
                     </div>
