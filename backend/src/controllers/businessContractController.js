@@ -4,8 +4,6 @@ import BusinessContract from "../models/BusinessContract.js";
 import { sendBusinessContractMail } from "../services/businessContractMailService.js";
 
 const HANDOVER_STATUS_OPTIONS = ["Chưa bàn giao", "Đã bàn giao"];
-const hasRequestPermission = (req, permission) =>
-  Array.isArray(req.userPermissions) && req.userPermissions.includes(permission);
 const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
 const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -82,6 +80,7 @@ const normalizePayload = (body = {}) => {
       normalizeString(body.salesReceiverEmail).toLowerCase() || normalizeString(body.customerEmail).toLowerCase(),
     ccEmails: parseCcEmails(body.ccEmails),
     contractImages,
+    expectedHandoverAt: normalizeDate(body.expectedHandoverAt),
     handoverStatus: normalizeString(body.handoverStatus) || HANDOVER_STATUS_OPTIONS[0],
     handoverAt: normalizeDate(body.handoverAt),
     visible: normalizeBoolean(body.visible),
@@ -109,6 +108,9 @@ const validatePayload = async (payload, { excludeId = "" } = {}) => {
       status: 400,
       message: `handoverStatus không hợp lệ. Giá trị cho phép: ${HANDOVER_STATUS_OPTIONS.join(", ")}`,
     };
+  }
+  if (payload.handoverStatus === "Đã bàn giao" && !payload.handoverAt) {
+    return { status: 400, message: "handoverAt là bắt buộc khi hợp đồng đã bàn giao" };
   }
   if (payload.visible === null) return { status: 400, message: "visible phải là kiểu boolean" };
 
@@ -148,6 +150,8 @@ const toResponseItem = (doc) => ({
   salesReceiverEmail: doc.salesReceiverEmail || "",
   ccEmails: Array.isArray(doc.ccEmails) ? doc.ccEmails : [],
   contractImages: Array.isArray(doc.contractImages) ? doc.contractImages : [],
+  expectedHandoverAt: toIsoString(doc.expectedHandoverAt),
+  expectedHandoverAtLabel: formatDateTime(doc.expectedHandoverAt),
   handoverStatus: doc.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
   handoverAt: toIsoString(doc.handoverAt),
   handoverAtLabel: formatDateTime(doc.handoverAt),
@@ -168,8 +172,6 @@ export const createBusinessContract = async (req, res) => {
   payload.salesReceiverEmail = payload.customerEmail;
   if (payload.handoverStatus !== "Đã bàn giao") {
     payload.handoverAt = null;
-  } else if (!payload.handoverAt) {
-    payload.handoverAt = new Date();
   }
 
   const validation = await validatePayload(payload);
@@ -244,7 +246,7 @@ export const listBusinessContractReferences = async (req, res) => {
   const items = await BusinessContract.find({ isDeleted: false, visible: true })
     .sort({ createdAt: 1 })
     .select(
-      "contractCode contractName contractValue customerName status mailStatus selectedSalesStaff salesReceiverName salesReceiverEmail ccEmails contractImages handoverStatus",
+      "contractCode contractName contractValue customerName status mailStatus selectedSalesStaff salesReceiverName salesReceiverEmail ccEmails contractImages expectedHandoverAt handoverStatus",
     )
     .lean();
 
@@ -262,6 +264,8 @@ export const listBusinessContractReferences = async (req, res) => {
       salesReceiverEmail: item.salesReceiverEmail || "",
       ccEmails: Array.isArray(item.ccEmails) ? item.ccEmails : [],
       contractImages: Array.isArray(item.contractImages) ? item.contractImages : [],
+      expectedHandoverAt: toIsoString(item.expectedHandoverAt),
+      expectedHandoverAtLabel: formatDateTime(item.expectedHandoverAt),
       handoverStatus: item.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
       label: `${item.contractCode || "N/A"} - ${item.contractName || "N/A"} - ${item.customerName || "N/A"}`,
     })),
@@ -280,9 +284,6 @@ export const updateBusinessContract = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
   const existing = await BusinessContract.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
-  if (existing.handoverStatus === "Đã bàn giao" && !hasRequestPermission(req, "contract.overrideHandover")) {
-    return res.status(403).json({ message: "Hợp đồng đã bàn giao, chỉ được xem chi tiết" });
-  }
 
   const input = normalizePayload(req.body);
   const mergedPayload = {
@@ -299,6 +300,7 @@ export const updateBusinessContract = async (req, res) => {
     salesReceiverEmail: input.customerEmail || existing.customerEmail,
     ccEmails: req.body.ccEmails !== undefined ? input.ccEmails : existing.ccEmails,
     contractImages: Array.isArray(req.body.contractImages) ? input.contractImages : existing.contractImages,
+    expectedHandoverAt: req.body.expectedHandoverAt === null ? null : input.expectedHandoverAt || existing.expectedHandoverAt,
     handoverStatus: input.handoverStatus || existing.handoverStatus,
     handoverAt: req.body.handoverAt === null ? null : input.handoverAt || existing.handoverAt,
     visible: input.visible === null ? existing.visible : input.visible,
@@ -307,8 +309,6 @@ export const updateBusinessContract = async (req, res) => {
 
   if (mergedPayload.handoverStatus !== "Đã bàn giao") {
     mergedPayload.handoverAt = null;
-  } else if (!mergedPayload.handoverAt) {
-    mergedPayload.handoverAt = new Date();
   }
 
   const validation = await validatePayload(mergedPayload, { excludeId: String(existing._id) });
@@ -327,6 +327,7 @@ export const updateBusinessContract = async (req, res) => {
   existing.salesReceiverEmail = mergedPayload.salesReceiverEmail;
   existing.ccEmails = mergedPayload.ccEmails;
   existing.contractImages = mergedPayload.contractImages;
+  existing.expectedHandoverAt = mergedPayload.expectedHandoverAt;
   existing.handoverStatus = mergedPayload.handoverStatus;
   existing.handoverAt = mergedPayload.handoverAt;
   existing.visible = mergedPayload.visible;
@@ -356,9 +357,6 @@ export const handoverBusinessContract = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
   const existing = await BusinessContract.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
-  if (existing.handoverStatus === "Đã bàn giao") {
-    return res.status(409).json({ message: "Hợp đồng đã bàn giao" });
-  }
 
   existing.handoverStatus = "Đã bàn giao";
   existing.handoverAt = existing.handoverAt || new Date();

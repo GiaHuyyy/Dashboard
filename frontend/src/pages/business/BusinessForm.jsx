@@ -38,6 +38,7 @@ const schema = z.object({
         .filter(Boolean)
         .every((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
     }, "Danh sách email cc không hợp lệ"),
+  expectedHandoverAt: z.string().optional(),
   handoverStatus: z.enum(HANDOVER_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái bàn giao hợp lệ" }),
   handoverAt: z.string().optional(),
   visible: z.boolean(),
@@ -62,6 +63,7 @@ const defaultValues = {
   mailStatus: MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: "",
   ccEmails: "",
+  expectedHandoverAt: "",
   handoverStatus: HANDOVER_STATUS_OPTIONS[0],
   handoverAt: "",
   visible: true,
@@ -87,6 +89,7 @@ const mapDetailToForm = (contract) => ({
   mailStatus: contract.mailStatus || MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: contract.selectedSalesStaff || "",
   ccEmails: Array.isArray(contract.ccEmails) ? contract.ccEmails.join(", ") : "",
+  expectedHandoverAt: toDateTimeLocal(contract.expectedHandoverAt),
   handoverStatus: contract.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
   handoverAt: toDateTimeLocal(contract.handoverAt),
   visible: Boolean(contract.visible ?? true),
@@ -103,6 +106,7 @@ function BusinessForm() {
   const currentUser = useSelector((state) => state.auth.user);
   const canSave = hasPermission(currentUser, isEditMode ? "contract.update" : "contract.create");
   const canOverrideHandover = hasPermission(currentUser, "contract.overrideHandover");
+  const canSendMail = hasPermission(currentUser, "contract.sendMail");
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [contractImages, setContractImages] = useState([]);
@@ -253,6 +257,11 @@ function BusinessForm() {
       return;
     }
 
+    if (mode === "save-mail" && !canSendMail) {
+      toast.error("Bạn không có quyền gửi mail hợp đồng");
+      return;
+    }
+
     let uploadedContractImages = [];
     try {
       uploadedContractImages = await uploadNewImages();
@@ -264,6 +273,7 @@ function BusinessForm() {
     const payload = {
       ...values,
       contractImages: uploadedContractImages,
+      expectedHandoverAt: values.expectedHandoverAt || null,
       ccEmails: values.ccEmails
         ? values.ccEmails
             .split(",")
@@ -346,6 +356,8 @@ function BusinessForm() {
         isEditMode={isEditMode}
         exitPath="/kinh-doanh/danh-sach"
         showSaveMail
+        saveMailDisabled={!canSendMail}
+        saveMailDisabledTitle="Bạn không có quyền gửi mail hợp đồng"
         readOnlyMode={isFormReadOnly}
       />
 
@@ -416,6 +428,12 @@ function BusinessForm() {
             type="text"
             inputProps={{ ...register("ccEmails"), placeholder: "email1@x.com, email2@x.com", disabled: isFormReadOnly }}
             error={errors.ccEmails?.message}
+          />
+          <FormField
+            label="Ngày dự kiến bàn giao"
+            type="datetime-local"
+            inputProps={{ ...register("expectedHandoverAt"), disabled: isFormReadOnly }}
+            error={errors.expectedHandoverAt?.message}
           />
           <FormField
             label="Trạng thái bàn giao"

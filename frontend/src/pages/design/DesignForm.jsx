@@ -90,14 +90,13 @@ const defaultValues = {
   note: "",
 };
 
-const toDateInput = (value) => {
+const toDateTimeLocal = (value) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60000);
+  return localDate.toISOString().slice(0, 16);
 };
 
 function DesignForm() {
@@ -231,10 +230,10 @@ function DesignForm() {
           convert: Number(task.convert) || 0,
           bonusPoint: Number(task.bonusPoint) || 0,
           status: task.status || "",
-          handoverDate: toDateInput(task.handoverDate),
-          receiveDate: toDateInput(task.receiveDate),
-          expectedDate: toDateInput(task.expectedDate || task.deadline),
-          completedDate: toDateInput(task.completedDate),
+          handoverDate: toDateTimeLocal(task.handoverDate),
+          receiveDate: toDateTimeLocal(task.receiveDate),
+          expectedDate: toDateTimeLocal(task.expectedDate || task.deadline),
+          completedDate: toDateTimeLocal(task.completedDate),
           visible: Boolean(task.visible ?? true),
           note: task.note || "",
         };
@@ -444,25 +443,25 @@ function DesignForm() {
             />
             <FormField
               label="Ngày giao"
-              type="date"
+              type="datetime-local"
               inputProps={{ ...register("handoverDate"), disabled: isFormReadOnly }}
               error={errors.handoverDate?.message}
             />
             <FormField
               label="Ngày nhận"
-              type="date"
+              type="datetime-local"
               inputProps={{ ...register("receiveDate"), disabled: isFormReadOnly }}
               error={errors.receiveDate?.message}
             />
             <FormField
               label="Ngày dự kiến"
-              type="date"
+              type="datetime-local"
               inputProps={{ ...register("expectedDate"), disabled: isFormReadOnly }}
               error={errors.expectedDate?.message}
             />
             <FormField
               label="Ngày hoàn thành"
-              type="date"
+              type="datetime-local"
               inputProps={{ ...register("completedDate"), disabled: isFormReadOnly || selectedStatus !== COMPLETED_STATUS }}
               error={errors.completedDate?.message}
             />

@@ -10,9 +10,15 @@ import { businessContractApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePermission } from "@/lib/permissions";
 
 function BusinessManagement() {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canCreate = can("contract.create");
+  const canUpdate = can("contract.update");
+  const canDelete = can("contract.delete");
+
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -87,6 +93,7 @@ function BusinessManagement() {
     }
   };
 
+
   return (
     <>
       <ManagementActions
@@ -95,7 +102,10 @@ function BusinessManagement() {
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        deleteDisabled={rows.length === 0}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? "Bạn không có quyền thêm hợp đồng" : undefined}
+        deleteDisabled={rows.length === 0 || !canDelete}
+        deleteTitle={!canDelete ? "Bạn không có quyền xóa hợp đồng" : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -125,6 +135,7 @@ function BusinessManagement() {
                   checked={isAllFilteredSelected}
                   onChange={(event) => handleToggleAll(event.target.checked)}
                   onClick={(event) => event.stopPropagation()}
+                  disabled={!canDelete}
                 />
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
@@ -134,6 +145,7 @@ function BusinessManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Nhân viên kinh doanh</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mail nhận</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Email khách hàng</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày dự kiến bàn giao</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái bàn giao</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày bàn giao</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hiển thị</TableHead>
@@ -143,13 +155,13 @@ function BusinessManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -162,6 +174,7 @@ function BusinessManagement() {
                       checked={selectedIds.includes(row.id)}
                       onChange={(event) => handleToggleRow(row.id, event.target.checked)}
                       onClick={(event) => event.stopPropagation()}
+                      disabled={!canDelete}
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
@@ -173,6 +186,7 @@ function BusinessManagement() {
                   <TableCell className="border border-slate-200 p-4">{row.selectedSalesStaff}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.mailStatus}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.customerEmail}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.expectedHandoverAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <span className={row.handoverStatus === "Đã bàn giao" ? "text-emerald-700" : "text-slate-600"}>{row.handoverStatus}</span>
                   </TableCell>
@@ -190,6 +204,7 @@ function BusinessManagement() {
                         }}
                         variant="primary-outline"
                         iconOnly
+                        title={!canUpdate ? "Xem chi tiết (chỉ xem)" : "Sửa hợp đồng"}
                       />
                       <Button
                         icon={Trash2}
@@ -200,6 +215,8 @@ function BusinessManagement() {
                         }}
                         variant="danger-outline"
                         iconOnly
+                        disabled={!canDelete}
+                        title={!canDelete ? "Bạn không có quyền xóa hợp đồng" : undefined}
                       />
                     </div>
                   </TableCell>

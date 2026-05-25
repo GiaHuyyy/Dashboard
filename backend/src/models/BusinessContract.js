@@ -78,6 +78,11 @@ const businessContractSchema = new mongoose.Schema(
       default: "Chưa bàn giao",
       index: true,
     },
+    expectedHandoverAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     handoverAt: {
       type: Date,
       default: null,

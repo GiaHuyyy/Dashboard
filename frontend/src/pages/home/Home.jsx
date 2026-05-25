@@ -29,7 +29,7 @@ function Home() {
       const response = await dashboardApi.summary();
       setData(response);
     } catch (error) {
-      toast.error(error?.message || "Không thể tải dữ liệu dashboard");
+      toast.error(error?.message || "Không thể tải dashboard tổng quan");
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +59,7 @@ function Home() {
           <div>
             <p className="text-base font-semibold text-slate-700">Dashboard tổng quan</p>
             <p className="mt-1 text-sm text-slate-500">
-              Theo dõi nhanh công việc đang xử lý, source hết hạn và hợp đồng chưa bàn giao.
+              Theo dõi nhanh công việc đang xử lý, source sắp hết hạn và hợp đồng chưa bàn giao.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -100,44 +100,51 @@ function Home() {
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
             <div>
-              <h2 className="text-base font-semibold text-gray-500">Cảnh báo cần xử lý</h2>
-              <p className="mt-1 text-sm text-slate-500">Các công việc quá hạn, sắp đến hạn và hợp đồng chưa bàn giao.</p>
+              <h2 className="text-base font-semibold text-gray-500">Cảnh báo gần nhất</h2>
+              <p className="mt-1 text-sm text-slate-400">Quá hạn được ưu tiên hiển thị trước.</p>
             </div>
-            <div className="rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
+            <div className="flex items-center gap-2 rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600">
+              <AlertTriangle className="h-4 w-4" />
               {totalOverdue} quá hạn
             </div>
           </div>
+
           <div className="border-x border-b border-slate-200 p-4">
             {(data?.alerts || []).length === 0 ? (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                Chưa có cảnh báo cần xử lý.
+              <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+                Chưa có cảnh báo quá hạn hoặc sắp đến hạn.
               </div>
             ) : (
               <div className="space-y-3">
-                {data.alerts.map((item) => (
+                {(data?.alerts || []).map((item) => (
                   <button
                     key={`${item.type}-${item.id}`}
                     type="button"
                     onClick={() => navigate(item.path)}
-                    className="flex w-full items-start justify-between gap-4 rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
                   >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
-                            statusClassMap[item.status] || "border-slate-200 bg-slate-50 text-slate-600"
-                          }`}
-                        >
-                          {statusLabelMap[item.status] || item.status}
-                        </span>
-                        <span className="text-xs font-semibold uppercase text-slate-400">{item.type}</span>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                            {item.type}
+                          </span>
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                              statusClassMap[item.status] || statusClassMap.pending
+                            }`}
+                          >
+                            {statusLabelMap[item.status] || item.status}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm font-semibold text-slate-700">{item.title}</p>
+                        {item.subtitle ? <p className="mt-1 text-xs text-slate-500">{item.subtitle}</p> : null}
+                        <p className="mt-1 text-xs text-slate-500">{item.description}</p>
                       </div>
-                      <p className="mt-2 truncate text-sm font-semibold text-slate-700">{item.title}</p>
-                      <p className="mt-1 text-sm text-slate-500">{item.description}</p>
-                    </div>
-                    <div className="shrink-0 text-right text-xs text-slate-500">
-                      <Clock3 className="ml-auto h-4 w-4 text-slate-400" />
-                      <p className="mt-1 whitespace-nowrap">{item.dateLabel || "-"}</p>
+                      <div className="flex items-center gap-1 text-xs font-medium text-slate-500">
+                        <Clock3 className="h-4 w-4" />
+                        {item.dateLabel || "-"}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -146,17 +153,21 @@ function Home() {
           </div>
         </div>
 
-        <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-          <div className="rounded-2xl border-t-3 border-slate-200 border-t-amber-500 px-4 py-3">
-            <h2 className="text-base font-semibold text-gray-500">Gợi ý kiểm tra</h2>
-          </div>
-          <div className="space-y-3 border-x border-b border-slate-200 p-4 text-sm text-slate-600">
-            <div className="flex gap-2 rounded-lg border border-amber-100 bg-amber-50 p-3 text-amber-800">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>Ưu tiên xử lý các dòng có nhãn Quá hạn trước khi cập nhật các việc sắp đến hạn.</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-700">Logic cảnh báo</h2>
+          <div className="mt-4 space-y-3 text-sm text-slate-500">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="font-semibold text-slate-700">Program / Chỉnh sửa / Nâng cấp / Design</p>
+              <p className="mt-1">Dựa vào ngày dự kiến. Đã hoàn thành thì không cảnh báo.</p>
             </div>
-            <p>Source hết hạn link nên được cập nhật hạn hiệu lực hoặc gửi lại link mới nếu khách chưa tải.</p>
-            <p>Hợp đồng chưa bàn giao nên được kiểm tra lại trước khi chốt trạng thái bàn giao.</p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="font-semibold text-slate-700">Source</p>
+              <p className="mt-1">Dựa vào hạn hiệu lực link, chỉ cảnh báo source đã gửi nhưng chưa xác nhận tải.</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="font-semibold text-slate-700">Hợp đồng</p>
+              <p className="mt-1">Dựa vào ngày dự kiến bàn giao. Đã bàn giao thì không cảnh báo.</p>
+            </div>
           </div>
         </div>
       </div>
