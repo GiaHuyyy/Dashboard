@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { systemCategoryApi } from "@/lib/api-client";
 import { usePermission } from "@/lib/permissions";
 
-const CATEGORY_TABS = [
+const CATEGORY_TYPES = [
   { value: "module", label: "Module", description: "Danh mục module" },
   { value: "status", label: "Trạng thái", description: "Danh mục trạng thái" },
   { value: "priority", label: "Ưu tiên", description: "Danh mục ưu tiên" },
@@ -56,7 +56,7 @@ function SystemCategoryManagement() {
     defaultValues,
   });
 
-  const activeTab = useMemo(() => CATEGORY_TABS.find((item) => item.value === activeType), [activeType]);
+  const activeTab = useMemo(() => CATEGORY_TYPES.find((item) => item.value === activeType), [activeType]);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -197,7 +197,7 @@ function SystemCategoryManagement() {
           value={activeType}
           onChange={(event) => setActiveType(event.target.value)}
         >
-          {CATEGORY_TABS.map((option) => (
+          {CATEGORY_TYPES.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

@@ -10,15 +10,16 @@ import {
   updateProgramSource,
 } from "../controllers/programSourceController.js";
 import authenticate from "../middleware/authenticate.js";
+import requirePermission, { requireAnyPermission } from "../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/", authenticate, listProgramSources);
-router.delete("/", authenticate, deleteProgramSources);
-router.post("/", authenticate, createProgramSource);
-router.post("/:id/send-mail", authenticate, sendProgramSourceMailById);
-router.get("/:id", authenticate, getProgramSourceById);
-router.put("/:id", authenticate, updateProgramSource);
-router.delete("/:id", authenticate, deleteProgramSource);
+router.get("/", authenticate, requirePermission("source.view"), listProgramSources);
+router.delete("/", authenticate, requirePermission("source.delete"), deleteProgramSources);
+router.post("/", authenticate, requirePermission("source.create"), createProgramSource);
+router.post("/:id/send-mail", authenticate, requirePermission("source.sendMail"), sendProgramSourceMailById);
+router.get("/:id", authenticate, requirePermission("source.view"), getProgramSourceById);
+router.put("/:id", authenticate, requireAnyPermission("source.update", "source.updateStatus"), updateProgramSource);
+router.delete("/:id", authenticate, requirePermission("source.delete"), deleteProgramSource);
 
 export default router;

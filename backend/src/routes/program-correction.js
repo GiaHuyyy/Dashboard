@@ -9,14 +9,15 @@ import {
   updateProgramCorrection,
 } from "../controllers/programCorrectionController.js";
 import authenticate from "../middleware/authenticate.js";
+import requirePermission, { requireAnyPermission } from "../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/", authenticate, listProgramCorrections);
-router.delete("/", authenticate, deleteProgramCorrections);
-router.get("/:id", authenticate, getProgramCorrectionById);
-router.put("/:id", authenticate, updateProgramCorrection);
-router.delete("/:id", authenticate, deleteProgramCorrection);
-router.post("/", authenticate, createProgramCorrection);
+router.get("/", authenticate, requirePermission("correction.view"), listProgramCorrections);
+router.delete("/", authenticate, requirePermission("correction.delete"), deleteProgramCorrections);
+router.get("/:id", authenticate, requirePermission("correction.view"), getProgramCorrectionById);
+router.put("/:id", authenticate, requireAnyPermission("correction.update", "correction.updateStatus"), updateProgramCorrection);
+router.delete("/:id", authenticate, requirePermission("correction.delete"), deleteProgramCorrection);
+router.post("/", authenticate, requirePermission("correction.create"), createProgramCorrection);
 
 export default router;

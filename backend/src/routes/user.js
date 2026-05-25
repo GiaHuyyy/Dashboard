@@ -8,17 +8,16 @@ import {
   updateUser,
 } from "../controllers/userController.js";
 import authenticate from "../middleware/authenticate.js";
-import authorizeRoles from "../middleware/authorizeRoles.js";
+import requirePermission from "../middleware/requirePermission.js";
 
 const router = Router();
 
 router.use(authenticate);
-router.use(authorizeRoles("super_admin", "admin"));
 
-router.get("/", listUsers);
-router.post("/", createUser);
-router.get("/:id", getUserById);
-router.put("/:id", updateUser);
-router.delete("/:id", deleteUser);
+router.get("/", requirePermission("permission.user.view"), listUsers);
+router.post("/", requirePermission("permission.user.create"), createUser);
+router.get("/:id", requirePermission("permission.user.view"), getUserById);
+router.put("/:id", requirePermission("permission.user.update"), updateUser);
+router.delete("/:id", requirePermission("permission.user.delete"), deleteUser);
 
 export default router;

@@ -9,14 +9,15 @@ import {
   updateHostPrice,
 } from "../controllers/hostPriceController.js";
 import authenticate from "../middleware/authenticate.js";
+import requirePermission from "../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/", authenticate, listHostPrices);
-router.delete("/", authenticate, deleteHostPrices);
-router.post("/", authenticate, createHostPrice);
-router.get("/:id", authenticate, getHostPriceById);
-router.put("/:id", authenticate, updateHostPrice);
-router.delete("/:id", authenticate, deleteHostPrice);
+router.get("/", authenticate, requirePermission("price.view"), listHostPrices);
+router.delete("/", authenticate, requirePermission("price.delete"), deleteHostPrices);
+router.post("/", authenticate, requirePermission("price.create"), createHostPrice);
+router.get("/:id", authenticate, requirePermission("price.view"), getHostPriceById);
+router.put("/:id", authenticate, requirePermission("price.update"), updateHostPrice);
+router.delete("/:id", authenticate, requirePermission("price.delete"), deleteHostPrice);
 
 export default router;

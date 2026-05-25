@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import authenticate from "../middleware/authenticate.js";
+import requirePermission, { requireAnyPermission } from "../middleware/requirePermission.js";
 import {
   createStaff,
   deleteStaff,
@@ -14,11 +15,11 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get("/", listStaffs);
-router.get("/references", listStaffReferences);
-router.post("/", createStaff);
-router.get("/:id", getStaffById);
-router.put("/:id", updateStaff);
-router.delete("/:id", deleteStaff);
+router.get("/", requirePermission("staff.view"), listStaffs);
+router.get("/references", requireAnyPermission("staff.view", "program.create", "design.create", "correction.create", "upgrade.create"), listStaffReferences);
+router.post("/", requirePermission("staff.create"), createStaff);
+router.get("/:id", requirePermission("staff.view"), getStaffById);
+router.put("/:id", requirePermission("staff.update"), updateStaff);
+router.delete("/:id", requirePermission("staff.delete"), deleteStaff);
 
 export default router;

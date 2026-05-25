@@ -9,14 +9,15 @@ import {
   updatePackagePrice,
 } from "../controllers/packagePriceController.js";
 import authenticate from "../middleware/authenticate.js";
+import requirePermission from "../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/", authenticate, listPackagePrices);
-router.delete("/", authenticate, deletePackagePrices);
-router.post("/", authenticate, createPackagePrice);
-router.get("/:id", authenticate, getPackagePriceById);
-router.put("/:id", authenticate, updatePackagePrice);
-router.delete("/:id", authenticate, deletePackagePrice);
+router.get("/", authenticate, requirePermission("price.view"), listPackagePrices);
+router.delete("/", authenticate, requirePermission("price.delete"), deletePackagePrices);
+router.post("/", authenticate, requirePermission("price.create"), createPackagePrice);
+router.get("/:id", authenticate, requirePermission("price.view"), getPackagePriceById);
+router.put("/:id", authenticate, requirePermission("price.update"), updatePackagePrice);
+router.delete("/:id", authenticate, requirePermission("price.delete"), deletePackagePrice);
 
 export default router;
