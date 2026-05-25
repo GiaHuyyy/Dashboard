@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -28,6 +29,12 @@ const calculateConvertByDuration = (durationValue, durationUnit) => {
   if (durationUnit === "ngày") return formatNumber(numeric);
   if (durationUnit === "h") return formatNumber(numeric / 8);
   return "";
+};
+
+const isValidDateValue = (value) => {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime());
 };
 
 const toDateTimeLocal = (value) => {
@@ -65,6 +72,14 @@ const programSchema = z
         code: z.ZodIssueCode.custom,
         path: ["designTaskId"],
         message: "Vui lòng chọn thiết kế tham chiếu",
+      });
+    }
+
+    if (values.processingStatus === COMPLETED_STATUS && !isValidDateValue(values.completedAt)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["completedAt"],
+        message: "Vui lòng chọn ngày hoàn thành",
       });
     }
   });

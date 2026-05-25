@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 import DesignTask from "../models/DesignTask.js";
 import { getActiveCategoryNames } from "../utils/system-category.js";
@@ -234,6 +234,9 @@ export const createDesignTask = async (req, res) => {
 export const updateDesignTask = async (req, res) => {
   const existing = await DesignTask.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy công việc design" });
+  if (existing.status === "Đã hoàn thành") {
+    return res.status(409).json({ message: "Công việc design đã hoàn thành, chỉ được xem chi tiết" });
+  }
 
   const normalizedInput = normalizePayload(req.body);
   const mergedPayload = {

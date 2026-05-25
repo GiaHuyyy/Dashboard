@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -42,6 +43,14 @@ const schema = z.object({
   status: z.string().trim().min(1, "Vui lòng chọn trạng thái"),
   visible: z.boolean(),
   note: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.status === UPGRADE_COMPLETED_STATUS && !isValidDateValue(values.completedAt)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["completedAt"],
+      message: "Vui lòng chọn ngày hoàn thành",
+    });
+  }
 });
 
 const defaultValues = {

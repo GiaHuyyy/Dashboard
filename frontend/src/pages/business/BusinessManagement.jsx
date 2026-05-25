@@ -1,4 +1,4 @@
-import { Handshake, SquarePen, Trash2 } from "lucide-react";
+import { SquarePen, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -10,16 +10,9 @@ import { businessContractApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { usePermission } from "@/lib/permissions";
 
 function BusinessManagement() {
   const navigate = useNavigate();
-  const { can } = usePermission();
-  const canCreate = can("contract.create");
-  const canUpdate = can("contract.update");
-  const canDelete = can("contract.delete");
-  const canSendMail = can("contract.sendMail");
-
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -27,7 +20,6 @@ function BusinessManagement() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
-  const [handoverRowId, setHandoverRowId] = useState(null);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -95,26 +87,6 @@ function BusinessManagement() {
     }
   };
 
-  const handleHandover = async (row) => {
-    if (handoverRowId === row.id || row.handoverStatus === "Đã bàn giao") return;
-    setHandoverRowId(row.id);
-    try {
-      const response = await businessContractApi.handover(row.id);
-      const contract = response?.contract || row;
-      toast.success(response?.message || "Đã bàn giao hợp đồng cho lập trình");
-      navigate("/lap-trinh/them-moi", {
-        state: {
-          sourcePath: "/kinh-doanh/danh-sach",
-          businessContract: contract,
-        },
-      });
-    } catch (error) {
-      toast.error(error?.message || "Bàn giao không thành công");
-    } finally {
-      setHandoverRowId(null);
-    }
-  };
-
   return (
     <>
       <ManagementActions
@@ -123,10 +95,7 @@ function BusinessManagement() {
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        addDisabled={!canCreate}
-        addTitle={!canCreate ? "Bạn không có quyền thêm hợp đồng" : undefined}
-        deleteDisabled={rows.length === 0 || !canDelete}
-        deleteTitle={!canDelete ? "Bạn không có quyền xóa hợp đồng" : undefined}
+        deleteDisabled={rows.length === 0}
         deleteLabel={deleteManyLabel}
       />
 
@@ -214,18 +183,6 @@ function BusinessManagement() {
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Button
-                        icon={Handshake}
-                        label={handoverRowId === row.id ? "Đang bàn giao" : "Bàn giao"}
-                        variant="info"
-                        size="sm"
-                        disabled={handoverRowId === row.id || row.handoverStatus === "Đã bàn giao" || !canSendMail}
-                        title={!canSendMail ? "Bạn không có quyền gửi mail/bàn giao hợp đồng" : undefined}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void handleHandover(row);
-                        }}
-                      />
-                      <Button
                         icon={SquarePen}
                         onClick={(event) => {
                           event.stopPropagation();
@@ -233,8 +190,6 @@ function BusinessManagement() {
                         }}
                         variant="primary-outline"
                         iconOnly
-                        disabled={!canUpdate}
-                        title={!canUpdate ? "Bạn không có quyền sửa hợp đồng" : undefined}
                       />
                       <Button
                         icon={Trash2}
@@ -245,8 +200,6 @@ function BusinessManagement() {
                         }}
                         variant="danger-outline"
                         iconOnly
-                        disabled={!canDelete}
-                        title={!canDelete ? "Bạn không có quyền xóa hợp đồng" : undefined}
                       />
                     </div>
                   </TableCell>

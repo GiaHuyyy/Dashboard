@@ -278,6 +278,9 @@ export const updateBusinessContract = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
   const existing = await BusinessContract.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
+  if (existing.handoverStatus === "Đã bàn giao") {
+    return res.status(409).json({ message: "Hợp đồng đã bàn giao, chỉ được xem chi tiết" });
+  }
 
   const input = normalizePayload(req.body);
   const mergedPayload = {
@@ -351,6 +354,9 @@ export const handoverBusinessContract = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
   const existing = await BusinessContract.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
+  if (existing.handoverStatus === "Đã bàn giao") {
+    return res.status(409).json({ message: "Hợp đồng đã bàn giao" });
+  }
 
   existing.handoverStatus = "Đã bàn giao";
   existing.handoverAt = existing.handoverAt || new Date();

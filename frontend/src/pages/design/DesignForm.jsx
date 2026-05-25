@@ -4,10 +4,8 @@ import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
-import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { designApi, staffApi } from "@/lib/api-client";
@@ -61,6 +59,14 @@ const schema = z.object({
     .refine((value) => !value || isValidDateValue(value), "Ngày hoàn thành không hợp lệ"),
   visible: z.boolean(),
   note: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.status === COMPLETED_STATUS && !values.completedDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["completedDate"],
+      message: "Vui lòng chọn ngày hoàn thành",
+    });
+  }
 });
 
 const defaultValues = {
@@ -96,8 +102,6 @@ function DesignForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
-  const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "design.update" : "design.create");
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingReference, setIsLoadingReference] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -132,18 +136,33 @@ function DesignForm() {
     () => formStatusValues.map((item) => ({ label: item, value: item })),
     [formStatusValues],
   );
+  const isCompletedLocked = isEditMode && initialSnapshot.status === COMPLETED_STATUS;
+  const isFormReadOnly = isCompletedLocked;
 
   useEffect(() => {
-    if (isEditMode) return;
+    if (isEditMode || isLoadingReference || isLoadingDetail) return;
+
     const nextPriority = priorityCategories.options?.[0]?.value || "";
     const nextStatus = formStatusValues?.[0] || "";
-    if (nextPriority && !getValues("priority")) {
-      setValue("priority", nextPriority, { shouldValidate: true });
+    const currentPriority = getValues("priority");
+    const currentStatus = getValues("status");
+
+    if (nextPriority && !currentPriority) {
+      setValue("priority", nextPriority, { shouldValidate: true, shouldDirty: false });
     }
-    if (nextStatus && !getValues("status")) {
-      setValue("status", nextStatus, { shouldValidate: true });
+
+    if (nextStatus && (!currentStatus || !formStatusValues.includes(currentStatus))) {
+      setValue("status", nextStatus, { shouldValidate: true, shouldDirty: false });
     }
-  }, [formStatusValues, getValues, isEditMode, priorityCategories.options, setValue]);
+
+    if (nextPriority || nextStatus) {
+      setInitialSnapshot((prev) => ({
+        ...prev,
+        ...(!prev.priority && nextPriority ? { priority: nextPriority } : {}),
+        ...((!prev.status || !formStatusValues.includes(prev.status)) && nextStatus ? { status: nextStatus } : {}),
+      }));
+    }
+  }, [formStatusValues, getValues, isEditMode, isLoadingDetail, isLoadingReference, priorityCategories.options, setValue]);
 
   useEffect(() => {
     const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
@@ -242,6 +261,11 @@ function DesignForm() {
   );
 
   const persist = async (values, mode) => {
+    if (isCompletedLocked) {
+      toast.error("Công việc design đã hoàn thành, chỉ được xem chi tiết");
+      return;
+    }
+
     const payload = {
       ...values,
       convert: Number(values.convert),
@@ -278,13 +302,7 @@ function DesignForm() {
     }
   };
 
-  const isReadOnlyMode = !canSave;
-
   const onSubmit = async (values, mode) => {
-    if (!canSave) {
-      toast.error("Bạn không có quyền lưu dữ liệu này");
-      return;
-    }
     if (values.status === COMPLETED_STATUS && initialSnapshot.status !== COMPLETED_STATUS) {
       setPendingSubmit({ values, mode });
       setCompleteConfirmOpen(true);
@@ -316,9 +334,8 @@ function DesignForm() {
         isUploading={false}
         isEditMode={isEditMode}
         exitPath="/design/danh-sach"
-        readOnlyMode={isReadOnlyMode}
-        readOnlyTitle={!canSave ? "Bạn chỉ có quyền xem design" : undefined}
         showSaveMail={false}
+        readOnlyMode={isFormReadOnly}
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -332,14 +349,14 @@ function DesignForm() {
             <FormField
               label="Hạng mục design"
               type="text"
-              inputProps={{ ...register("title"), placeholder: "Ví dụ: Thiết kế landing page sản phẩm A", disabled: isReadOnlyMode }}
+              inputProps={{ ...register("title"), placeholder: "Ví dụ: Thiết kế landing page sản phẩm A", disabled: isFormReadOnly }}
               error={errors.title?.message}
             />
             <FormField
               label="Loại design"
               type="select"
               options={DESIGN_TYPES.map((item) => ({ label: item, value: item }))}
-              selectProps={{ ...register("designType"), disabled: isReadOnlyMode }}
+              selectProps={{ ...register("designType"), disabled: isFormReadOnly }}
               error={errors.designType?.message}
             />
             <FormField
@@ -350,7 +367,7 @@ function DesignForm() {
                   ? priorityCategories.options
                   : [{ label: "Chưa có danh mục", value: "" }]
               }
-              selectProps={{ ...register("priority"), disabled: isReadOnlyMode || priorityCategories.options.length === 0 }}
+              selectProps={{ ...register("priority"), disabled: isFormReadOnly || priorityCategories.options.length === 0 }}
               error={errors.priority?.message}
             />
 
@@ -358,14 +375,14 @@ function DesignForm() {
               <FormField
                 label="Thời gian"
                 type="number"
-                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", disabled: isReadOnlyMode }}
+                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", disabled: isFormReadOnly }}
                 error={errors.durationValue?.message}
               />
               <FormField
                 label="Đơn vị"
                 type="select"
                 options={DURATION_UNITS.map((item) => ({ label: item, value: item }))}
-                selectProps={{ ...register("durationUnit"), disabled: isReadOnlyMode }}
+                selectProps={{ ...register("durationUnit"), disabled: isFormReadOnly }}
                 error={errors.durationUnit?.message}
               />
             </div>
@@ -373,20 +390,20 @@ function DesignForm() {
             <FormField
               label="Quy đổi"
               type="number"
-              inputProps={{ ...register("convert"), readOnly: true, disabled: isReadOnlyMode }}
+              inputProps={{ ...register("convert"), readOnly: true, disabled: isFormReadOnly }}
               inputClassName="bg-slate-50"
               error={errors.convert?.message}
             />
             <FormField
               label="Điểm cộng thêm"
               type="number"
-              inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001", disabled: isReadOnlyMode }}
+              inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001", disabled: isFormReadOnly }}
               error={errors.bonusPoint?.message}
             />
             <FormField
               label="Ghi chú"
               type="textarea"
-              inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)", disabled: isReadOnlyMode }}
+              inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)", disabled: isFormReadOnly }}
               error={errors.note?.message}
             />
           </div>
@@ -398,49 +415,49 @@ function DesignForm() {
               label="Người giao (Quản lý)"
               type="select"
               options={managerOptions.length > 0 ? managerOptions : [{ label: "Không có dữ liệu", value: "" }]}
-              selectProps={{ ...register("assigner"), disabled: isReadOnlyMode || managerOptions.length === 0 }}
+              selectProps={{ ...register("assigner"), disabled: isFormReadOnly || managerOptions.length === 0 }}
               error={errors.assigner?.message}
             />
             <FormField
               label="Người nhận (Design)"
               type="select"
               options={designerOptions.length > 0 ? designerOptions : [{ label: "Không có dữ liệu", value: "" }]}
-              selectProps={{ ...register("assignee"), disabled: isReadOnlyMode || designerOptions.length === 0 }}
+              selectProps={{ ...register("assignee"), disabled: isFormReadOnly || designerOptions.length === 0 }}
               error={errors.assignee?.message}
             />
             <FormField
               label="Trạng thái"
               type="select"
               options={formStatusOptions.length > 0 ? formStatusOptions : [{ label: "Chưa có danh mục", value: "" }]}
-              selectProps={{ ...register("status"), disabled: isReadOnlyMode || formStatusOptions.length === 0 }}
+              selectProps={{ ...register("status"), disabled: isFormReadOnly || formStatusOptions.length === 0 }}
               error={errors.status?.message}
             />
             <FormField
               label="Ngày giao"
               type="date"
-              inputProps={{ ...register("handoverDate"), disabled: isReadOnlyMode }}
+              inputProps={{ ...register("handoverDate"), disabled: isFormReadOnly }}
               error={errors.handoverDate?.message}
             />
             <FormField
               label="Ngày nhận"
               type="date"
-              inputProps={{ ...register("receiveDate"), disabled: isReadOnlyMode }}
+              inputProps={{ ...register("receiveDate"), disabled: isFormReadOnly }}
               error={errors.receiveDate?.message}
             />
             <FormField
               label="Ngày dự kiến"
               type="date"
-              inputProps={{ ...register("expectedDate"), disabled: isReadOnlyMode }}
+              inputProps={{ ...register("expectedDate"), disabled: isFormReadOnly }}
               error={errors.expectedDate?.message}
             />
             <FormField
               label="Ngày hoàn thành"
               type="date"
-              inputProps={{ ...register("completedDate"), disabled: isReadOnlyMode || selectedStatus !== COMPLETED_STATUS }}
+              inputProps={{ ...register("completedDate"), disabled: isFormReadOnly || selectedStatus !== COMPLETED_STATUS }}
               error={errors.completedDate?.message}
             />
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-              <input type="checkbox" {...register("visible")} disabled={isReadOnlyMode} />
+              <input type="checkbox" {...register("visible")} disabled={isFormReadOnly} />
               Hiển thị
             </label>
           </div>

@@ -4,13 +4,12 @@ import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { ImageLightbox } from "@/components/program-form/ImageLightbox";
 import { ImageUpload } from "@/components/program-form/ImageUpload";
-import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
+import Modal from "@/components/ui/modal";
 import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
 import { MAIL_STATUS_OPTIONS } from "@/constants/program";
 import { businessContractApi, staffApi } from "@/lib/api-client";
@@ -41,6 +40,14 @@ const schema = z.object({
   handoverAt: z.string().optional(),
   visible: z.boolean(),
   note: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.handoverStatus === "Đã bàn giao" && !values.handoverAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["handoverAt"],
+      message: "Vui lòng chọn ngày bàn giao",
+    });
+  }
 });
 
 const defaultValues = {
@@ -91,10 +98,6 @@ function BusinessForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
-  const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "contract.update" : "contract.create");
-  const canSendMail = hasPermission(currentUser, "contract.sendMail");
-  const isReadOnlyMode = !canSave;
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [contractImages, setContractImages] = useState([]);
@@ -102,6 +105,8 @@ function BusinessForm() {
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
   const [staffReferences, setStaffReferences] = useState([]);
+  const [handoverConfirmOpen, setHandoverConfirmOpen] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(null);
 
   const {
     register,
@@ -116,6 +121,8 @@ function BusinessForm() {
   });
 
   const handoverStatus = useWatch({ control, name: "handoverStatus" });
+  const isHandedOverLocked = isEditMode && initialSnapshot.values?.handoverStatus === "Đã bàn giao";
+  const isFormReadOnly = isHandedOverLocked;
   const salesOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh"));
 
   useEffect(() => {
@@ -188,6 +195,8 @@ function BusinessForm() {
   }, [id, isEditMode, navigate, reset]);
 
   const handleContractImageChange = (files) => {
+    if (isFormReadOnly) return;
+
     const normalizedNewFiles = files.map((file) => ({
       kind: "file",
       file,
@@ -197,6 +206,8 @@ function BusinessForm() {
   };
 
   const removeContractImage = (index) => {
+    if (isFormReadOnly) return;
+
     setContractImages((prev) => {
       const target = prev[index];
       if (target?.kind === "file" && target.previewUrl) {
@@ -226,14 +237,11 @@ function BusinessForm() {
   };
 
   const persist = async (values, mode) => {
-    if (!canSave) {
-      toast.error("Bạn không có quyền lưu dữ liệu này");
+    if (isHandedOverLocked) {
+      toast.error("Hợp đồng đã bàn giao, chỉ được xem chi tiết");
       return;
     }
-    if (mode === "save-mail" && !canSendMail) {
-      toast.error("Bạn không có quyền gửi mail hợp đồng");
-      return;
-    }
+
     let uploadedContractImages = [];
     try {
       uploadedContractImages = await uploadNewImages();
@@ -285,6 +293,22 @@ function BusinessForm() {
     }
   };
 
+  const onSubmit = async (values, mode) => {
+    if (values.handoverStatus === "Đã bàn giao" && initialSnapshot.values?.handoverStatus !== "Đã bàn giao") {
+      setPendingSubmit({ values, mode });
+      setHandoverConfirmOpen(true);
+      return;
+    }
+
+    await persist(values, mode);
+  };
+
+  const submitWithMode = (mode) =>
+    handleSubmit(
+      (values) => void onSubmit(values, mode),
+      () => toast.error("Vui lòng kiểm tra lại thông tin form"),
+    )();
+
   if (isLoading) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu...</div>
@@ -294,9 +318,9 @@ function BusinessForm() {
   return (
     <form className="space-y-4">
       <FormActions
-        onSave={() => void handleSubmit((values) => persist(values, "save"))()}
-        onSaveStay={() => void handleSubmit((values) => persist(values, "save-stay"))()}
-        onSaveMail={() => void handleSubmit((values) => persist(values, "save-mail"))()}
+        onSave={() => submitWithMode("save")}
+        onSaveStay={() => submitWithMode("save-stay")}
+        onSaveMail={() => submitWithMode("save-mail")}
         onReset={() => {
           contractImages.forEach((item) => {
             if (item.kind === "file" && item.previewUrl) {
@@ -310,12 +334,10 @@ function BusinessForm() {
         isUploading={isUploadingImages}
         isEditMode={isEditMode}
         exitPath="/kinh-doanh/danh-sach"
-        readOnlyMode={isReadOnlyMode}
-        saveMailDisabled={!canSendMail}
         showSaveMail
+        readOnlyMode={isFormReadOnly}
       />
 
-      <fieldset disabled={isReadOnlyMode} className="contents">
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
           Thông tin hợp đồng kinh doanh
@@ -324,37 +346,37 @@ function BusinessForm() {
           <FormField
             label="Số hợp đồng"
             type="text"
-            inputProps={{ ...register("contractCode"), placeholder: "1234567QW" }}
+            inputProps={{ ...register("contractCode"), placeholder: "1234567QW", disabled: isFormReadOnly }}
             error={errors.contractCode?.message}
           />
           <FormField
             label="Tên hợp đồng"
             type="text"
-            inputProps={{ ...register("contractName"), placeholder: "Website" }}
+            inputProps={{ ...register("contractName"), placeholder: "Website", disabled: isFormReadOnly }}
             error={errors.contractName?.message}
           />
           <FormField
             label="Giá trị hợp đồng"
             type="number"
-            inputProps={{ ...register("contractValue"), min: "0", step: "1000" }}
+            inputProps={{ ...register("contractValue"), min: "0", step: "1000", disabled: isFormReadOnly }}
             error={errors.contractValue?.message}
           />
           <FormField
             label="Tên khách hàng"
             type="text"
-            inputProps={{ ...register("customerName"), placeholder: "Nguyen Van A" }}
+            inputProps={{ ...register("customerName"), placeholder: "Nguyen Van A", disabled: isFormReadOnly }}
             error={errors.customerName?.message}
           />
           <FormField
             label="Số điện thoại khách hàng"
             type="text"
-            inputProps={{ ...register("customerPhone"), placeholder: "+84" }}
+            inputProps={{ ...register("customerPhone"), placeholder: "+84", disabled: isFormReadOnly }}
             error={errors.customerPhone?.message}
           />
           <FormField
             label="Email khách hàng"
             type="text"
-            inputProps={{ ...register("customerEmail"), placeholder: "nguyenvana@email.com" }}
+            inputProps={{ ...register("customerEmail"), placeholder: "nguyenvana@email.com", disabled: isFormReadOnly }}
             error={errors.customerEmail?.message}
           />
 
@@ -363,7 +385,7 @@ function BusinessForm() {
             <div className="mt-2 flex flex-wrap gap-6 text-sm text-slate-600">
               {MAIL_STATUS_OPTIONS.map((option) => (
                 <label key={option} className="flex items-center gap-2">
-                  <input type="radio" value={option} {...register("mailStatus")} />
+                  <input type="radio" value={option} {...register("mailStatus")} disabled={isFormReadOnly} />
                   {option}
                 </label>
               ))}
@@ -375,30 +397,30 @@ function BusinessForm() {
             label="Nhân viên kinh doanh"
             type="select"
             options={salesOptions.length > 0 ? salesOptions : [{ label: "Chưa có nhân sự kinh doanh", value: "" }]}
-            selectProps={{ ...register("selectedSalesStaff"), disabled: salesOptions.length === 0 }}
+            selectProps={{ ...register("selectedSalesStaff"), disabled: isFormReadOnly || salesOptions.length === 0 }}
             error={errors.selectedSalesStaff?.message}
           />
           <FormField
             label="Danh sách email cc"
             type="text"
-            inputProps={{ ...register("ccEmails"), placeholder: "email1@x.com, email2@x.com" }}
+            inputProps={{ ...register("ccEmails"), placeholder: "email1@x.com, email2@x.com", disabled: isFormReadOnly }}
             error={errors.ccEmails?.message}
           />
           <FormField
             label="Trạng thái bàn giao"
             type="select"
             options={HANDOVER_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
-            selectProps={{ ...register("handoverStatus") }}
+            selectProps={{ ...register("handoverStatus"), disabled: isFormReadOnly }}
             error={errors.handoverStatus?.message}
           />
           <FormField
             label="Ngày bàn giao"
             type="datetime-local"
-            inputProps={{ ...register("handoverAt"), disabled: handoverStatus !== "Đã bàn giao" }}
+            inputProps={{ ...register("handoverAt"), disabled: isFormReadOnly || handoverStatus !== "Đã bàn giao" }}
             error={errors.handoverAt?.message}
           />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <input type="checkbox" {...register("visible")} />
+            <input type="checkbox" {...register("visible")} disabled={isFormReadOnly} />
             Hiển thị
           </label>
 
@@ -409,8 +431,8 @@ function BusinessForm() {
               onRemoveImage={removeContractImage}
               onImageClick={setLightboxIndex}
               isUploading={isUploadingImages}
-              disabled={isReadOnlyMode}
               maxImages={6}
+              disabled={isFormReadOnly}
             />
           </div>
 
@@ -418,7 +440,7 @@ function BusinessForm() {
             <FormField
               label="Ghi chú"
               type="textarea"
-              inputProps={{ ...register("note"), rows: 3 }}
+              inputProps={{ ...register("note"), rows: 3, disabled: isFormReadOnly }}
               error={errors.note?.message}
             />
           </div>
@@ -432,7 +454,49 @@ function BusinessForm() {
         onNext={() => setLightboxIndex(lightboxIndex + 1)}
         onPrev={() => setLightboxIndex(lightboxIndex - 1)}
       />
-      </fieldset>
+
+      <Modal
+        open={handoverConfirmOpen}
+        onClose={() => {
+          setHandoverConfirmOpen(false);
+          setPendingSubmit(null);
+        }}
+        title="Xác nhận bàn giao"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setHandoverConfirmOpen(false);
+                setPendingSubmit(null);
+              }}
+              className="rounded-md border px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const current = pendingSubmit;
+                setHandoverConfirmOpen(false);
+                setPendingSubmit(null);
+                if (current) {
+                  void persist(current.values, current.mode);
+                }
+              }}
+              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Xác nhận
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Hợp đồng sẽ chuyển sang trạng thái
+          <span className="font-semibold text-slate-800"> Đã bàn giao</span>. Sau khi bàn giao, hợp đồng chỉ được xem chi tiết và không thể chỉnh sửa.
+        </p>
+      </Modal>
     </form>
   );
 }
