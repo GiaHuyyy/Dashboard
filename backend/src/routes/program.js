@@ -16,11 +16,31 @@ import requirePermission, { requireAnyPermission } from "../middleware/requirePe
 const router = Router();
 
 router.get("/", authenticate, requirePermission("program.view"), listPrograms);
-router.get("/references", authenticate, requireAnyPermission("program.view", "program.create"), listProgramReferences);
+router.get(
+  "/references",
+  authenticate,
+  requireAnyPermission(
+    "program.view",
+    "program.create",
+    "program.update",
+    "source.create",
+    "source.update",
+    "correction.create",
+    "correction.update",
+    "upgrade.create",
+    "upgrade.update",
+  ),
+  listProgramReferences,
+);
 router.post("/validate", authenticate, requireAnyPermission("program.create", "program.update"), validateProgram);
 router.delete("/", authenticate, requirePermission("program.delete"), deletePrograms);
 router.get("/:id", authenticate, requirePermission("program.view"), getProgramById);
-router.put("/:id", authenticate, requireAnyPermission("program.update", "program.updateStatus", "program.updatePoint"), updateProgram);
+router.put(
+  "/:id",
+  authenticate,
+  requireAnyPermission("program.update", "program.updateStatus", "program.updatePoint"),
+  updateProgram,
+);
 router.delete("/:id", authenticate, requirePermission("program.delete"), deleteProgram);
 router.post("/", authenticate, requirePermission("program.create"), createProgram);
 

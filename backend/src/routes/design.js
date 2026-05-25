@@ -15,11 +15,21 @@ import requirePermission, { requireAnyPermission } from "../middleware/requirePe
 const router = Router();
 
 router.get("/", authenticate, requirePermission("design.view"), listDesignTasks);
-router.get("/references", authenticate, requireAnyPermission("design.view", "design.create"), listDesignReferences);
+router.get(
+  "/references",
+  authenticate,
+  requireAnyPermission("design.view", "design.create", "design.update", "program.create", "program.update"),
+  listDesignReferences,
+);
 router.delete("/", authenticate, requirePermission("design.delete"), deleteDesignTasks);
 router.post("/", authenticate, requirePermission("design.create"), createDesignTask);
 router.get("/:id", authenticate, requirePermission("design.view"), getDesignTaskById);
-router.put("/:id", authenticate, requireAnyPermission("design.update", "design.updateStatus", "design.updatePoint"), updateDesignTask);
+router.put(
+  "/:id",
+  authenticate,
+  requireAnyPermission("design.update", "design.updateStatus", "design.updatePoint"),
+  updateDesignTask,
+);
 router.delete("/:id", authenticate, requirePermission("design.delete"), deleteDesignTask);
 
 export default router;

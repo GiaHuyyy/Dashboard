@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import authenticate from "../middleware/authenticate.js";
-import requirePermission from "../middleware/requirePermission.js";
+import requirePermission, { requireAnyPermission } from "../middleware/requirePermission.js";
 import {
   createBusinessContract,
   deleteBusinessContract,
@@ -18,7 +18,23 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", requirePermission("contract.view"), listBusinessContracts);
-router.get("/references", requirePermission("contract.view"), listBusinessContractReferences);
+router.get(
+  "/references",
+  requireAnyPermission(
+    "contract.view",
+    "contract.create",
+    "contract.update",
+    "program.create",
+    "program.update",
+    "correction.create",
+    "correction.update",
+    "upgrade.create",
+    "upgrade.update",
+    "source.create",
+    "source.update",
+  ),
+  listBusinessContractReferences,
+);
 router.delete("/", requirePermission("contract.delete"), deleteBusinessContracts);
 router.post("/", requirePermission("contract.create"), createBusinessContract);
 router.get("/:id", requirePermission("contract.view"), getBusinessContractById);

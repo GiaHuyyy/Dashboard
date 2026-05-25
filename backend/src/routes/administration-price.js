@@ -9,11 +9,11 @@ import {
   updateAdministrationPrice,
 } from "../controllers/administrationPriceController.js";
 import authenticate from "../middleware/authenticate.js";
-import requirePermission from "../middleware/requirePermission.js";
+import requirePermission, { requireAnyPermission } from "../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/", authenticate, requirePermission("price.view"), listAdministrationPrices);
+router.get("/", authenticate, requireAnyPermission("price.view", "source.create", "source.update"), listAdministrationPrices);
 router.delete("/", authenticate, requirePermission("price.delete"), deleteAdministrationPrices);
 router.post("/", authenticate, requirePermission("price.create"), createAdministrationPrice);
 router.get("/:id", authenticate, requirePermission("price.view"), getAdministrationPriceById);

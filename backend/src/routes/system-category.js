@@ -13,7 +13,8 @@ import requirePermission from "../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/", authenticate, requirePermission("config.category.view"), listSystemCategories);
+router.get("/", authenticate, listSystemCategories);
+
 router.delete("/", authenticate, requirePermission("config.category.update"), deleteSystemCategories);
 router.post("/", authenticate, requirePermission("config.category.update"), createSystemCategory);
 router.get("/:id", authenticate, requirePermission("config.category.view"), getSystemCategoryById);

@@ -9,11 +9,11 @@ import {
   updateSslPrice,
 } from "../controllers/sslPriceController.js";
 import authenticate from "../middleware/authenticate.js";
-import requirePermission from "../middleware/requirePermission.js";
+import requirePermission, { requireAnyPermission } from "../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/", authenticate, requirePermission("price.view"), listSslPrices);
+router.get("/", authenticate, requireAnyPermission("price.view", "source.create", "source.update"), listSslPrices);
 router.delete("/", authenticate, requirePermission("price.delete"), deleteSslPrices);
 router.post("/", authenticate, requirePermission("price.create"), createSslPrice);
 router.get("/:id", authenticate, requirePermission("price.view"), getSslPriceById);

@@ -16,7 +16,27 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", requirePermission("staff.view"), listStaffs);
-router.get("/references", requireAnyPermission("staff.view", "program.create", "design.create", "correction.create", "upgrade.create"), listStaffReferences);
+router.get(
+  "/references",
+  requireAnyPermission(
+    "staff.view",
+    "staff.create",
+    "staff.update",
+    "program.create",
+    "program.update",
+    "design.create",
+    "design.update",
+    "correction.create",
+    "correction.update",
+    "upgrade.create",
+    "upgrade.update",
+    "contract.create",
+    "contract.update",
+    "source.create",
+    "source.update",
+  ),
+  listStaffReferences,
+);
 router.post("/", requirePermission("staff.create"), createStaff);
 router.get("/:id", requirePermission("staff.view"), getStaffById);
 router.put("/:id", requirePermission("staff.update"), updateStaff);
