@@ -10,7 +10,7 @@ import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { userApi } from "@/lib/api-client";
 import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
-import { USER_ROLE_OPTIONS, getUserRoleLabels } from "@/lib/user-roles";
+import { USER_ROLE_OPTIONS, getUserRoleLabel } from "@/lib/user-roles";
 
 function UserManagement() {
   const navigate = useNavigate();
@@ -21,11 +21,12 @@ function UserManagement() {
   const [selectedActive, setSelectedActive] = useState("all");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
-  const { can } = usePermission();
+  const { canAny } = usePermission();
 
-  const canCreate = can("permission.user.create");
-  const canUpdate = can("permission.user.update");
-  const canDelete = can("permission.user.delete");
+  const canView = canAny(["permission.user.view", "user.view"]);
+  const canCreate = canAny(["permission.user.create", "user.create"]);
+  const canUpdate = canAny(["permission.user.update", "user.update"]);
+  const canDelete = canAny(["permission.user.delete", "user.delete"]);
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -52,6 +53,11 @@ function UserManagement() {
   const handleDelete = async () => {
     if (!deleteRow?.id) return;
 
+    if (!canDelete) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+
     try {
       await userApi.remove(deleteRow.id);
       toast.success("Đã xóa tài khoản");
@@ -63,16 +69,19 @@ function UserManagement() {
     }
   };
 
+  const openDetail = (row) => {
+    if (!canView) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+
+    navigate(`/phan-quyen/tai-khoan/chinh-sua/${row.id}`);
+  };
+
   return (
     <>
       <ManagementActions
-        onAdd={() => {
-          if (!canCreate) {
-            toast.error(PERMISSION_DENIED_MESSAGE);
-            return;
-          }
-          navigate("/phan-quyen/tai-khoan/them-moi");
-        }}
+        onAdd={() => navigate("/phan-quyen/tai-khoan/them-moi")}
         onDeleteAll={() => null}
         addDisabled={!canCreate}
         addTitle={!canCreate ? PERMISSION_DENIED_MESSAGE : undefined}
@@ -155,13 +164,7 @@ function UserManagement() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => {
-                    if (!canUpdate) {
-                      toast.error(PERMISSION_DENIED_MESSAGE);
-                      return;
-                    }
-                    navigate(`/phan-quyen/tai-khoan/chinh-sua/${row.id}`);
-                  }}
+                  onClick={() => openDetail(row)}
                 >
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
@@ -170,7 +173,7 @@ function UserManagement() {
                     {row.name}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.userName}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{getUserRoleLabels(row.roles || row.role)}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{getUserRoleLabel(row.role)}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <span
                       className={`rounded-full border px-3 py-1 text-xs font-semibold ${
@@ -189,34 +192,25 @@ function UserManagement() {
                         icon={SquarePen}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (!canUpdate) {
-                            toast.error(PERMISSION_DENIED_MESSAGE);
-                            return;
-                          }
-                          navigate(`/phan-quyen/tai-khoan/chinh-sua/${row.id}`);
+                          openDetail(row);
                         }}
                         variant="primary-outline"
                         iconOnly
+                        title={canUpdate ? "Sửa tài khoản" : canView ? "Xem chi tiết (chỉ xem)" : PERMISSION_DENIED_MESSAGE}
                         className="text-sky-500"
-                        disabled={!canUpdate}
-                        title={!canUpdate ? PERMISSION_DENIED_MESSAGE : undefined}
                       />
                       <Button
                         icon={Trash2}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (!canDelete) {
-                            toast.error(PERMISSION_DENIED_MESSAGE);
-                            return;
-                          }
                           setDeleteRow(row);
                           setDeleteOpen(true);
                         }}
                         variant="danger-outline"
                         iconOnly
                         className="text-rose-700"
-                        disabled={!canDelete || (row.roles || [row.role]).includes("super_admin")}
-                        title={!canDelete ? PERMISSION_DENIED_MESSAGE : (row.roles || [row.role]).includes("super_admin") ? "Không thể xóa Super Admin" : undefined}
+                        disabled={!canDelete || row.role === "super_admin"}
+                        title={!canDelete ? PERMISSION_DENIED_MESSAGE : row.role === "super_admin" ? "Không thể xóa Super Admin" : "Xóa"}
                       />
                     </div>
                   </TableCell>
@@ -243,9 +237,7 @@ function UserManagement() {
             <button
               type="button"
               onClick={() => void handleDelete()}
-              disabled={!canDelete}
-              title={!canDelete ? PERMISSION_DENIED_MESSAGE : undefined}
-              className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-400"
+              className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Xóa
             </button>

@@ -55,7 +55,6 @@ export function Button({
   iconOnly = false,
   gap = "gap-2",
   title,
-  ariaLabel,
 }) {
   const variantStyle = variantStyles[variant] || variantStyles.primary;
   const sizeStyle = sizeStyles[size] || sizeStyles.md;
@@ -70,7 +69,6 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      aria-label={ariaLabel || label}
       className={`${baseClasses} ${sizeClasses} ${hoverClasses} ${className}`}
     >
       {Icon && <Icon className={iconOnly ? "h-4 w-4" : "h-4 w-4"} />}

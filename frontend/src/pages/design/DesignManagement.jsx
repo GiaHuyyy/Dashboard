@@ -167,6 +167,10 @@ function DesignManagement() {
       <ManagementActions
         onAdd={openCreate}
         onDeleteAll={() => {
+          if (!canDelete) {
+            toast.error("Bạn không có quyền xóa");
+            return;
+          }
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
@@ -227,6 +231,8 @@ function DesignManagement() {
                 <input
                   type="checkbox"
                   checked={isAllFilteredSelected}
+                  disabled={!canDelete}
+                  title={!canDelete ? "Bạn không có quyền xóa" : undefined}
                   onChange={(event) => handleToggleAll(event.target.checked)}
                   onClick={(event) => event.stopPropagation()}
                 />
@@ -305,6 +311,8 @@ function DesignManagement() {
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(row.id)}
+                      disabled={!canDelete}
+                      title={!canDelete ? "Bạn không có quyền xóa" : undefined}
                       onChange={(event) => handleToggleRow(row.id, event.target.checked)}
                       onClick={(event) => event.stopPropagation()}
                     />
@@ -373,6 +381,10 @@ function DesignManagement() {
                         title={!canDelete ? "Bạn không có quyền xóa" : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
+                          if (!canDelete) {
+                            toast.error("Bạn không có quyền xóa");
+                            return;
+                          }
                           setDeleteRow(row);
                           setDeleteOpen(true);
                         }}

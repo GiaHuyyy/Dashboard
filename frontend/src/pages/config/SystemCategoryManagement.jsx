@@ -218,6 +218,7 @@ function SystemCategoryManagement() {
                 <input
                   type="checkbox"
                   checked={isAllFilteredSelected}
+                  disabled={!canUpdate}
                   onChange={(event) => handleToggleAll(event.target.checked)}
                   onClick={(event) => event.stopPropagation()}
                 />
@@ -266,6 +267,7 @@ function SystemCategoryManagement() {
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(row.id)}
+                      disabled={!canUpdate}
                       onChange={(event) => handleToggleRow(row.id, event.target.checked)}
                       onClick={(event) => event.stopPropagation()}
                     />
@@ -282,6 +284,7 @@ function SystemCategoryManagement() {
                       <input
                         type="checkbox"
                         checked={Boolean(row.isActive)}
+                        disabled={!canUpdate}
                         onChange={(event) => handleToggleActive(row, event.target.checked)}
                       />
                       {row.isActive ? "Đang bật" : "Đang tắt"}
@@ -357,14 +360,14 @@ function SystemCategoryManagement() {
               {activeTab?.label || ""}
             </div>
           </div>
-          <FormField label="Tên danh mục" inputProps={register("name")} error={errors.name?.message} />
+          <FormField label="Tên danh mục" inputProps={{ ...register("name"), disabled: !canUpdate }} error={errors.name?.message} />
           <FormField
             label="Thứ tự"
             type="number"
-            inputProps={register("sortOrder", { valueAsNumber: true })}
+            inputProps={{ ...register("sortOrder", { valueAsNumber: true }), disabled: !canUpdate }}
             error={errors.sortOrder?.message}
           />
-          <FormField label="Kích hoạt" type="checkbox" inputProps={register("isActive")} />
+          <FormField label="Kích hoạt" type="checkbox" inputProps={{ ...register("isActive"), disabled: !canUpdate }} />
         </div>
       </Modal>
 

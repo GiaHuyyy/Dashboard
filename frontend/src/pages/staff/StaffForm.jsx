@@ -120,6 +120,7 @@ function StaffForm() {
         isEditMode={isEditMode}
         exitPath="/nhan-su/danh-sach"
         readOnlyMode={isReadOnlyMode}
+        readOnlyTitle={!canSave ? "Bạn chỉ có quyền xem nhân sự" : undefined}
         showSaveMail={false}
       />
 
@@ -131,31 +132,31 @@ function StaffForm() {
           <FormField
             label="Họ tên"
             type="text"
-            inputProps={{ ...register("fullName") }}
+            inputProps={{ ...register("fullName"), disabled: isReadOnlyMode }}
             error={errors.fullName?.message}
           />
-          <FormField label="Email" type="text" inputProps={{ ...register("email") }} error={errors.email?.message} />
+          <FormField label="Email" type="text" inputProps={{ ...register("email"), disabled: isReadOnlyMode }} error={errors.email?.message} />
           <FormField
             label="Số điện thoại"
             type="text"
-            inputProps={{ ...register("phone") }}
+            inputProps={{ ...register("phone"), disabled: isReadOnlyMode }}
             error={errors.phone?.message}
           />
            <FormField
              label="Phòng ban"
              type="text"
-             inputProps={{ ...register("department"), readOnly: true, className: "bg-slate-50" }}
+             inputProps={{ ...register("department"), readOnly: true, disabled: isReadOnlyMode, className: "bg-slate-50" }}
              error={errors.department?.message}
            />
            <FormField
              label="Vai trò"
              type="select"
              options={STAFF_ROLE_OPTIONS.map((item) => ({ label: item, value: item }))}
-             selectProps={register("role")}
+             selectProps={{ ...register("role"), disabled: isReadOnlyMode }}
              error={errors.role?.message}
            />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <input type="checkbox" {...register("isActive")} />
+            <input type="checkbox" {...register("isActive")} disabled={isReadOnlyMode} />
             Đang hoạt động
           </label>
         </div>

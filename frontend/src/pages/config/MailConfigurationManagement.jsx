@@ -177,7 +177,7 @@ function MailConfigurationManagement() {
           <h2 className="text-base font-semibold text-gray-500">Thông tin SMTP</h2>
         </div>
 
-        <div className="grid gap-4 border-x border-b border-slate-200 p-4 md:grid-cols-2">
+        <fieldset disabled={!canUpdate} className="grid gap-4 border-x border-b border-slate-200 p-4 md:grid-cols-2">
           <FormField label="SMTP host" inputProps={register("smtpHost")} error={errors.smtpHost?.message} />
           <FormField
             label="SMTP port"
@@ -237,7 +237,7 @@ function MailConfigurationManagement() {
               disabled={isLoading || isSubmitting}
             />
           </div>
-        </div>
+        </fieldset>
       </form>
     </div>
   );

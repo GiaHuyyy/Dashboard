@@ -23,7 +23,7 @@ const normalizeExtensions = (value) =>
     .map((item) => item.trim().replace(/^\./, "").toLowerCase())
     .filter(Boolean);
 
-export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageClick, isUploading, maxImages = 6 }) {
+export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageClick, isUploading, maxImages = 6, disabled = false }) {
   const [uploadSettings, setUploadSettings] = useState(DEFAULT_UPLOAD_SETTINGS);
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageC
               accept={acceptValue || "image/*"}
               multiple
               onChange={handleChange}
-              disabled={isUploading}
+              disabled={isUploading || disabled}
               className="hidden"
             />
           </label>
@@ -137,7 +137,7 @@ export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageC
                 <button
                   type="button"
                   onClick={() => onRemoveImage(index)}
-                  disabled={isUploading}
+                  disabled={isUploading || disabled}
                   className="absolute right-1 top-1 rounded-full bg-rose-600 p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 disabled:cursor-not-allowed"
                 >
                   <X className="h-4 w-4" />

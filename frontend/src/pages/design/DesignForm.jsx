@@ -317,6 +317,7 @@ function DesignForm() {
         isEditMode={isEditMode}
         exitPath="/design/danh-sach"
         readOnlyMode={isReadOnlyMode}
+        readOnlyTitle={!canSave ? "Bạn chỉ có quyền xem design" : undefined}
         showSaveMail={false}
       />
 
@@ -331,14 +332,14 @@ function DesignForm() {
             <FormField
               label="Hạng mục design"
               type="text"
-              inputProps={{ ...register("title"), placeholder: "Ví dụ: Thiết kế landing page sản phẩm A" }}
+              inputProps={{ ...register("title"), placeholder: "Ví dụ: Thiết kế landing page sản phẩm A", disabled: isReadOnlyMode }}
               error={errors.title?.message}
             />
             <FormField
               label="Loại design"
               type="select"
               options={DESIGN_TYPES.map((item) => ({ label: item, value: item }))}
-              selectProps={register("designType")}
+              selectProps={{ ...register("designType"), disabled: isReadOnlyMode }}
               error={errors.designType?.message}
             />
             <FormField
@@ -349,7 +350,7 @@ function DesignForm() {
                   ? priorityCategories.options
                   : [{ label: "Chưa có danh mục", value: "" }]
               }
-              selectProps={{ ...register("priority"), disabled: priorityCategories.options.length === 0 }}
+              selectProps={{ ...register("priority"), disabled: isReadOnlyMode || priorityCategories.options.length === 0 }}
               error={errors.priority?.message}
             />
 
@@ -357,14 +358,14 @@ function DesignForm() {
               <FormField
                 label="Thời gian"
                 type="number"
-                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1" }}
+                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", disabled: isReadOnlyMode }}
                 error={errors.durationValue?.message}
               />
               <FormField
                 label="Đơn vị"
                 type="select"
                 options={DURATION_UNITS.map((item) => ({ label: item, value: item }))}
-                selectProps={register("durationUnit")}
+                selectProps={{ ...register("durationUnit"), disabled: isReadOnlyMode }}
                 error={errors.durationUnit?.message}
               />
             </div>
@@ -372,20 +373,20 @@ function DesignForm() {
             <FormField
               label="Quy đổi"
               type="number"
-              inputProps={{ ...register("convert"), readOnly: true }}
+              inputProps={{ ...register("convert"), readOnly: true, disabled: isReadOnlyMode }}
               inputClassName="bg-slate-50"
               error={errors.convert?.message}
             />
             <FormField
               label="Điểm cộng thêm"
               type="number"
-              inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001" }}
+              inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001", disabled: isReadOnlyMode }}
               error={errors.bonusPoint?.message}
             />
             <FormField
               label="Ghi chú"
               type="textarea"
-              inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)" }}
+              inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)", disabled: isReadOnlyMode }}
               error={errors.note?.message}
             />
           </div>
@@ -397,49 +398,49 @@ function DesignForm() {
               label="Người giao (Quản lý)"
               type="select"
               options={managerOptions.length > 0 ? managerOptions : [{ label: "Không có dữ liệu", value: "" }]}
-              selectProps={{ ...register("assigner"), disabled: managerOptions.length === 0 }}
+              selectProps={{ ...register("assigner"), disabled: isReadOnlyMode || managerOptions.length === 0 }}
               error={errors.assigner?.message}
             />
             <FormField
               label="Người nhận (Design)"
               type="select"
               options={designerOptions.length > 0 ? designerOptions : [{ label: "Không có dữ liệu", value: "" }]}
-              selectProps={{ ...register("assignee"), disabled: designerOptions.length === 0 }}
+              selectProps={{ ...register("assignee"), disabled: isReadOnlyMode || designerOptions.length === 0 }}
               error={errors.assignee?.message}
             />
             <FormField
               label="Trạng thái"
               type="select"
               options={formStatusOptions.length > 0 ? formStatusOptions : [{ label: "Chưa có danh mục", value: "" }]}
-              selectProps={{ ...register("status"), disabled: formStatusOptions.length === 0 }}
+              selectProps={{ ...register("status"), disabled: isReadOnlyMode || formStatusOptions.length === 0 }}
               error={errors.status?.message}
             />
             <FormField
               label="Ngày giao"
               type="date"
-              inputProps={{ ...register("handoverDate") }}
+              inputProps={{ ...register("handoverDate"), disabled: isReadOnlyMode }}
               error={errors.handoverDate?.message}
             />
             <FormField
               label="Ngày nhận"
               type="date"
-              inputProps={{ ...register("receiveDate") }}
+              inputProps={{ ...register("receiveDate"), disabled: isReadOnlyMode }}
               error={errors.receiveDate?.message}
             />
             <FormField
               label="Ngày dự kiến"
               type="date"
-              inputProps={{ ...register("expectedDate") }}
+              inputProps={{ ...register("expectedDate"), disabled: isReadOnlyMode }}
               error={errors.expectedDate?.message}
             />
             <FormField
               label="Ngày hoàn thành"
               type="date"
-              inputProps={{ ...register("completedDate"), disabled: selectedStatus !== COMPLETED_STATUS }}
+              inputProps={{ ...register("completedDate"), disabled: isReadOnlyMode || selectedStatus !== COMPLETED_STATUS }}
               error={errors.completedDate?.message}
             />
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-              <input type="checkbox" {...register("visible")} />
+              <input type="checkbox" {...register("visible")} disabled={isReadOnlyMode} />
               Hiển thị
             </label>
           </div>

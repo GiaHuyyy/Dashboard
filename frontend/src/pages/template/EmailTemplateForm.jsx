@@ -88,7 +88,10 @@ function EmailTemplateForm() {
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const { can } = usePermission();
+
+  const canView = can("template.view");
   const canSave = can(isEditMode ? "template.update" : "template.create");
+  const isReadOnly = isEditMode && canView && !canSave;
 
   const {
     register,
@@ -114,6 +117,13 @@ function EmailTemplateForm() {
 
   const fetchDetail = useCallback(async () => {
     if (!isEditMode) return;
+
+    if (!canView) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      navigate(returnPath);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await emailTemplateApi.detail(id);
@@ -132,7 +142,7 @@ function EmailTemplateForm() {
     } finally {
       setIsLoading(false);
     }
-  }, [id, isEditMode, navigate, reset]);
+  }, [canView, id, isEditMode, navigate, reset]);
 
   useEffect(() => {
     void fetchDetail();
@@ -201,7 +211,7 @@ function EmailTemplateForm() {
         saveLabel={isSubmitting ? "Đang lưu..." : isEditMode ? "Cập nhật" : "Lưu"}
         saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
         readOnlyMode={!canSave}
-        readOnlyTitle={PERMISSION_DENIED_MESSAGE}
+        readOnlyTitle={isReadOnly ? "Bạn chỉ có quyền xem mẫu email này" : PERMISSION_DENIED_MESSAGE}
       />
 
       <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
@@ -215,22 +225,22 @@ function EmailTemplateForm() {
               label="Loại mẫu"
               type="select"
               options={TEMPLATE_TYPES}
-              selectProps={register("templateType")}
+              selectProps={{ ...register("templateType"), disabled: !canSave }}
               error={errors.templateType?.message}
             />
-            <FormField label="Tên mẫu" inputProps={register("name")} error={errors.name?.message} />
+            <FormField label="Tên mẫu" inputProps={{ ...register("name"), disabled: !canSave }} error={errors.name?.message} />
             <FormField
               label="Trạng thái"
               type="select"
               options={TEMPLATE_STATUS_OPTIONS}
-              selectProps={register("status")}
+              selectProps={{ ...register("status"), disabled: !canSave }}
               error={errors.status?.message}
             />
-            <FormField label="Đặt làm mẫu mặc định cho loại này" type="checkbox" inputProps={register("isDefault")} />
+            <FormField label="Đặt làm mẫu mặc định cho loại này" type="checkbox" inputProps={{ ...register("isDefault"), disabled: !canSave }} />
             <FormField
               label="Ghi chú"
               type="textarea"
-              inputProps={{ ...register("note"), rows: 3 }}
+              inputProps={{ ...register("note"), rows: 3, disabled: !canSave }}
               error={errors.note?.message}
             />
           </div>
@@ -257,7 +267,7 @@ function EmailTemplateForm() {
           <FormField
             label="Tiêu đề email"
             className="lg:col-span-2"
-            inputProps={register("subject")}
+            inputProps={{ ...register("subject"), disabled: !canSave }}
             error={errors.subject?.message}
           />
 
@@ -274,6 +284,7 @@ function EmailTemplateForm() {
               onChange={updateBody}
               variables={variables}
               error={errors.body?.message}
+              disabled={!canSave}
             />
           </div>
         </div>

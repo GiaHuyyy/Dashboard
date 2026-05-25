@@ -151,6 +151,10 @@ function StaffManagement() {
                         icon={Trash2}
                         onClick={(event) => {
                           event.stopPropagation();
+                          if (!canDelete) {
+                            toast.error("Bạn không có quyền xóa");
+                            return;
+                          }
                           setDeleteRow(row);
                           setDeleteOpen(true);
                         }}

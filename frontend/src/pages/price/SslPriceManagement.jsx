@@ -218,6 +218,7 @@ function SslPriceManagement() {
                         icon={SquarePen}
                         iconOnly
                         variant="primary-outline"
+                        disabled={!canUpdate}
                         title={!canUpdate ? "Xem chi tiết (chỉ xem)" : "Sửa bảng giá"}
                         onClick={(event) => {
                           event.stopPropagation();

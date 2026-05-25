@@ -17,12 +17,13 @@ const normalizeHtml = (value = "") => {
   return value;
 };
 
-function ToolbarButton({ icon: Icon, label, onClick }) {
+function ToolbarButton({ icon: Icon, label, onClick, disabled = false }) {
   return (
     <button
       type="button"
       onMouseDown={(event) => event.preventDefault()}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
       title={label}
     >
@@ -32,7 +33,7 @@ function ToolbarButton({ icon: Icon, label, onClick }) {
   );
 }
 
-export function EmailTemplateEditor({ value = "", onChange, variables = [], error }) {
+export function EmailTemplateEditor({ value = "", onChange, variables = [], error, disabled = false }) {
   const editorRef = useRef(null);
   const [showHtml, setShowHtml] = useState(false);
 
@@ -47,6 +48,7 @@ export function EmailTemplateEditor({ value = "", onChange, variables = [], erro
   }, [value]);
 
   const emitChange = () => {
+    if (disabled) return;
     const html = normalizeHtml(editorRef.current?.innerHTML || "");
     onChange(html);
   };
@@ -56,12 +58,14 @@ export function EmailTemplateEditor({ value = "", onChange, variables = [], erro
   };
 
   const runCommand = (command, commandValue = null) => {
+    if (disabled) return;
     focusEditor();
     document.execCommand(command, false, commandValue);
     emitChange();
   };
 
   const insertHtml = (html) => {
+    if (disabled) return;
     focusEditor();
     document.execCommand("insertHTML", false, html);
     emitChange();
@@ -72,6 +76,7 @@ export function EmailTemplateEditor({ value = "", onChange, variables = [], erro
   };
 
   const insertLink = () => {
+    if (disabled) return;
     const url = window.prompt("Nhập đường dẫn liên kết");
     if (!url) return;
     runCommand("createLink", url.trim());
@@ -82,6 +87,7 @@ export function EmailTemplateEditor({ value = "", onChange, variables = [], erro
   };
 
   const handlePaste = (event) => {
+    if (disabled) return;
     event.preventDefault();
     const html = event.clipboardData.getData("text/html");
     const text = event.clipboardData.getData("text/plain");
@@ -93,12 +99,12 @@ export function EmailTemplateEditor({ value = "", onChange, variables = [], erro
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">
-            <ToolbarButton icon={Bold} label="Đậm" onClick={() => runCommand("bold")} />
-            <ToolbarButton icon={Italic} label="Nghiêng" onClick={() => runCommand("italic")} />
-            <ToolbarButton icon={List} label="Bullet" onClick={() => runCommand("insertUnorderedList")} />
-            <ToolbarButton icon={ListOrdered} label="Đánh số" onClick={() => runCommand("insertOrderedList")} />
-            <ToolbarButton icon={Link2} label="Chèn link" onClick={insertLink} />
-            <ToolbarButton icon={X} label="Bỏ format" onClick={clearFormatting} />
+            <ToolbarButton icon={Bold} label="Đậm" disabled={disabled} onClick={() => runCommand("bold")} />
+            <ToolbarButton icon={Italic} label="Nghiêng" disabled={disabled} onClick={() => runCommand("italic")} />
+            <ToolbarButton icon={List} label="Bullet" disabled={disabled} onClick={() => runCommand("insertUnorderedList")} />
+            <ToolbarButton icon={ListOrdered} label="Đánh số" disabled={disabled} onClick={() => runCommand("insertOrderedList")} />
+            <ToolbarButton icon={Link2} label="Chèn link" disabled={disabled} onClick={insertLink} />
+            <ToolbarButton icon={X} label="Bỏ format" disabled={disabled} onClick={clearFormatting} />
           </div>
 
           <button
@@ -113,9 +119,9 @@ export function EmailTemplateEditor({ value = "", onChange, variables = [], erro
 
         <div
           ref={editorRef}
-          contentEditable
+          contentEditable={!disabled}
           suppressContentEditableWarning
-          className="min-h-[260px] w-full rounded-b-xl bg-white px-4 py-3 text-sm leading-6 text-slate-700 outline-none focus:ring-2 focus:ring-sky-100 [&_a]:text-sky-700 [&_a]:underline [&_ol]:ml-5 [&_ol]:list-decimal [&_ul]:ml-5 [&_ul]:list-disc"
+          className={`min-h-[260px] w-full rounded-b-xl bg-white px-4 py-3 text-sm leading-6 text-slate-700 outline-none focus:ring-2 focus:ring-sky-100 [&_a]:text-sky-700 [&_a]:underline [&_ol]:ml-5 [&_ol]:list-decimal [&_ul]:ml-5 [&_ul]:list-disc ${disabled ? "cursor-not-allowed bg-slate-50 text-slate-500" : ""}`}
           onInput={emitChange}
           onBlur={emitChange}
           onPaste={handlePaste}
@@ -135,7 +141,8 @@ export function EmailTemplateEditor({ value = "", onChange, variables = [], erro
                 type="button"
                 key={variable}
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => insertVariable(variable)}
+                onClick={disabled ? undefined : () => insertVariable(variable)}
+                disabled={disabled}
                 className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
               >
                 {variable}
@@ -153,6 +160,7 @@ export function EmailTemplateEditor({ value = "", onChange, variables = [], erro
           <textarea
             value={value || ""}
             onChange={(event) => onChange(event.target.value)}
+            disabled={disabled}
             rows={10}
             className="w-full rounded-md border border-slate-200 px-3 py-2 font-mono text-xs text-slate-700 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
             placeholder="Dành cho người biết HTML. Người dùng thường có thể bỏ qua phần này."

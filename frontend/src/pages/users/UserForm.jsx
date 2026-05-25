@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -17,7 +17,7 @@ const schema = z
     userName: z.string().trim().min(3, "Tên đăng nhập tối thiểu 3 ký tự"),
     password: z.string(),
     confirmPassword: z.string(),
-    roles: z.array(z.string()).min(1, "Vui lòng chọn ít nhất một vai trò"),
+    role: z.string().trim().min(1, "Vui lòng chọn vai trò"),
     isActive: z.boolean(),
     note: z.string().trim().optional(),
   })
@@ -46,7 +46,7 @@ const defaultValues = {
   userName: "",
   password: "",
   confirmPassword: "",
-  roles: ["user"],
+  role: "user",
   isActive: true,
   note: "",
 };
@@ -55,11 +55,13 @@ function UserForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
-  const { can } = usePermission();
-  const canSave = can(isEditMode ? "permission.user.update" : "permission.user.create");
+  const { canAny } = usePermission();
+
+  const canView = canAny(["permission.user.view", "user.view"]);
+  const canSave = canAny(isEditMode ? ["permission.user.update", "user.update"] : ["permission.user.create", "user.create"]);
+  const isReadOnly = isEditMode && canView && !canSave;
 
   const {
-    control,
     register,
     handleSubmit,
     reset,
@@ -71,6 +73,12 @@ function UserForm() {
 
   useEffect(() => {
     if (!isEditMode) return;
+
+    if (!canView) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      navigate("/phan-quyen/tai-khoan");
+      return;
+    }
 
     const fetchDetail = async () => {
       try {
@@ -88,7 +96,7 @@ function UserForm() {
           userName: user.userName || "",
           password: "",
           confirmPassword: "",
-          roles: Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : [user.role || "user"],
+          role: user.role || "user",
           isActive: Boolean(user.isActive),
           note: user.note || "",
         });
@@ -99,7 +107,7 @@ function UserForm() {
     };
 
     void fetchDetail();
-  }, [id, isEditMode, navigate, reset]);
+  }, [canView, id, isEditMode, navigate, reset]);
 
   const onSubmit = async (values, mode) => {
     if (!canSave) {
@@ -110,7 +118,7 @@ function UserForm() {
     const payload = {
       name: values.name,
       userName: values.userName,
-      roles: values.roles,
+      role: values.role,
       isActive: values.isActive,
       note: values.note || "",
     };
@@ -151,7 +159,7 @@ function UserForm() {
         exitPath="/phan-quyen/tai-khoan"
         showSaveMail={false}
         readOnlyMode={!canSave}
-        readOnlyTitle={PERMISSION_DENIED_MESSAGE}
+        readOnlyTitle={isReadOnly ? "Bạn chỉ có quyền xem tài khoản này" : PERMISSION_DENIED_MESSAGE}
       />
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -159,11 +167,11 @@ function UserForm() {
           Thông tin tài khoản
         </div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
-          <FormField label="Họ tên" type="text" inputProps={{ ...register("name") }} error={errors.name?.message} />
+          <FormField label="Họ tên" type="text" inputProps={{ ...register("name"), disabled: !canSave }} error={errors.name?.message} />
           <FormField
             label="Tên đăng nhập"
             type="text"
-            inputProps={{ ...register("userName") }}
+            inputProps={{ ...register("userName"), disabled: !canSave }}
             error={errors.userName?.message}
           />
           <FormField
@@ -173,6 +181,7 @@ function UserForm() {
               ...register("password"),
               placeholder: isEditMode ? "Để trống nếu không đổi mật khẩu" : "Nhập mật khẩu tạm",
               autoComplete: "new-password",
+              disabled: !canSave,
             }}
             error={errors.password?.message}
           />
@@ -183,61 +192,30 @@ function UserForm() {
               ...register("confirmPassword"),
               placeholder: isEditMode ? "Nhập lại mật khẩu mới nếu có đổi" : "Nhập lại mật khẩu",
               autoComplete: "new-password",
+              disabled: !canSave,
             }}
             error={errors.confirmPassword?.message}
           />
-
-          <div className="lg:col-span-2">
-            <p className="mb-2 text-sm font-semibold text-slate-600">Vai trò</p>
-            <Controller
-              control={control}
-              name="roles"
-              render={({ field }) => {
-                const selectedRoles = Array.isArray(field.value) ? field.value : [];
-
-                return (
-                  <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-2 lg:grid-cols-4">
-                    {USER_ROLE_OPTIONS.map((item) => {
-                      const checked = selectedRoles.includes(item.value);
-
-                      return (
-                        <label key={item.value} className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(event) => {
-                              if (event.target.checked) {
-                                field.onChange(Array.from(new Set([...selectedRoles, item.value])));
-                                return;
-                              }
-
-                              field.onChange(selectedRoles.filter((role) => role !== item.value));
-                            }}
-                          />
-                          {item.label}
-                        </label>
-                      );
-                    })}
-                  </div>
-                );
-              }}
-            />
-            {errors.roles?.message ? <p className="mt-1 text-xs text-rose-600">{errors.roles.message}</p> : null}
-          </div>
-
+          <FormField
+            label="Vai trò"
+            type="select"
+            options={USER_ROLE_OPTIONS.map((item) => ({ label: item.label, value: item.value }))}
+            selectProps={{ ...register("role"), disabled: !canSave }}
+            error={errors.role?.message}
+          />
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <input type="checkbox" {...register("isActive")} />
+            <input type="checkbox" {...register("isActive")} disabled={!canSave} />
             Đang hoạt động
           </label>
           <FormField
             label="Ghi chú"
             type="textarea"
             className="lg:col-span-2"
-            inputProps={{ ...register("note"), rows: 3 }}
+            inputProps={{ ...register("note"), rows: 3, disabled: !canSave }}
             error={errors.note?.message}
           />
           <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800 lg:col-span-2">
-            Tài khoản nội bộ do quản trị viên cấp. Một tài khoản có thể có nhiều vai trò, ví dụ vừa Lập trình viên vừa Thiết kế.
+            Tài khoản nội bộ do quản trị viên cấp. Không chia sẻ tài khoản cho người khác và nên đổi mật khẩu tạm sau khi nhận tài khoản.
           </div>
         </div>
       </div>

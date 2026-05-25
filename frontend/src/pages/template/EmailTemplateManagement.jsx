@@ -40,6 +40,7 @@ function EmailTemplateManagement() {
   const [updatingStatusId, setUpdatingStatusId] = useState("");
   const { can } = usePermission();
 
+  const canView = can("template.view");
   const canCreate = can("template.create");
   const canUpdate = can("template.update");
   const canDelete = can("template.delete");
@@ -74,6 +75,10 @@ function EmailTemplateManagement() {
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
 
   const handleToggleAll = (checked) => {
+    if (!canDelete) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
     if (checked) {
       setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
       return;
@@ -82,6 +87,10 @@ function EmailTemplateManagement() {
   };
 
   const handleToggleRow = (id, checked) => {
+    if (!canDelete) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
     setSelectedIds((prev) => {
       if (checked) return prev.includes(id) ? prev : [...prev, id];
       return prev.filter((item) => item !== id);
@@ -89,6 +98,11 @@ function EmailTemplateManagement() {
   };
 
   const handleDelete = async () => {
+    if (!canDelete) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+
     try {
       if (deleteRow?.id) {
         await emailTemplateApi.remove(deleteRow.id);
@@ -134,26 +148,25 @@ function EmailTemplateManagement() {
     }
   };
 
+  const openDetail = (row) => {
+    if (!canView) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+
+    navigate(`/bieu-mau/mau-email/chinh-sua/${row.id}`);
+  };
+
   return (
     <>
       <ManagementActions
-        onAdd={() => {
-          if (!canCreate) {
-            toast.error(PERMISSION_DENIED_MESSAGE);
-            return;
-          }
-          navigate("/bieu-mau/mau-email/them-moi");
-        }}
+        onAdd={() => navigate("/bieu-mau/mau-email/them-moi")}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? PERMISSION_DENIED_MESSAGE : undefined}
         onDeleteAll={() => {
-          if (!canDelete) {
-            toast.error(PERMISSION_DENIED_MESSAGE);
-            return;
-          }
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        addDisabled={!canCreate}
-        addTitle={!canCreate ? PERMISSION_DENIED_MESSAGE : undefined}
         deleteDisabled={rows.length === 0 || !canDelete}
         deleteTitle={!canDelete ? PERMISSION_DENIED_MESSAGE : undefined}
         deleteLabel={deleteManyLabel}
@@ -200,10 +213,10 @@ function EmailTemplateManagement() {
                 <input
                   type="checkbox"
                   checked={isAllFilteredSelected}
-                  onChange={(event) => handleToggleAll(event.target.checked)}
-                  onClick={(event) => event.stopPropagation()}
                   disabled={!canDelete}
                   title={!canDelete ? PERMISSION_DENIED_MESSAGE : undefined}
+                  onChange={(event) => handleToggleAll(event.target.checked)}
+                  onClick={(event) => event.stopPropagation()}
                 />
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -250,22 +263,16 @@ function EmailTemplateManagement() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => {
-                    if (!canUpdate) {
-                      toast.error(PERMISSION_DENIED_MESSAGE);
-                      return;
-                    }
-                    navigate(`/bieu-mau/mau-email/chinh-sua/${row.id}`);
-                  }}
+                  onClick={() => openDetail(row)}
                 >
                   <TableCell className="border border-slate-200 p-4">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(row.id)}
-                      onChange={(event) => handleToggleRow(row.id, event.target.checked)}
-                      onClick={(event) => event.stopPropagation()}
                       disabled={!canDelete}
                       title={!canDelete ? PERMISSION_DENIED_MESSAGE : undefined}
+                      onChange={(event) => handleToggleRow(row.id, event.target.checked)}
+                      onClick={(event) => event.stopPropagation()}
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
@@ -316,21 +323,15 @@ function EmailTemplateManagement() {
                         variant="primary-outline"
                         iconOnly
                         className="text-sky-500"
-                        onClick={() => {
-                          if (!canUpdate) {
-                            toast.error(PERMISSION_DENIED_MESSAGE);
-                            return;
-                          }
-                          navigate(`/bieu-mau/mau-email/chinh-sua/${row.id}`);
-                        }}
-                        disabled={!canUpdate}
-                        title={!canUpdate ? PERMISSION_DENIED_MESSAGE : undefined}
+                        onClick={() => openDetail(row)}
                       />
                       <Button
                         icon={Trash2}
                         variant="danger-outline"
                         iconOnly
                         className="text-rose-700"
+                        disabled={!canDelete}
+                        title={!canDelete ? PERMISSION_DENIED_MESSAGE : "Xóa"}
                         onClick={() => {
                           if (!canDelete) {
                             toast.error(PERMISSION_DENIED_MESSAGE);
@@ -339,8 +340,6 @@ function EmailTemplateManagement() {
                           setDeleteRow(row);
                           setDeleteOpen(true);
                         }}
-                        disabled={!canDelete}
-                        title={!canDelete ? PERMISSION_DENIED_MESSAGE : undefined}
                       />
                     </div>
                   </TableCell>
@@ -384,13 +383,7 @@ function EmailTemplateManagement() {
                 setDeleteRow(null);
               }}
             />
-            <Button
-              variant="danger"
-              label="Xóa"
-              onClick={handleDelete}
-              disabled={!canDelete}
-              title={!canDelete ? PERMISSION_DENIED_MESSAGE : undefined}
-            />
+            <Button variant="danger" label="Xóa" onClick={handleDelete} disabled={!canDelete} title={!canDelete ? PERMISSION_DENIED_MESSAGE : undefined} />
           </div>
         }
       >

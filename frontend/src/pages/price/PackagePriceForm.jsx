@@ -157,6 +157,7 @@ function PackagePriceForm() {
         showSaveMail={false}
       />
 
+      <fieldset disabled={isReadOnlyMode} className="contents">
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
           Thông tin bảng giá trọn gói
@@ -251,6 +252,7 @@ function PackagePriceForm() {
           </div>
         </div>
       </div>
+      </fieldset>
     </form>
   );
 }

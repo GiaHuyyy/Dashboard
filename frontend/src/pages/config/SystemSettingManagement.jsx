@@ -209,6 +209,7 @@ function SystemSettingManagement() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <fieldset disabled={!canUpdate} className="space-y-5">
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
             <h2 className="text-base font-semibold text-gray-500">Cấu hình source</h2>
@@ -356,6 +357,8 @@ function SystemSettingManagement() {
             />
           </div>
         </div>
+
+        </fieldset>
 
         <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <Button
