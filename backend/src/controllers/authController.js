@@ -7,17 +7,21 @@ const BCRYPT_HASH_REGEX = /^\$2[aby]\$\d{2}\$/;
 const COOKIE_NAME = process.env.JWT_COOKIE_NAME || "access_token";
 const ALLOW_PUBLIC_REGISTER = process.env.ALLOW_PUBLIC_REGISTER === "true";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const getCookieOptions = () => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  path: "/",
   maxAge: 24 * 60 * 60 * 1000,
 });
 
 const getClearCookieOptions = () => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  path: "/",
 });
 
 const createToken = (user) => {
