@@ -4,6 +4,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import { ImageLightbox } from "@/components/program-form/ImageLightbox";
@@ -13,6 +14,7 @@ import Modal from "@/components/ui/modal";
 import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
 import { MAIL_STATUS_OPTIONS } from "@/constants/program";
 import { businessContractApi, staffApi } from "@/lib/api-client";
+import { hasPermission } from "@/lib/permissions";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { uploadApi } from "@/lib/upload";
 
@@ -98,6 +100,9 @@ function BusinessForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "contract.update" : "contract.create");
+  const canOverrideHandover = hasPermission(currentUser, "contract.overrideHandover");
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [contractImages, setContractImages] = useState([]);
@@ -121,8 +126,9 @@ function BusinessForm() {
   });
 
   const handoverStatus = useWatch({ control, name: "handoverStatus" });
-  const isHandedOverLocked = isEditMode && initialSnapshot.values?.handoverStatus === "Đã bàn giao";
-  const isFormReadOnly = isHandedOverLocked;
+  const isHandedOverLocked =
+    isEditMode && initialSnapshot.values?.handoverStatus === "Đã bàn giao" && !canOverrideHandover;
+  const isFormReadOnly = !canSave || isHandedOverLocked;
   const salesOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh"));
 
   useEffect(() => {
@@ -237,6 +243,11 @@ function BusinessForm() {
   };
 
   const persist = async (values, mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
+
     if (isHandedOverLocked) {
       toast.error("Hợp đồng đã bàn giao, chỉ được xem chi tiết");
       return;

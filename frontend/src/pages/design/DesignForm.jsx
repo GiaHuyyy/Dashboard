@@ -4,11 +4,13 @@ import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector } from "react-redux";
 
 import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { designApi, staffApi } from "@/lib/api-client";
+import { hasPermission } from "@/lib/permissions";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
@@ -102,6 +104,9 @@ function DesignForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const currentUser = useSelector((state) => state.auth.user);
+  const canSave = hasPermission(currentUser, isEditMode ? "design.update" : "design.create");
+  const canOverrideCompleted = hasPermission(currentUser, "design.overrideCompleted");
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingReference, setIsLoadingReference] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -136,8 +141,8 @@ function DesignForm() {
     () => formStatusValues.map((item) => ({ label: item, value: item })),
     [formStatusValues],
   );
-  const isCompletedLocked = isEditMode && initialSnapshot.status === COMPLETED_STATUS;
-  const isFormReadOnly = isCompletedLocked;
+  const isCompletedLocked = isEditMode && initialSnapshot.status === COMPLETED_STATUS && !canOverrideCompleted;
+  const isFormReadOnly = !canSave || isCompletedLocked;
 
   useEffect(() => {
     if (isEditMode || isLoadingReference || isLoadingDetail) return;
@@ -261,6 +266,11 @@ function DesignForm() {
   );
 
   const persist = async (values, mode) => {
+    if (!canSave) {
+      toast.error("Bạn không có quyền lưu dữ liệu này");
+      return;
+    }
+
     if (isCompletedLocked) {
       toast.error("Công việc design đã hoàn thành, chỉ được xem chi tiết");
       return;

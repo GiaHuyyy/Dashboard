@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -112,6 +111,7 @@ function ProgramForm() {
   const isEditMode = Boolean(programId);
   const currentUser = useSelector((state) => state.auth.user);
   const canSave = hasPermission(currentUser, isEditMode ? "program.update" : "program.create");
+  const canOverrideCompleted = hasPermission(currentUser, "program.overrideCompleted");
   const businessContractFromState = location.state?.businessContract || null;
 
   const [isLoadingProgram, setIsLoadingProgram] = useState(false);
@@ -142,7 +142,8 @@ function ProgramForm() {
   const selectedDesignTaskId = useWatch({ control, name: "designTaskId" });
   const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
   const selectedProcessingStatus = useWatch({ control, name: "processingStatus" });
-  const isCompletedReadOnlyMode = isEditMode && initialSnapshot.processingStatus === COMPLETED_STATUS;
+  const isCompletedReadOnlyMode =
+    isEditMode && initialSnapshot.processingStatus === COMPLETED_STATUS && !canOverrideCompleted;
   const isReadOnlyMode = !canSave || isCompletedReadOnlyMode;
 
   const moduleCategories = useSystemCategoryOptions("module");

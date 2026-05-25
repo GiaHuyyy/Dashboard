@@ -33,6 +33,7 @@ export const PERMISSION_GROUPS = [
       { key: "program.delete", label: "Xóa" },
       { key: "program.updateStatus", label: "Đổi trạng thái" },
       { key: "program.updatePoint", label: "Chỉnh điểm" },
+      { key: "program.overrideCompleted", label: "Sửa sau hoàn thành" },
     ],
   },
   {
@@ -44,6 +45,7 @@ export const PERMISSION_GROUPS = [
       { key: "correction.update", label: "Sửa" },
       { key: "correction.delete", label: "Xóa" },
       { key: "correction.updateStatus", label: "Đổi trạng thái" },
+      { key: "correction.overrideCompleted", label: "Sửa sau hoàn thành" },
     ],
   },
   {
@@ -55,6 +57,7 @@ export const PERMISSION_GROUPS = [
       { key: "upgrade.update", label: "Sửa" },
       { key: "upgrade.delete", label: "Xóa" },
       { key: "upgrade.updateStatus", label: "Đổi trạng thái" },
+      { key: "upgrade.overrideCompleted", label: "Sửa sau hoàn thành" },
     ],
   },
   {
@@ -67,6 +70,7 @@ export const PERMISSION_GROUPS = [
       { key: "design.delete", label: "Xóa" },
       { key: "design.updateStatus", label: "Đổi trạng thái" },
       { key: "design.updatePoint", label: "Chỉnh điểm" },
+      { key: "design.overrideCompleted", label: "Sửa sau hoàn thành" },
     ],
   },
   {
@@ -100,6 +104,7 @@ export const PERMISSION_GROUPS = [
       { key: "contract.update", label: "Sửa" },
       { key: "contract.delete", label: "Xóa" },
       { key: "contract.sendMail", label: "Gửi mail" },
+      { key: "contract.overrideHandover", label: "Sửa sau bàn giao" },
     ],
   },
   {

@@ -5,6 +5,8 @@ import { getActiveCategoryNames } from "../utils/system-category.js";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const COMPLETED_STATUS = "Đã hoàn thành";
+const hasRequestPermission = (req, permission) =>
+  Array.isArray(req.userPermissions) && req.userPermissions.includes(permission);
 const normalizeStatus = (value, statusOptions) => {
   const normalized = normalizeString(value);
   if (normalized === "Hoàn thành") return COMPLETED_STATUS;
@@ -234,8 +236,8 @@ export const createDesignTask = async (req, res) => {
 export const updateDesignTask = async (req, res) => {
   const existing = await DesignTask.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy công việc design" });
-  if (existing.status === "Đã hoàn thành") {
-    return res.status(409).json({ message: "Công việc design đã hoàn thành, chỉ được xem chi tiết" });
+  if (existing.status === COMPLETED_STATUS && !hasRequestPermission(req, "design.overrideCompleted")) {
+    return res.status(403).json({ message: "Công việc design đã hoàn thành, chỉ được xem chi tiết" });
   }
 
   const normalizedInput = normalizePayload(req.body);

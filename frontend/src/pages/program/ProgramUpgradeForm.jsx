@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -126,6 +125,7 @@ function ProgramUpgradeForm() {
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
   const canSave = hasPermission(currentUser, isEditMode ? "upgrade.update" : "upgrade.create");
+  const canOverrideCompleted = hasPermission(currentUser, "upgrade.overrideCompleted");
   const [programReferences, setProgramReferences] = useState([]);
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);
@@ -155,7 +155,8 @@ function ProgramUpgradeForm() {
     () => getProgramByBusinessContractId(programReferences, selectedBusinessContractId),
     [programReferences, selectedBusinessContractId],
   );
-  const isCompletedReadOnlyMode = isEditMode && initialSnapshot.status === UPGRADE_COMPLETED_STATUS;
+  const isCompletedReadOnlyMode =
+    isEditMode && initialSnapshot.status === UPGRADE_COMPLETED_STATUS && !canOverrideCompleted;
   const isReadOnlyMode = !canSave || isCompletedReadOnlyMode;
   const priorityCategories = useSystemCategoryOptions("priority");
   const statusCategories = useSystemCategoryOptions("status");

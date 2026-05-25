@@ -9,6 +9,8 @@ import { getActiveCategoryNames } from "../utils/system-category.js";
 
 const DURATION_UNITS = ["h", "ngày"];
 const COMPLETED_STATUS = "Đã hoàn thành";
+const hasRequestPermission = (req, permission) =>
+  Array.isArray(req.userPermissions) && req.userPermissions.includes(permission);
 const normalizeProcessingStatus = (value, statusOptions) => {
   const normalized = normalizeString(value);
   if (normalized === "Hoàn thành") return COMPLETED_STATUS;
@@ -506,6 +508,10 @@ export const updateProgram = async (req, res) => {
   const existingProgram = await Program.findById(req.params.id);
   if (!existingProgram || existingProgram.isDeleted) {
     return res.status(404).json({ message: "Không tìm thấy chương trình" });
+  }
+
+  if (existingProgram.processingStatus === COMPLETED_STATUS && !hasRequestPermission(req, "program.overrideCompleted")) {
+    return res.status(403).json({ message: "Phiếu lập trình đã hoàn thành, chỉ được xem chi tiết" });
   }
 
   const convertSettings = await getConvertSettings();

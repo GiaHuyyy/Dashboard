@@ -4,6 +4,8 @@ import BusinessContract from "../models/BusinessContract.js";
 import { sendBusinessContractMail } from "../services/businessContractMailService.js";
 
 const HANDOVER_STATUS_OPTIONS = ["Chưa bàn giao", "Đã bàn giao"];
+const hasRequestPermission = (req, permission) =>
+  Array.isArray(req.userPermissions) && req.userPermissions.includes(permission);
 const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
 const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -278,8 +280,8 @@ export const updateBusinessContract = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
   const existing = await BusinessContract.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
-  if (existing.handoverStatus === "Đã bàn giao") {
-    return res.status(409).json({ message: "Hợp đồng đã bàn giao, chỉ được xem chi tiết" });
+  if (existing.handoverStatus === "Đã bàn giao" && !hasRequestPermission(req, "contract.overrideHandover")) {
+    return res.status(403).json({ message: "Hợp đồng đã bàn giao, chỉ được xem chi tiết" });
   }
 
   const input = normalizePayload(req.body);

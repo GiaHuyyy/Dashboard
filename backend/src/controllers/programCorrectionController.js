@@ -6,6 +6,8 @@ import { getSystemSettingsObject } from "../services/systemSettingService.js";
 import { getActiveCategoryNames } from "../utils/system-category.js";
 
 const COMPLETED_STATUS = "Đã hoàn thành";
+const hasRequestPermission = (req, permission) =>
+  Array.isArray(req.userPermissions) && req.userPermissions.includes(permission);
 const normalizeStatus = (value, statusOptions) => {
   const normalized = normalizeString(value);
   if (normalized === "Hoàn thành") return COMPLETED_STATUS;
@@ -313,6 +315,10 @@ export const updateProgramCorrection = async (req, res) => {
   const existing = await ProgramCorrection.findById(req.params.id);
   if (!existing || existing.isDeleted) {
     return res.status(404).json({ message: "Không tìm thấy yêu cầu chỉnh sửa" });
+  }
+
+  if (existing.status === COMPLETED_STATUS && !hasRequestPermission(req, "correction.overrideCompleted")) {
+    return res.status(403).json({ message: "Yêu cầu chỉnh sửa đã hoàn thành, chỉ được xem chi tiết" });
   }
 
   const normalizedInput = normalizePayload(req.body);
