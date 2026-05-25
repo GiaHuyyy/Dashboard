@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -17,7 +17,7 @@ const schema = z
     userName: z.string().trim().min(3, "Tên đăng nhập tối thiểu 3 ký tự"),
     password: z.string(),
     confirmPassword: z.string(),
-    role: z.string().trim().min(1, "Vui lòng chọn vai trò"),
+    roles: z.array(z.string()).min(1, "Vui lòng chọn ít nhất một vai trò"),
     isActive: z.boolean(),
     note: z.string().trim().optional(),
   })
@@ -46,7 +46,7 @@ const defaultValues = {
   userName: "",
   password: "",
   confirmPassword: "",
-  role: "user",
+  roles: ["user"],
   isActive: true,
   note: "",
 };
@@ -58,10 +58,13 @@ function UserForm() {
   const { canAny } = usePermission();
 
   const canView = canAny(["permission.user.view", "user.view"]);
-  const canSave = canAny(isEditMode ? ["permission.user.update", "user.update"] : ["permission.user.create", "user.create"]);
+  const canSave = canAny(
+    isEditMode ? ["permission.user.update", "user.update"] : ["permission.user.create", "user.create"],
+  );
   const isReadOnly = isEditMode && canView && !canSave;
 
   const {
+    control,
     register,
     handleSubmit,
     reset,
@@ -96,7 +99,7 @@ function UserForm() {
           userName: user.userName || "",
           password: "",
           confirmPassword: "",
-          role: user.role || "user",
+          roles: Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : [user.role || "user"],
           isActive: Boolean(user.isActive),
           note: user.note || "",
         });
@@ -118,7 +121,7 @@ function UserForm() {
     const payload = {
       name: values.name,
       userName: values.userName,
-      role: values.role,
+      roles: values.roles,
       isActive: values.isActive,
       note: values.note || "",
     };
@@ -167,7 +170,12 @@ function UserForm() {
           Thông tin tài khoản
         </div>
         <div className="grid gap-5 p-5 lg:grid-cols-2">
-          <FormField label="Họ tên" type="text" inputProps={{ ...register("name"), disabled: !canSave }} error={errors.name?.message} />
+          <FormField
+            label="Họ tên"
+            type="text"
+            inputProps={{ ...register("name"), disabled: !canSave }}
+            error={errors.name?.message}
+          />
           <FormField
             label="Tên đăng nhập"
             type="text"
@@ -196,14 +204,46 @@ function UserForm() {
             }}
             error={errors.confirmPassword?.message}
           />
-          <FormField
-            label="Vai trò"
-            type="select"
-            options={USER_ROLE_OPTIONS.map((item) => ({ label: item.label, value: item.value }))}
-            selectProps={{ ...register("role"), disabled: !canSave }}
-            error={errors.role?.message}
-          />
-          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+          <div className="space-y-1 lg:col-span-2">
+            <label className="block text-sm font-medium text-slate-600">Vai trò</label>
+
+            <Controller
+              name="roles"
+              control={control}
+              render={({ field }) => (
+                <div className="grid gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-4">
+                  {USER_ROLE_OPTIONS.map((option) => {
+                    const checked = Array.isArray(field.value) && field.value.includes(option.value);
+
+                    return (
+                      <label key={option.value} className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={isReadOnly || isSubmitting}
+                          onChange={(event) => {
+                            const currentRoles = Array.isArray(field.value) ? field.value : [];
+
+                            if (event.target.checked) {
+                              field.onChange(Array.from(new Set([...currentRoles, option.value])));
+                              return;
+                            }
+
+                            const nextRoles = currentRoles.filter((item) => item !== option.value);
+                            field.onChange(nextRoles.length > 0 ? nextRoles : ["user"]);
+                          }}
+                        />
+                        {option.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            />
+
+            {errors.roles?.message ? <p className="text-xs text-red-500">{errors.roles.message}</p> : null}
+          </div>
+          <label className="flex lg:col-span-2 items-center gap-2 text-sm font-semibold text-slate-600">
             <input type="checkbox" {...register("isActive")} disabled={!canSave} />
             Đang hoạt động
           </label>
@@ -215,7 +255,8 @@ function UserForm() {
             error={errors.note?.message}
           />
           <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800 lg:col-span-2">
-            Tài khoản nội bộ do quản trị viên cấp. Không chia sẻ tài khoản cho người khác và nên đổi mật khẩu tạm sau khi nhận tài khoản.
+            Tài khoản nội bộ do quản trị viên cấp. Không chia sẻ tài khoản cho người khác và nên đổi mật khẩu tạm sau
+            khi nhận tài khoản.
           </div>
         </div>
       </div>
