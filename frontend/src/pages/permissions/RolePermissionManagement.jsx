@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button-v2";
 import { rolePermissionApi } from "@/lib/api-client";
+import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
 
 const SUPER_ADMIN_ROLE = "super_admin";
 
@@ -20,6 +21,8 @@ function RolePermissionManagement() {
   const [permissionGroups, setPermissionGroups] = useState([]);
   const [rolePermissions, setRolePermissions] = useState({});
   const [selectedRole, setSelectedRole] = useState("admin");
+  const { can } = usePermission();
+  const canUpdateRole = can("permission.role.update");
 
   const selectedRoleLabel = useMemo(
     () => roleOptions.find((item) => item.value === selectedRole)?.label || selectedRole,
@@ -86,6 +89,11 @@ function RolePermissionManagement() {
   };
 
   const handleSave = async () => {
+    if (!canUpdateRole) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+
     if (isSuperAdminSelected) {
       toast.error("Không thể chỉnh sửa quyền của Super Admin");
       return;
@@ -181,7 +189,8 @@ function RolePermissionManagement() {
                 variant="primary"
                 label={isSaving ? "Đang lưu..." : "Lưu quyền"}
                 onClick={handleSave}
-                disabled={isSaving || isSuperAdminSelected}
+                disabled={isSaving || isSuperAdminSelected || !canUpdateRole}
+                title={!canUpdateRole ? PERMISSION_DENIED_MESSAGE : isSuperAdminSelected ? "Không thể chỉnh sửa quyền của Super Admin" : undefined}
               />
             </div>
           </div>
@@ -204,7 +213,7 @@ function RolePermissionManagement() {
                             if (node) node.indeterminate = !allChecked && someChecked;
                           }}
                           onChange={(event) => handleToggleGroup(group, event.target.checked)}
-                          disabled={isSuperAdminSelected}
+                          disabled={isSuperAdminSelected || !canUpdateRole}
                           className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:cursor-not-allowed"
                         />
                         {group.label}
@@ -228,7 +237,7 @@ function RolePermissionManagement() {
                             type="checkbox"
                             checked={hasPermission(permission.key)}
                             onChange={(event) => handleTogglePermission(permission.key, event.target.checked)}
-                            disabled={isSuperAdminSelected}
+                            disabled={isSuperAdminSelected || !canUpdateRole}
                             className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:cursor-not-allowed"
                           />
                           <span>{permission.label}</span>

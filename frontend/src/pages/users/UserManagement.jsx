@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { userApi } from "@/lib/api-client";
+import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
 import { USER_ROLE_OPTIONS, getUserRoleLabels } from "@/lib/user-roles";
 
 function UserManagement() {
@@ -20,6 +21,11 @@ function UserManagement() {
   const [selectedActive, setSelectedActive] = useState("all");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
+  const { can } = usePermission();
+
+  const canCreate = can("permission.user.create");
+  const canUpdate = can("permission.user.update");
+  const canDelete = can("permission.user.delete");
 
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
@@ -60,8 +66,16 @@ function UserManagement() {
   return (
     <>
       <ManagementActions
-        onAdd={() => navigate("/phan-quyen/tai-khoan/them-moi")}
+        onAdd={() => {
+          if (!canCreate) {
+            toast.error(PERMISSION_DENIED_MESSAGE);
+            return;
+          }
+          navigate("/phan-quyen/tai-khoan/them-moi");
+        }}
         onDeleteAll={() => null}
+        addDisabled={!canCreate}
+        addTitle={!canCreate ? PERMISSION_DENIED_MESSAGE : undefined}
         deleteDisabled
         deleteLabel={`Đang hoạt động: ${activeCount}`}
       />
@@ -141,7 +155,13 @@ function UserManagement() {
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
-                  onClick={() => navigate(`/phan-quyen/tai-khoan/chinh-sua/${row.id}`)}
+                  onClick={() => {
+                    if (!canUpdate) {
+                      toast.error(PERMISSION_DENIED_MESSAGE);
+                      return;
+                    }
+                    navigate(`/phan-quyen/tai-khoan/chinh-sua/${row.id}`);
+                  }}
                 >
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
@@ -169,23 +189,34 @@ function UserManagement() {
                         icon={SquarePen}
                         onClick={(event) => {
                           event.stopPropagation();
+                          if (!canUpdate) {
+                            toast.error(PERMISSION_DENIED_MESSAGE);
+                            return;
+                          }
                           navigate(`/phan-quyen/tai-khoan/chinh-sua/${row.id}`);
                         }}
                         variant="primary-outline"
                         iconOnly
                         className="text-sky-500"
+                        disabled={!canUpdate}
+                        title={!canUpdate ? PERMISSION_DENIED_MESSAGE : undefined}
                       />
                       <Button
                         icon={Trash2}
                         onClick={(event) => {
                           event.stopPropagation();
+                          if (!canDelete) {
+                            toast.error(PERMISSION_DENIED_MESSAGE);
+                            return;
+                          }
                           setDeleteRow(row);
                           setDeleteOpen(true);
                         }}
                         variant="danger-outline"
                         iconOnly
                         className="text-rose-700"
-                        disabled={(row.roles || [row.role]).includes("super_admin")}
+                        disabled={!canDelete || (row.roles || [row.role]).includes("super_admin")}
+                        title={!canDelete ? PERMISSION_DENIED_MESSAGE : (row.roles || [row.role]).includes("super_admin") ? "Không thể xóa Super Admin" : undefined}
                       />
                     </div>
                   </TableCell>
@@ -212,7 +243,9 @@ function UserManagement() {
             <button
               type="button"
               onClick={() => void handleDelete()}
-              className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
+              disabled={!canDelete}
+              title={!canDelete ? PERMISSION_DENIED_MESSAGE : undefined}
+              className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-400"
             >
               Xóa
             </button>

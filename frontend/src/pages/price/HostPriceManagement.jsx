@@ -9,12 +9,17 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { hostPriceApi } from "@/lib/api-client";
+import { usePermission } from "@/lib/permissions";
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(Number(value) || 0) + "đ";
 
 function HostPriceManagement() {
   const navigate = useNavigate();
+  const { can, disabledProps } = usePermission();
+  const canCreate = can("price.create");
+  const canUpdate = can("price.update");
+  const canDelete = can("price.delete");
   const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -46,6 +51,10 @@ function HostPriceManagement() {
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
 
   const openCreate = () => {
+    if (!canCreate) {
+      toast.error("Bạn không có quyền thêm bảng giá");
+      return;
+    }
     navigate("/bang-gia/host/them-moi");
   };
 
@@ -72,6 +81,11 @@ function HostPriceManagement() {
   };
 
   const handleDelete = async () => {
+    if (!canDelete) {
+      toast.error("Bạn không có quyền xóa bảng giá");
+      return;
+    }
+
     try {
       if (deleteRow?.id) {
         await hostPriceApi.remove(deleteRow.id);
@@ -103,7 +117,10 @@ function HostPriceManagement() {
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        deleteDisabled={rows.length === 0}
+        addDisabled={!canCreate}
+        addTitle={disabledProps("price.create").title}
+        deleteDisabled={!canDelete || rows.length === 0}
+        deleteTitle={!canDelete ? disabledProps("price.delete").title : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -116,6 +133,8 @@ function HostPriceManagement() {
                   type="checkbox"
                   className="ml-px"
                   checked={isAllFilteredSelected}
+                  disabled={!canDelete}
+                  title={!canDelete ? disabledProps("price.delete").title : undefined}
                   onChange={(event) => handleToggleAll(event.target.checked)}
                   onClick={(event) => event.stopPropagation()}
                 />
@@ -176,6 +195,8 @@ function HostPriceManagement() {
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(row.id)}
+                      disabled={!canDelete}
+                      title={!canDelete ? disabledProps("price.delete").title : undefined}
                       onChange={(event) => handleToggleRow(row.id, event.target.checked)}
                       onClick={(event) => event.stopPropagation()}
                     />
@@ -206,6 +227,7 @@ function HostPriceManagement() {
                         icon={SquarePen}
                         iconOnly
                         variant="primary-outline"
+                        title={!canUpdate ? "Xem chi tiết (chỉ xem)" : "Sửa bảng giá"}
                         onClick={(event) => {
                           event.stopPropagation();
                           openEdit(row);
@@ -215,6 +237,8 @@ function HostPriceManagement() {
                         icon={Trash2}
                         iconOnly
                         variant="danger-outline"
+                        disabled={!canDelete}
+                        title={!canDelete ? disabledProps("price.delete").title : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           setDeleteRow(row);

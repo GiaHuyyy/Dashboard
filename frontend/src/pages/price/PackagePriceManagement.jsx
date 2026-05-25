@@ -9,12 +9,17 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { packagePriceApi } from "@/lib/api-client";
+import { usePermission } from "@/lib/permissions";
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(Number(value) || 0) + "đ";
 
 function PackagePriceManagement() {
   const navigate = useNavigate();
+  const { can, disabledProps } = usePermission();
+  const canCreate = can("price.create");
+  const canUpdate = can("price.update");
+  const canDelete = can("price.delete");
   const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -45,8 +50,16 @@ function PackagePriceManagement() {
   const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
 
-  const openCreate = () => navigate("/bang-gia/tron-goi/them-moi");
-  const openEdit = (row) => navigate(`/bang-gia/tron-goi/chinh-sua/${row.id}`);
+  const openCreate = () => {
+    if (!canCreate) {
+      toast.error("Bạn không có quyền thêm bảng giá");
+      return;
+    }
+    navigate("/bang-gia/tron-goi/them-moi");
+  };
+  const openEdit = (row) => {
+    navigate(`/bang-gia/tron-goi/chinh-sua/${row.id}`);
+  };
 
   const handleToggleAll = (checked) => {
     if (checked) {
@@ -64,6 +77,11 @@ function PackagePriceManagement() {
   };
 
   const handleDelete = async () => {
+    if (!canDelete) {
+      toast.error("Bạn không có quyền xóa bảng giá");
+      return;
+    }
+
     try {
       if (deleteRow?.id) {
         await packagePriceApi.remove(deleteRow.id);
@@ -95,7 +113,10 @@ function PackagePriceManagement() {
           setDeleteRow(null);
           setDeleteOpen(true);
         }}
-        deleteDisabled={rows.length === 0}
+        addDisabled={!canCreate}
+        addTitle={disabledProps("price.create").title}
+        deleteDisabled={!canDelete || rows.length === 0}
+        deleteTitle={!canDelete ? disabledProps("price.delete").title : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -107,6 +128,8 @@ function PackagePriceManagement() {
                 <input
                   type="checkbox"
                   checked={isAllFilteredSelected}
+                  disabled={!canDelete}
+                  title={!canDelete ? disabledProps("price.delete").title : undefined}
                   onChange={(event) => handleToggleAll(event.target.checked)}
                   onClick={(event) => event.stopPropagation()}
                 />
@@ -167,6 +190,8 @@ function PackagePriceManagement() {
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(row.id)}
+                      disabled={!canDelete}
+                      title={!canDelete ? disabledProps("price.delete").title : undefined}
                       onChange={(event) => handleToggleRow(row.id, event.target.checked)}
                       onClick={(event) => event.stopPropagation()}
                     />
@@ -197,6 +222,7 @@ function PackagePriceManagement() {
                         icon={SquarePen}
                         iconOnly
                         variant="primary-outline"
+                        title={!canUpdate ? "Xem chi tiết (chỉ xem)" : "Sửa bảng giá"}
                         onClick={(event) => {
                           event.stopPropagation();
                           openEdit(row);
@@ -206,6 +232,8 @@ function PackagePriceManagement() {
                         icon={Trash2}
                         iconOnly
                         variant="danger-outline"
+                        disabled={!canDelete}
+                        title={!canDelete ? disabledProps("price.delete").title : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           setDeleteRow(row);

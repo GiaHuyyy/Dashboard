@@ -16,7 +16,9 @@ export function FormActions({
   saveMailLabel,
   saveStayLabel,
   readOnlyMode = false,
+  readOnlyTitle,
   saveMailDisabled = false,
+  saveMailDisabledTitle,
 }) {
   const navigate = useNavigate();
   const isDisabled = isSubmitting || isUploading;
@@ -31,6 +33,7 @@ export function FormActions({
         label={primaryLabel}
         onClick={onSave}
         disabled={isDisabled || readOnlyMode}
+        title={readOnlyMode ? readOnlyTitle : undefined}
         variant="primary"
       />
       {showSaveMail && (
@@ -39,6 +42,7 @@ export function FormActions({
           label={primarySaveMailLabel}
           onClick={onSaveMail}
           disabled={isDisabled || readOnlyMode || saveMailDisabled}
+          title={readOnlyMode ? readOnlyTitle : saveMailDisabled ? saveMailDisabledTitle : undefined}
           variant="info"
         />
       )}
@@ -47,6 +51,7 @@ export function FormActions({
         label={primarySaveStayLabel}
         onClick={onSaveStay}
         disabled={isDisabled || readOnlyMode}
+        title={readOnlyMode ? readOnlyTitle : undefined}
         variant="success"
       />
       <Button
@@ -54,6 +59,7 @@ export function FormActions({
         label="Làm lại"
         onClick={onReset}
         disabled={isDisabled || readOnlyMode}
+        title={readOnlyMode ? readOnlyTitle : undefined}
         variant="secondary"
       />
       <Button

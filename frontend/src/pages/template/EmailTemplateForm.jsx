@@ -9,6 +9,7 @@ import { FormActions } from "@/components/program-form/FormActions";
 import { EmailTemplateEditor } from "@/components/template/EmailTemplateEditor";
 import FormField from "@/components/ui/form-field";
 import { emailTemplateApi } from "@/lib/api-client";
+import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
 
 const TEMPLATE_TYPES = [
   { value: "source", label: "Source" },
@@ -86,6 +87,8 @@ function EmailTemplateForm() {
   const returnPath = "/bieu-mau/mau-email";
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
+  const { can } = usePermission();
+  const canSave = can(isEditMode ? "template.update" : "template.create");
 
   const {
     register,
@@ -140,6 +143,11 @@ function EmailTemplateForm() {
   };
 
   const onSubmit = async (values, mode = "save") => {
+    if (!canSave) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+
     try {
       let response;
       if (isEditMode) {
@@ -192,6 +200,8 @@ function EmailTemplateForm() {
         showSaveMail={false}
         saveLabel={isSubmitting ? "Đang lưu..." : isEditMode ? "Cập nhật" : "Lưu"}
         saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
+        readOnlyMode={!canSave}
+        readOnlyTitle={PERMISSION_DENIED_MESSAGE}
       />
 
       <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
