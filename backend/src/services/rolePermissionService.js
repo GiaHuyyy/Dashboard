@@ -220,7 +220,26 @@ const normalizePermissions = (permissions = []) =>
 const seedRolePermission = async (role, userId = null) => {
   const normalizedRole = normalizeRole(role);
   const existing = await RolePermission.findOne({ role: normalizedRole });
-  if (existing) return existing;
+  if (existing) {
+    // Super Admin luôn phải hiển thị đủ toàn bộ quyền mới nhất trên ma trận.
+    // Các role khác giữ nguyên cấu hình người dùng đã chỉnh, tránh tự bật quyền mới ngoài ý muốn.
+    if (normalizedRole === "super_admin") {
+      const nextPermissions = ALL_PERMISSION_KEYS;
+      const currentPermissions = normalizePermissions(existing.permissions);
+      const hasDifference =
+        currentPermissions.length !== nextPermissions.length || nextPermissions.some((permission) => !currentPermissions.includes(permission));
+
+      if (hasDifference) {
+        existing.permissions = nextPermissions;
+        existing.name = ROLE_LABELS[normalizedRole] || normalizedRole;
+        existing.isSystem = true;
+        existing.updatedBy = userId || existing.updatedBy || null;
+        await existing.save();
+      }
+    }
+
+    return existing;
+  }
 
   return RolePermission.create({
     role: normalizedRole,
