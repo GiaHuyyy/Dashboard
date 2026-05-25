@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
@@ -129,7 +130,7 @@ function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Home />} />
+          <Route index element={<Navigate to="/home" replace />} />
           <Route path="home" element={<Home />} />
           <Route path="he-thong" element={<Navigate to="/he-thong/source" replace />} />
           <Route path="he-thong/source" element={<SourceManagement />} />

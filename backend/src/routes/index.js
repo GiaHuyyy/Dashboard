@@ -1,6 +1,8 @@
+
 import { Router } from "express";
 
 import authRoutes from "./auth.js";
+import dashboardRoutes from "./dashboard.js";
 import administrationPriceRoutes from "./administration-price.js";
 import advertisingPriceRoutes from "./advertising-price.js";
 import designPointRoutes from "./design-point.js";
@@ -33,6 +35,7 @@ router.get("/", (req, res) => {
 });
 
 router.use("/auth", authRoutes);
+router.use("/dashboard", dashboardRoutes);
 router.use("/programs", programRoutes);
 router.use("/staffs", staffRoutes);
 router.use("/program-corrections", programCorrectionRoutes);

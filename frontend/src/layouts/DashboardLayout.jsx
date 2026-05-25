@@ -1,4 +1,5 @@
-import { Bell, ChevronLeft, Cloud, FileText, Menu, SquareArrowRightExit } from "lucide-react";
+
+import { Bell, ChevronLeft, Cloud, FileText, Home as HomeIcon, Menu, SquareArrowRightExit } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -9,6 +10,7 @@ import { hasPermission } from "@/lib/permissions";
 import { logoutUser } from "@/store/auth-slice";
 
 const navItems = [
+  { label: "Trang chủ", path: "/home", icon: HomeIcon },
   {
     label: "Quản lý hệ thống",
     path: "/he-thong",
