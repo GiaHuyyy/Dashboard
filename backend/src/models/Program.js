@@ -121,7 +121,9 @@ const programSchema = new mongoose.Schema(
       trim: true,
     },
     contractImages: {
-      type: [String],
+      // Lưu snapshot ảnh hợp đồng tại thời điểm tạo/cập nhật phiếu lập trình.
+      // Hỗ trợ cả dữ liệu cũ dạng string URL và dữ liệu mới dạng object { url, publicId }.
+      type: [mongoose.Schema.Types.Mixed],
       default: [],
     },
     status: {
