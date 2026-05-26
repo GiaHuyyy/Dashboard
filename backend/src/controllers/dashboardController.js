@@ -8,6 +8,8 @@ import { getSystemSettingValue } from "../services/systemSettingService.js";
 
 const COMPLETED_STATUS = "Đã hoàn thành";
 const HANDED_OVER_STATUS = "Đã bàn giao";
+const SENT_STATUS = "Đã gửi";
+const DOWNLOADED_STATUS = "Đã tải";
 
 const toDate = (value) => {
   if (!value) return null;
@@ -26,226 +28,249 @@ const formatDateTime = (value) => {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
-const toIsoString = (value) => {
-  const date = toDate(value);
-  return date ? date.toISOString() : "";
-};
-
-const getTaskAlertStatus = (dateValue, now, warningDate) => {
-  const date = toDate(dateValue);
+const getSlaState = (deadline, warningBeforeMs, now = new Date()) => {
+  const date = toDate(deadline);
   if (!date) return null;
-  if (date < now) return "overdue";
-  if (date <= warningDate) return "upcoming";
-  return null;
+
+  const diff = date.getTime() - now.getTime();
+  if (diff < 0) {
+    return {
+      status: "overdue",
+      label: "Quá hạn",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-100",
+      priority: 1,
+    };
+  }
+
+  if (diff <= warningBeforeMs) {
+    return {
+      status: "warning",
+      label: "Sắp đến hạn",
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-100",
+      priority: 2,
+    };
+  }
+
+  return {
+    status: "normal",
+    label: "Bình thường",
+    badgeClass: "bg-slate-50 text-slate-600 border-slate-100",
+    priority: 3,
+  };
 };
 
-const pushTaskAlerts = ({ rows, alerts, type, titleKey, dateKey, pathPrefix, now, warningDate }) => {
-  rows.forEach((item) => {
-    const status = getTaskAlertStatus(item[dateKey], now, warningDate);
-    if (!status) return;
-    alerts.push({
-      id: String(item._id),
-      type,
-      status,
-      title: item[titleKey] || item.contractCode || item.module || "Không có tiêu đề",
-      description: status === "overdue" ? "Đã quá hạn xử lý" : "Sắp đến hạn xử lý",
-      date: toIsoString(item[dateKey]),
-      dateLabel: formatDateTime(item[dateKey]),
-      path: `${pathPrefix}/${item._id}`,
-    });
+const makeAlert = ({ type, title, description, deadline, href, warningBeforeMs, now }) => {
+  const sla = getSlaState(deadline, warningBeforeMs, now);
+  if (!sla || sla.status === "normal") return null;
+
+  return {
+    type,
+    title,
+    description,
+    href,
+    deadline: toDate(deadline)?.toISOString() || "",
+    deadlineLabel: formatDateTime(deadline),
+    status: sla.status,
+    statusLabel: sla.label,
+    badgeClass: sla.badgeClass,
+    priority: sla.priority,
+  };
+};
+
+const countByStatus = (alerts = []) => ({
+  warning: alerts.filter((item) => item.status === "warning").length,
+  overdue: alerts.filter((item) => item.status === "overdue").length,
+});
+
+const sortAlerts = (alerts = []) =>
+  [...alerts].sort((a, b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
   });
-};
 
-const countTaskStatus = async ({ model, statusField, dueField }) => {
-  const now = new Date();
-  return Promise.all([
-    model.countDocuments({ isDeleted: false, [statusField]: { $ne: COMPLETED_STATUS } }),
-    model.countDocuments({ isDeleted: false, [statusField]: { $ne: COMPLETED_STATUS }, [dueField]: { $ne: null, $lt: now } }),
-  ]);
+const getWarningBeforeHours = async () => {
+  const value = await getSystemSettingValue("sla.warningBeforeDeadlineHours");
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 24;
 };
 
 export const getDashboardSummary = async (req, res) => {
-  const warningBeforeDeadlineHours = Number(await getSystemSettingValue("sla.warningBeforeDeadlineHours"));
-  const safeWarningHours = Number.isFinite(warningBeforeDeadlineHours) ? warningBeforeDeadlineHours : 24;
   const now = new Date();
-  const warningDate = new Date(now.getTime() + safeWarningHours * 60 * 60 * 1000);
+  const warningBeforeHours = await getWarningBeforeHours();
+  const warningBeforeMs = warningBeforeHours * 60 * 60 * 1000;
 
-  const [
-    [programActiveCount, programOverdueCount],
-    [correctionActiveCount, correctionOverdueCount],
-    [upgradeActiveCount, upgradeOverdueCount],
-    [designActiveCount, designOverdueCount],
-    sourceExpiredCount,
-    sourceExpiringSoonCount,
-    contractPendingHandoverCount,
-  ] = await Promise.all([
-    countTaskStatus({ model: Program, statusField: "processingStatus", dueField: "dueAt" }),
-    countTaskStatus({ model: ProgramCorrection, statusField: "status", dueField: "dueAt" }),
-    countTaskStatus({ model: ProgramUpgrade, statusField: "status", dueField: "dueAt" }),
-    countTaskStatus({ model: DesignTask, statusField: "status", dueField: "expectedDate" }),
-    ProgramSource.countDocuments({ isDeleted: false, expiresAt: { $lt: now } }),
-    ProgramSource.countDocuments({ isDeleted: false, expiresAt: { $gte: now, $lte: warningDate } }),
-    BusinessContract.countDocuments({ isDeleted: false, handoverStatus: { $ne: HANDED_OVER_STATUS } }),
-  ]);
-
-  const [programRows, correctionRows, upgradeRows, designRows, sourceRows, contractRows] = await Promise.all([
-    Program.find({ isDeleted: false, processingStatus: { $ne: COMPLETED_STATUS }, dueAt: { $lte: warningDate } })
-      .select("module contractCode dueAt processingStatus")
-      .sort({ dueAt: 1 })
-      .limit(8)
+  const [programs, corrections, upgrades, designs, sources, contracts] = await Promise.all([
+    Program.find({ isDeleted: false, processingStatus: { $ne: COMPLETED_STATUS } })
+      .select("contractCode module processingStatus dueAt")
       .lean(),
-    ProgramCorrection.find({ isDeleted: false, status: { $ne: COMPLETED_STATUS }, dueAt: { $lte: warningDate } })
-      .select("issueContent dueAt status")
-      .sort({ dueAt: 1 })
-      .limit(8)
+    ProgramCorrection.find({ isDeleted: false, status: { $ne: COMPLETED_STATUS } })
+      .populate("programId", "contractCode module")
+      .select("issueContent status dueAt programId")
       .lean(),
-    ProgramUpgrade.find({ isDeleted: false, status: { $ne: COMPLETED_STATUS }, dueAt: { $lte: warningDate } })
-      .select("upgradeItem dueAt status")
-      .sort({ dueAt: 1 })
-      .limit(8)
+    ProgramUpgrade.find({ isDeleted: false, status: { $ne: COMPLETED_STATUS } })
+      .populate("programId", "contractCode module")
+      .select("upgradeItem status dueAt programId")
       .lean(),
-    DesignTask.find({ isDeleted: false, status: { $ne: COMPLETED_STATUS }, expectedDate: { $lte: warningDate } })
-      .select("title expectedDate status")
-      .sort({ expectedDate: 1 })
-      .limit(8)
+    DesignTask.find({ isDeleted: false, status: { $ne: COMPLETED_STATUS } })
+      .select("title status expectedDate deadline")
       .lean(),
-    ProgramSource.find({ isDeleted: false, expiresAt: { $lte: warningDate } })
-      .populate({ path: "programId", select: "contractCode module" })
-      .select("programId domain expiresAt sendStatus downloadStatus")
-      .sort({ expiresAt: 1 })
-      .limit(8)
+    ProgramSource.find({
+      isDeleted: false,
+      sendStatus: SENT_STATUS,
+      downloadStatus: { $ne: DOWNLOADED_STATUS },
+    })
+      .populate("programId", "contractCode module")
+      .select("programId domain expiresAt sendStatus downloadStatus sourceLink")
       .lean(),
     BusinessContract.find({ isDeleted: false, handoverStatus: { $ne: HANDED_OVER_STATUS } })
-      .select("contractCode contractName customerName handoverStatus createdAt")
-      .sort({ createdAt: 1 })
-      .limit(8)
+      .select("contractCode contractName customerName handoverStatus expectedHandoverAt")
       .lean(),
   ]);
 
-  const alerts = [];
-  pushTaskAlerts({
-    rows: programRows,
-    alerts,
-    type: "program",
-    titleKey: "contractCode",
-    dateKey: "dueAt",
-    pathPrefix: "/lap-trinh/chinh-sua",
-    now,
-    warningDate,
-  });
-  pushTaskAlerts({
-    rows: correctionRows,
-    alerts,
-    type: "correction",
-    titleKey: "issueContent",
-    dateKey: "dueAt",
-    pathPrefix: "/lap-trinh/quan-ly-chinh-sua/chinh-sua",
-    now,
-    warningDate,
-  });
-  pushTaskAlerts({
-    rows: upgradeRows,
-    alerts,
-    type: "upgrade",
-    titleKey: "upgradeItem",
-    dateKey: "dueAt",
-    pathPrefix: "/lap-trinh/nang-cap/chinh-sua",
-    now,
-    warningDate,
-  });
-  pushTaskAlerts({
-    rows: designRows,
-    alerts,
-    type: "design",
-    titleKey: "title",
-    dateKey: "expectedDate",
-    pathPrefix: "/design/chinh-sua",
-    now,
-    warningDate,
-  });
+  const programAlerts = programs
+    .map((item) =>
+      makeAlert({
+        type: "program",
+        title: item.contractCode || item.module || "Phiếu lập trình",
+        description: "Đã quá hạn xử lý",
+        deadline: item.dueAt,
+        href: `/lap-trinh/chinh-sua/${item._id}`,
+        warningBeforeMs,
+        now,
+      }),
+    )
+    .filter(Boolean);
 
-  sourceRows.forEach((item) => {
-    const status = getTaskAlertStatus(item.expiresAt, now, warningDate);
-    if (!status) return;
-    alerts.push({
-      id: String(item._id),
-      type: "source",
-      status,
-      title: item.programId?.contractCode || item.domain || "Source",
-      description: status === "overdue" ? "Link source đã hết hạn" : "Link source sắp hết hạn",
-      date: toIsoString(item.expiresAt),
-      dateLabel: formatDateTime(item.expiresAt),
-      path: `/he-thong/source/chinh-sua/${item._id}`,
-    });
-  });
+  const correctionAlerts = corrections
+    .map((item) =>
+      makeAlert({
+        type: "correction",
+        title: item.programId?.contractCode || item.issueContent || "Phiếu chỉnh sửa",
+        description: item.issueContent || "Yêu cầu chỉnh sửa sắp đến hạn",
+        deadline: item.dueAt,
+        href: `/lap-trinh/quan-ly-chinh-sua/chinh-sua/${item._id}`,
+        warningBeforeMs,
+        now,
+      }),
+    )
+    .filter(Boolean);
 
-  contractRows.forEach((item) => {
-    alerts.push({
-      id: String(item._id),
-      type: "contract",
-      status: "pending",
-      title: item.contractCode || item.contractName,
-      description: `Hợp đồng chưa bàn giao${item.customerName ? ` - ${item.customerName}` : ""}`,
-      date: toIsoString(item.createdAt),
-      dateLabel: formatDateTime(item.createdAt),
-      path: `/kinh-doanh/chinh-sua/${item._id}`,
-    });
-  });
+  const upgradeAlerts = upgrades
+    .map((item) =>
+      makeAlert({
+        type: "upgrade",
+        title: item.upgradeItem || item.programId?.contractCode || "Phiếu nâng cấp",
+        description: "Đã quá hạn xử lý",
+        deadline: item.dueAt,
+        href: `/lap-trinh/nang-cap/chinh-sua/${item._id}`,
+        warningBeforeMs,
+        now,
+      }),
+    )
+    .filter(Boolean);
 
-  const sortedAlerts = alerts
-    .sort((a, b) => {
-      const rank = { overdue: 0, upcoming: 1, pending: 2 };
-      const rankDiff = (rank[a.status] ?? 99) - (rank[b.status] ?? 99);
-      if (rankDiff !== 0) return rankDiff;
-      return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
-    })
-    .slice(0, 12);
+  const designAlerts = designs
+    .map((item) =>
+      makeAlert({
+        type: "design",
+        title: item.title || "Công việc design",
+        description: "Đã quá hạn xử lý",
+        deadline: item.expectedDate || item.deadline,
+        href: `/design/chinh-sua/${item._id}`,
+        warningBeforeMs,
+        now,
+      }),
+    )
+    .filter(Boolean);
+
+  const sourceAlerts = sources
+    .map((item) =>
+      makeAlert({
+        type: "source",
+        title: item.programId?.contractCode || item.domain || "Source",
+        description: item.expiresAt && new Date(item.expiresAt).getTime() < now.getTime()
+          ? "Link source đã hết hạn"
+          : "Link source sắp hết hạn",
+        deadline: item.expiresAt,
+        href: `/he-thong/source/chinh-sua/${item._id}`,
+        warningBeforeMs,
+        now,
+      }),
+    )
+    .filter(Boolean);
+
+  const contractAlerts = contracts
+    .map((item) =>
+      makeAlert({
+        type: "contract",
+        title: item.contractCode || item.contractName || "Hợp đồng",
+        description: `Hợp đồng chưa bàn giao${item.customerName ? ` - ${item.customerName}` : ""}`,
+        deadline: item.expectedHandoverAt,
+        href: `/kinh-doanh/chinh-sua/${item._id}`,
+        warningBeforeMs,
+        now,
+      }),
+    )
+    .filter(Boolean);
+
+  const allAlerts = sortAlerts([
+    ...programAlerts,
+    ...correctionAlerts,
+    ...upgradeAlerts,
+    ...designAlerts,
+    ...sourceAlerts,
+    ...contractAlerts,
+  ]);
+
+  const sourceStatus = countByStatus(sourceAlerts);
+  const contractStatus = countByStatus(contractAlerts);
 
   return res.json({
-    warningBeforeDeadlineHours: safeWarningHours,
-    summaryCards: [
-      {
-        key: "programActive",
+    warningBeforeHours,
+    cards: {
+      program: {
         label: "Lập trình đang xử lý",
-        value: programActiveCount,
-        dangerValue: programOverdueCount,
-        path: "/lap-trinh/danh-sach",
+        value: programs.length,
+        href: "/lap-trinh/danh-sach",
+        ...countByStatus(programAlerts),
       },
-      {
-        key: "correctionActive",
+      correction: {
         label: "Chỉnh sửa đang xử lý",
-        value: correctionActiveCount,
-        dangerValue: correctionOverdueCount,
-        path: "/lap-trinh/chinh-sua",
+        value: corrections.length,
+        href: "/lap-trinh/chinh-sua",
+        ...countByStatus(correctionAlerts),
       },
-      {
-        key: "upgradeActive",
+      upgrade: {
         label: "Nâng cấp đang xử lý",
-        value: upgradeActiveCount,
-        dangerValue: upgradeOverdueCount,
-        path: "/lap-trinh/nang-cap",
+        value: upgrades.length,
+        href: "/lap-trinh/nang-cap",
+        ...countByStatus(upgradeAlerts),
       },
-      {
-        key: "designActive",
+      design: {
         label: "Design đang xử lý",
-        value: designActiveCount,
-        dangerValue: designOverdueCount,
-        path: "/design/danh-sach",
+        value: designs.length,
+        href: "/design/danh-sach",
+        ...countByStatus(designAlerts),
       },
-      {
-        key: "sourceExpired",
+      source: {
         label: "Source hết hạn link",
-        value: sourceExpiredCount,
-        subValue: `${sourceExpiringSoonCount} sắp hết hạn`,
-        path: "/he-thong/source",
+        value: sourceStatus.overdue,
+        href: "/he-thong/source",
+        warning: sourceStatus.warning,
+        overdue: sourceStatus.overdue,
       },
-      {
-        key: "contractPendingHandover",
+      contract: {
         label: "Hợp đồng chưa bàn giao",
-        value: contractPendingHandoverCount,
-        path: "/kinh-doanh/danh-sach",
+        value: contracts.length,
+        href: "/kinh-doanh/danh-sach",
+        warning: contractStatus.warning,
+        overdue: contractStatus.overdue,
       },
-    ],
-    alerts: sortedAlerts,
+    },
+    alerts: allAlerts.slice(0, 20),
+    alertSummary: {
+      warning: allAlerts.filter((item) => item.status === "warning").length,
+      overdue: allAlerts.filter((item) => item.status === "overdue").length,
+    },
   });
 };

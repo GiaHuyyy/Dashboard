@@ -1,3 +1,4 @@
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 export const SESSION_EXPIRED_EVENT = "auth:session-expired";
 let hasDispatchedSessionExpired = false;
@@ -60,10 +61,6 @@ export const authApi = {
 };
 
 
-export const dashboardApi = {
-  summary: () => request("/dashboard/summary"),
-};
-
 export const userApi = {
   list: ({ search = "", role = "all", active = "all" } = {}) => {
     const searchParams = new URLSearchParams();
@@ -87,16 +84,6 @@ export const userApi = {
   remove: (id) =>
     request(`/users/${id}`, {
       method: "DELETE",
-    }),
-};
-
-
-export const rolePermissionApi = {
-  list: () => request("/role-permissions"),
-  update: (role, permissions) =>
-    request(`/role-permissions/${role}`, {
-      method: "PUT",
-      body: JSON.stringify({ permissions }),
     }),
 };
 
@@ -607,4 +594,9 @@ export const designPointApi = {
     searchParams.set("status", status);
     return request(`/design-points?${searchParams.toString()}`);
   },
+};
+
+
+export const dashboardApi = {
+  summary: () => request("/dashboard/summary"),
 };
