@@ -1,5 +1,5 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button-v2";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useManagementList } from "@/hooks/useManagementList";
 import { systemCategoryApi } from "@/lib/api-client";
 import { usePermission } from "@/lib/permissions";
 
@@ -38,12 +39,6 @@ function SystemCategoryManagement() {
   const { can } = usePermission();
   const canUpdate = can("config.category.update");
 
-  const [rows, setRows] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchText, setSearchText] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteRow, setDeleteRow] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingRow, setEditingRow] = useState(null);
 
@@ -58,33 +53,47 @@ function SystemCategoryManagement() {
   });
 
   const activeTab = useMemo(() => CATEGORY_TYPES.find((item) => item.value === activeType), [activeType]);
+  const getCategoryListParams = useCallback(
+    (value) => ({
+      type: activeType,
+      search: value.trim(),
+      limit: 200,
+    }),
+    [activeType],
+  );
 
-  const fetchRows = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await systemCategoryApi.list({
-        type: activeType,
-        search: searchText.trim(),
-        limit: 200,
-      });
-      const nextRows = Array.isArray(response?.categories) ? response.categories : [];
-      setRows(nextRows);
-      setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
-    } catch (error) {
-      toast.error(error?.message || "Không thể tải danh mục hệ thống");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeType, searchText]);
-
-  useEffect(() => {
-    void fetchRows();
-  }, [fetchRows]);
-
-  const displayedRows = useMemo(() => rows, [rows]);
-  const displayedIds = displayedRows.map((item) => item.id);
-  const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
-  const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
+  const {
+    rows,
+    setRows,
+    searchText,
+    setSearchText,
+    isLoading,
+    selectedIds,
+    deleteOpen,
+    setDeleteOpen,
+    deleteRow,
+    setDeleteRow,
+    displayedRows,
+    isAllFilteredSelected,
+    deleteManyLabel,
+    fetchRows,
+    handleToggleAll,
+    handleToggleRow,
+    handleDelete,
+  } = useManagementList({
+    listApi: systemCategoryApi.list,
+    removeApi: systemCategoryApi.remove,
+    removeManyApi: systemCategoryApi.removeMany,
+    responseKey: "categories",
+    getListParams: getCategoryListParams,
+    loadErrorMessage: "Không thể tải danh mục hệ thống",
+    noDeletePermissionMessage: "Bạn không có quyền xóa danh mục",
+    deleteOneSuccessMessage: "Đã xóa danh mục",
+    deleteManySuccessMessage: ({ deletedCount, selectedCount }) =>
+      `Đã xóa ${deletedCount || selectedCount} danh mục`,
+    deleteAllSuccessMessage: ({ deletedCount }) => `Đã xóa toàn bộ (${deletedCount || 0}) danh mục`,
+    deleteErrorMessage: "Xóa dữ liệu không thành công",
+  });
 
   const openCreate = () => {
     const nextSortOrder = rows.length > 0 ? Math.max(...rows.map((item) => Number(item.sortOrder || 0))) + 1 : 1;
@@ -104,42 +113,6 @@ function SystemCategoryManagement() {
       isActive: Boolean(row.isActive),
     });
     setFormOpen(true);
-  };
-
-  const handleToggleAll = (checked) => {
-    if (checked) {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((id) => !displayedIds.includes(id)));
-  };
-
-  const handleToggleRow = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) return prev.includes(id) ? prev : [...prev, id];
-      return prev.filter((item) => item !== id);
-    });
-  };
-
-  const handleDelete = async () => {
-    try {
-      if (deleteRow?.id) {
-        await systemCategoryApi.remove(deleteRow.id);
-        toast.success("Đã xóa danh mục");
-      } else if (selectedIds.length > 0) {
-        const response = await systemCategoryApi.removeMany(selectedIds);
-        toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} danh mục`);
-      } else {
-        const response = await systemCategoryApi.removeMany([]);
-        toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) danh mục`);
-      }
-      setDeleteOpen(false);
-      setDeleteRow(null);
-      setSelectedIds([]);
-      await fetchRows();
-    } catch (error) {
-      toast.error(error?.message || "Xóa dữ liệu không thành công");
-    }
   };
 
   const handleToggleActive = async (row, nextValue) => {
@@ -393,7 +366,7 @@ function SystemCategoryManagement() {
             <Button
               variant="danger"
               label="Xóa"
-              onClick={handleDelete}
+              onClick={() => void handleDelete({ canDelete: canUpdate })}
               disabled={!canUpdate}
               title={!canUpdate ? "Bạn không có quyền xóa danh mục" : undefined}
             />

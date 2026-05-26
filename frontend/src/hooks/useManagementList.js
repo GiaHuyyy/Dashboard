@@ -5,7 +5,10 @@ const defaultGetRowId = (row) => row?.id;
 
 const defaultGetListParams = (searchText) => ({ search: searchText.trim() });
 
+const defaultTransformRows = (rows) => rows;
+
 const resolveMessage = (message, payload) => (typeof message === "function" ? message(payload) : message);
+
 
 export function useManagementList({
   listApi,
@@ -14,6 +17,7 @@ export function useManagementList({
   responseKey,
   getListParams = defaultGetListParams,
   getRowId = defaultGetRowId,
+  transformRows = defaultTransformRows,
   loadErrorMessage = "Không thể tải dữ liệu",
   deleteErrorMessage = "Xóa dữ liệu không thành công",
   noDeletePermissionMessage = "Bạn không có quyền xóa dữ liệu",
@@ -32,7 +36,9 @@ export function useManagementList({
     setIsLoading(true);
     try {
       const response = await listApi(getListParams(searchText));
-      const nextRows = Array.isArray(response?.[responseKey]) ? response[responseKey] : [];
+      const rawRows = Array.isArray(response?.[responseKey]) ? response[responseKey] : [];
+      const transformedRows = transformRows(rawRows);
+      const nextRows = Array.isArray(transformedRows) ? transformedRows : [];
       setRows(nextRows);
       setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => getRowId(item) === id)));
     } catch (error) {
@@ -40,7 +46,7 @@ export function useManagementList({
     } finally {
       setIsLoading(false);
     }
-  }, [getListParams, getRowId, listApi, loadErrorMessage, responseKey, searchText]);
+  }, [getListParams, getRowId, listApi, loadErrorMessage, responseKey, searchText, transformRows]);
 
   useEffect(() => {
     void fetchRows();

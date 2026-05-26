@@ -1,10 +1,11 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { useManagementList } from "@/hooks/useManagementList";
 import { staffApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
@@ -18,42 +19,28 @@ function StaffManagement() {
   const canUpdate = can("staff.update");
   const canDelete = can("staff.delete");
 
-  const [rows, setRows] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchText, setSearchText] = useState("");
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteRow, setDeleteRow] = useState(null);
-
-  const fetchRows = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await staffApi.list({ search: searchText.trim() });
-      setRows(Array.isArray(response?.staffs) ? response.staffs : []);
-    } catch (error) {
-      toast.error(error?.message || "Không thể tải danh sách nhân sự");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchText]);
-
-  useEffect(() => {
-    void fetchRows();
-  }, [fetchRows]);
+  const {
+    rows,
+    searchText,
+    setSearchText,
+    isLoading,
+    deleteOpen,
+    setDeleteOpen,
+    deleteRow,
+    setDeleteRow,
+    handleDelete,
+  } = useManagementList({
+    listApi: staffApi.list,
+    removeApi: staffApi.remove,
+    removeManyApi: staffApi.removeMany,
+    responseKey: "staffs",
+    loadErrorMessage: "Không thể tải danh sách nhân sự",
+    noDeletePermissionMessage: "Bạn không có quyền xóa nhân sự",
+    deleteOneSuccessMessage: "Đã xóa nhân sự",
+    deleteErrorMessage: "Xóa dữ liệu không thành công",
+  });
 
   const activeCount = useMemo(() => rows.filter((item) => item.isActive).length, [rows]);
-
-  const handleDelete = async () => {
-    if (!deleteRow?.id) return;
-    try {
-      await staffApi.remove(deleteRow.id);
-      toast.success("Đã xóa nhân sự");
-      setDeleteOpen(false);
-      setDeleteRow(null);
-      await fetchRows();
-    } catch (error) {
-      toast.error(error?.message || "Xóa dữ liệu không thành công");
-    }
-  };
 
   return (
     <>
@@ -188,7 +175,7 @@ function StaffManagement() {
             </button>
             <button
               type="button"
-              onClick={() => void handleDelete()}
+              onClick={() => void handleDelete({ canDelete: canDelete })}
               className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Xóa

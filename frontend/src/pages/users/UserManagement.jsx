@@ -1,5 +1,5 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -8,66 +8,53 @@ import { ManagementTableCard } from "@/components/management/ManagementTableCard
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useManagementList } from "@/hooks/useManagementList";
 import { userApi } from "@/lib/api-client";
 import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
 import { USER_ROLE_OPTIONS, getUserRoleLabel } from "@/lib/user-roles";
 
 function UserManagement() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchText, setSearchText] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [selectedActive, setSelectedActive] = useState("all");
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteRow, setDeleteRow] = useState(null);
   const { canAny } = usePermission();
 
   const canView = canAny(["permission.user.view", "user.view"]);
   const canCreate = canAny(["permission.user.create", "user.create"]);
   const canUpdate = canAny(["permission.user.update", "user.update"]);
   const canDelete = canAny(["permission.user.delete", "user.delete"]);
+  const getUserListParams = useCallback(
+    (value) => ({
+      search: value.trim(),
+      role: selectedRole,
+      active: selectedActive,
+    }),
+    [selectedActive, selectedRole],
+  );
 
-  const fetchRows = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await userApi.list({
-        search: searchText.trim(),
-        role: selectedRole,
-        active: selectedActive,
-      });
-      setRows(Array.isArray(response?.users) ? response.users : []);
-    } catch (error) {
-      toast.error(error?.message || "Không thể tải danh sách tài khoản");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchText, selectedActive, selectedRole]);
-
-  useEffect(() => {
-    void fetchRows();
-  }, [fetchRows]);
+  const {
+    rows,
+    searchText,
+    setSearchText,
+    isLoading,
+    deleteOpen,
+    setDeleteOpen,
+    deleteRow,
+    setDeleteRow,
+    handleDelete,
+  } = useManagementList({
+    listApi: userApi.list,
+    removeApi: userApi.remove,
+    removeManyApi: userApi.removeMany,
+    responseKey: "users",
+    getListParams: getUserListParams,
+    loadErrorMessage: "Không thể tải danh sách tài khoản",
+    noDeletePermissionMessage: PERMISSION_DENIED_MESSAGE,
+    deleteOneSuccessMessage: "Đã xóa tài khoản",
+    deleteErrorMessage: "Xóa tài khoản không thành công",
+  });
 
   const activeCount = useMemo(() => rows.filter((item) => item.isActive).length, [rows]);
-
-  const handleDelete = async () => {
-    if (!deleteRow?.id) return;
-
-    if (!canDelete) {
-      toast.error(PERMISSION_DENIED_MESSAGE);
-      return;
-    }
-
-    try {
-      await userApi.remove(deleteRow.id);
-      toast.success("Đã xóa tài khoản");
-      setDeleteOpen(false);
-      setDeleteRow(null);
-      await fetchRows();
-    } catch (error) {
-      toast.error(error?.message || "Xóa tài khoản không thành công");
-    }
-  };
 
   const openDetail = (row) => {
     if (!canView) {
@@ -236,7 +223,7 @@ function UserManagement() {
             </button>
             <button
               type="button"
-              onClick={() => void handleDelete()}
+              onClick={() => void handleDelete({ canDelete: canDelete })}
               className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Xóa

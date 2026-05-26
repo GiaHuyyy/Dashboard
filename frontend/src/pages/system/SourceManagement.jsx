@@ -1,11 +1,12 @@
 import { RotateCw, SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { SOURCE_SEND_STATUS_OPTIONS } from "@/constants/program-source";
+import { useManagementList } from "@/hooks/useManagementList";
 import { sourceApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
@@ -20,85 +21,50 @@ function SourceManagement() {
   const canDelete = can("source.delete");
   const canSendMail = can("source.sendMail");
 
-  const [rows, setRows] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [searchText, setSearchText] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteRow, setDeleteRow] = useState(null);
   const [sendingRowId, setSendingRowId] = useState(null);
+  const getSourceListParams = useCallback(
+    (value) => ({
+      status: selectedStatus,
+      search: value.trim(),
+      limit: 200,
+    }),
+    [selectedStatus],
+  );
 
-  const fetchRows = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await sourceApi.list({
-        status: selectedStatus,
-        search: searchText.trim(),
-        limit: 200,
-      });
-      const nextRows = Array.isArray(response?.sources) ? response.sources : [];
-      setRows(nextRows);
-      setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
-    } catch (error) {
-      toast.error(error?.message || "Không thể tải danh sách source");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchText, selectedStatus]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchRows();
-  }, [fetchRows]);
-
-  const displayedRows = useMemo(() => rows, [rows]);
-  const displayedIds = displayedRows.map((item) => item.id);
-  const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
-  const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
-
-  const handleToggleAll = (checked) => {
-    if (checked) {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((id) => !displayedIds.includes(id)));
-  };
-
-  const handleToggleRow = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) {
-        if (prev.includes(id)) return prev;
-        return [...prev, id];
-      }
-      return prev.filter((item) => item !== id);
-    });
-  };
+  const {
+    rows,
+    setRows,
+    searchText,
+    setSearchText,
+    isLoading,
+    selectedIds,
+    deleteOpen,
+    setDeleteOpen,
+    deleteRow,
+    setDeleteRow,
+    displayedRows,
+    isAllFilteredSelected,
+    deleteManyLabel,
+    handleToggleAll,
+    handleToggleRow,
+    handleDelete,
+  } = useManagementList({
+    listApi: sourceApi.list,
+    removeApi: sourceApi.remove,
+    removeManyApi: sourceApi.removeMany,
+    responseKey: "sources",
+    getListParams: getSourceListParams,
+    loadErrorMessage: "Không thể tải danh sách source",
+    noDeletePermissionMessage: "Bạn không có quyền xóa source",
+    deleteOneSuccessMessage: "Đã xóa source",
+    deleteManySuccessMessage: ({ deletedCount, selectedCount }) => `Đã xóa ${deletedCount || selectedCount} source`,
+    deleteAllSuccessMessage: ({ deletedCount }) => `Đã xóa toàn bộ (${deletedCount || 0}) source`,
+  });
 
   const handleDeleteOne = (row) => {
     setDeleteRow(row);
     setDeleteOpen(true);
-  };
-
-  const handleDelete = async () => {
-    try {
-      if (deleteRow?.id) {
-        await sourceApi.remove(deleteRow.id);
-        toast.success("Đã xóa source");
-      } else if (selectedIds.length > 0) {
-        const response = await sourceApi.removeMany(selectedIds);
-        toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} source`);
-      } else {
-        const response = await sourceApi.removeMany([]);
-        toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) source`);
-      }
-      setDeleteOpen(false);
-      setDeleteRow(null);
-      setSelectedIds([]);
-      await fetchRows();
-    } catch (error) {
-      toast.error(error?.message || "Xóa dữ liệu không thành công");
-    }
   };
 
   const handleSendAgain = async (rowId) => {
@@ -360,7 +326,7 @@ function SourceManagement() {
             </button>
             <button
               type="button"
-              onClick={() => void handleDelete()}
+              onClick={() => void handleDelete({ canDelete })}
               className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Xóa
