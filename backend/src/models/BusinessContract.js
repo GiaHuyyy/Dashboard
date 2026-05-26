@@ -1,5 +1,21 @@
 import mongoose from "mongoose";
 
+const businessContractImageSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    publicId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+  },
+  { _id: false },
+);
+
 const businessContractSchema = new mongoose.Schema(
   {
     contractCode: {
@@ -68,7 +84,7 @@ const businessContractSchema = new mongoose.Schema(
       default: [],
     },
     contractImages: {
-      type: [String],
+      type: [businessContractImageSchema],
       default: [],
     },
     handoverStatus: {

@@ -1,13 +1,7 @@
 import "dotenv/config";
-import cloudinary from "cloudinary";
 
 import { getSystemSettingsObject } from "../services/systemSettingService.js";
-
-cloudinary.v2.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+import { getMissingCloudinaryEnv, uploadBufferToCloudinary } from "../services/cloudinaryService.js";
 
 const DEFAULT_UPLOAD_SETTINGS = {
   maxUploadSizeMb: 5,
@@ -41,11 +35,6 @@ const getImageUploadSettings = async () => {
 
 const getFileExtension = (filename = "") => filename.split(".").pop()?.toLowerCase() || "";
 
-const normalizeFolder = (folder = "") =>
-  String(folder || "")
-    .trim()
-    .replace(/[^a-zA-Z0-9/_-]/g, "")
-    .replace(/^\/+|\/+$/g, "");
 
 export const uploadContractImage = async (req, res) => {
   if (!req.file) {
@@ -69,9 +58,7 @@ export const uploadContractImage = async (req, res) => {
     });
   }
 
-  const missingVars = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"].filter(
-    (key) => !process.env[key],
-  );
+  const missingVars = getMissingCloudinaryEnv();
 
   if (missingVars.length > 0) {
     return res.status(500).json({
@@ -81,22 +68,7 @@ export const uploadContractImage = async (req, res) => {
   }
 
   try {
-    const uploadWithOptions = (options) =>
-      new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.v2.uploader.upload_stream(options, (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        });
-        uploadStream.end(req.file.buffer);
-      });
-
-    const baseFolder = normalizeFolder(process.env.CLOUDINARY_UPLOAD_FOLDER || "dashboard") || "dashboard";
-    const subFolder = normalizeFolder(req.body?.folder || "");
-    const baseOptions = {
-      resource_type: "auto",
-      folder: subFolder ? `${baseFolder}/${subFolder}` : baseFolder,
-    };
-    const result = await uploadWithOptions(baseOptions);
+    const result = await uploadBufferToCloudinary(req.file.buffer, { folder: req.body?.folder });
 
     return res.json({
       message: "Upload thành công",

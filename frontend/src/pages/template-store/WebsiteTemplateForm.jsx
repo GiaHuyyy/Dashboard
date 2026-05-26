@@ -74,6 +74,7 @@ const defaultValues = {
   demoUrl: "",
   templateUrl: "",
   previewImage: "",
+  previewImagePublicId: "",
   category: "",
   platform: "React",
   tagsText: "",
@@ -87,6 +88,7 @@ const mapTemplateToForm = (item) => ({
   demoUrl: item.demoUrl || "",
   templateUrl: item.templateUrl || "",
   previewImage: item.previewImage || "",
+  previewImagePublicId: item.previewImagePublicId || "",
   category: item.category || "",
   platform: item.platform || "",
   tagsText: Array.isArray(item.tags) ? item.tags.join(", ") : "",
@@ -215,8 +217,7 @@ function WebsiteTemplateForm() {
 
     setIsUploadingPreview(true);
     try {
-      const uploadResult = await uploadApi.uploadToCloudinary(previewFile);
-      return uploadResult?.url || "";
+      return await uploadApi.uploadToCloudinary(previewFile, { folder: "website-templates" });
     } finally {
       setIsUploadingPreview(false);
     }
@@ -225,13 +226,21 @@ function WebsiteTemplateForm() {
   const persistTemplate = async (values, mode) => {
     try {
       const uploadedPreviewImage = await uploadPreviewImageIfNeeded();
-      const previewImage = previewImageMode === PREVIEW_IMAGE_MODES.UPLOAD ? uploadedPreviewImage || "" : values.previewImage || "";
+      const isLinkImageChanged = previewImageMode === PREVIEW_IMAGE_MODES.LINK && values.previewImage !== initialSnapshot.previewImage;
+      const previewImage = previewImageMode === PREVIEW_IMAGE_MODES.UPLOAD ? uploadedPreviewImage?.url || "" : values.previewImage || "";
+      const previewImagePublicId =
+        previewImageMode === PREVIEW_IMAGE_MODES.UPLOAD
+          ? uploadedPreviewImage?.publicId || ""
+          : isLinkImageChanged
+            ? ""
+            : values.previewImagePublicId || "";
 
       const payload = {
         name: values.name,
         demoUrl: values.demoUrl,
         templateUrl: values.templateUrl || "",
         previewImage,
+        previewImagePublicId,
         category: values.category,
         platform: values.platform || "",
         tags: tagsToArray(values.tagsText),

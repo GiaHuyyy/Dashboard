@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 import WebsiteTemplate from "../models/WebsiteTemplate.js";
+import { deleteCloudinaryAsset } from "../services/cloudinaryService.js";
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -53,6 +54,7 @@ const normalizePayload = (body = {}) => ({
   demoUrl: normalizeString(body.demoUrl),
   templateUrl: normalizeString(body.templateUrl),
   previewImage: normalizeString(body.previewImage),
+  previewImagePublicId: normalizeString(body.previewImagePublicId),
   category: normalizeString(body.category),
   platform: normalizeString(body.platform),
   tags: normalizeTags(body.tags),
@@ -94,6 +96,7 @@ const toResponseItem = (doc) => ({
   demoUrl: doc.demoUrl,
   templateUrl: doc.templateUrl || "",
   previewImage: doc.previewImage || "",
+  previewImagePublicId: doc.previewImagePublicId || "",
   category: doc.category || "",
   platform: doc.platform || "",
   tags: Array.isArray(doc.tags) ? doc.tags : [],
@@ -189,6 +192,8 @@ export const updateWebsiteTemplate = async (req, res) => {
     demoUrl: normalizedInput.demoUrl || existing.demoUrl,
     templateUrl: typeof req.body.templateUrl === "string" ? normalizedInput.templateUrl : existing.templateUrl,
     previewImage: typeof req.body.previewImage === "string" ? normalizedInput.previewImage : existing.previewImage,
+    previewImagePublicId:
+      typeof req.body.previewImagePublicId === "string" ? normalizedInput.previewImagePublicId : existing.previewImagePublicId,
     category: normalizedInput.category || existing.category,
     platform: typeof req.body.platform === "string" ? normalizedInput.platform : existing.platform,
     tags: Object.prototype.hasOwnProperty.call(req.body, "tags") ? normalizedInput.tags : existing.tags,
@@ -200,8 +205,18 @@ export const updateWebsiteTemplate = async (req, res) => {
   const validationError = await validatePayload(mergedPayload, String(existing._id));
   if (validationError) return res.status(validationError.status).json({ message: validationError.message });
 
+  const oldPreviewImagePublicId = existing.previewImagePublicId || "";
+  const shouldDeleteOldPreviewImage =
+    oldPreviewImagePublicId &&
+    typeof req.body.previewImage === "string" &&
+    (mergedPayload.previewImage !== existing.previewImage || mergedPayload.previewImagePublicId !== oldPreviewImagePublicId);
+
   Object.assign(existing, mergedPayload);
   await existing.save();
+
+  if (shouldDeleteOldPreviewImage) {
+    await deleteCloudinaryAsset(oldPreviewImagePublicId);
+  }
 
   return res.json({
     message: "Đã cập nhật website mẫu",
@@ -219,8 +234,16 @@ export const deleteWebsiteTemplate = async (req, res) => {
     return res.status(404).json({ message: "Không tìm thấy website mẫu" });
   }
 
+  const previewImagePublicId = item.previewImagePublicId || "";
   item.isDeleted = true;
+  item.previewImage = "";
+  item.previewImagePublicId = "";
   await item.save();
+
+  if (previewImagePublicId) {
+    await deleteCloudinaryAsset(previewImagePublicId);
+  }
+
   return res.json({ message: "Đã xóa website mẫu" });
 };
 
@@ -230,7 +253,10 @@ export const deleteWebsiteTemplates = async (req, res) => {
     : [];
 
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
-  const result = await WebsiteTemplate.updateMany(filters, { isDeleted: true });
+  const items = await WebsiteTemplate.find(filters).select("previewImagePublicId").lean();
+  const result = await WebsiteTemplate.updateMany(filters, { isDeleted: true, previewImage: "", previewImagePublicId: "" });
+
+  await Promise.all(items.map((item) => deleteCloudinaryAsset(item.previewImagePublicId)));
 
   return res.json({
     message: ids.length > 0 ? "Đã xóa các website mẫu đã chọn" : "Đã xóa toàn bộ website mẫu",

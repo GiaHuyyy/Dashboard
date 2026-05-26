@@ -23,6 +23,11 @@ const websiteTemplateSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    previewImagePublicId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     category: {
       type: String,
       required: true,

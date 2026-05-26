@@ -97,7 +97,14 @@ const mapDetailToForm = (contract) => ({
 });
 
 const mapImages = (images = []) =>
-  Array.isArray(images) ? images.map((url) => ({ kind: "url", url })).filter((item) => item.url) : [];
+  Array.isArray(images)
+    ? images
+        .map((item) => {
+          if (typeof item === "string") return { kind: "url", url: item, publicId: "" };
+          return { kind: "url", url: item?.url || "", publicId: item?.publicId || "" };
+        })
+        .filter((item) => item.url)
+    : [];
 
 function BusinessForm() {
   const navigate = useNavigate();
@@ -228,7 +235,9 @@ function BusinessForm() {
   };
 
   const uploadNewImages = async () => {
-    const existingImageUrls = contractImages.filter((item) => item.kind === "url").map((item) => item.url);
+    const existingImageUrls = contractImages
+      .filter((item) => item.kind === "url")
+      .map((item) => ({ url: item.url, publicId: item.publicId || "" }));
     const newImageFiles = contractImages.filter((item) => item.kind === "file").map((item) => item.file);
     if (newImageFiles.length === 0) return existingImageUrls;
 
@@ -236,8 +245,8 @@ function BusinessForm() {
     try {
       const uploadedImageUrls = await Promise.all(
         newImageFiles.map(async (file) => {
-          const response = await uploadApi.uploadToCloudinary(file);
-          return response.url;
+          const response = await uploadApi.uploadToCloudinary(file, { folder: "business-contracts" });
+          return { url: response.url, publicId: response.publicId || "" };
         }),
       );
       return [...existingImageUrls, ...uploadedImageUrls];

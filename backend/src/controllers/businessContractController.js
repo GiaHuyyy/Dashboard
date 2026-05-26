@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 import BusinessContract from "../models/BusinessContract.js";
+import { deleteCloudinaryAsset } from "../services/cloudinaryService.js";
 import { sendBusinessContractMail } from "../services/businessContractMailService.js";
 
 const HANDOVER_STATUS_OPTIONS = ["Chưa bàn giao", "Đã bàn giao"];
@@ -43,6 +44,38 @@ const parseCcEmails = (ccEmails) => {
     .filter(Boolean);
 };
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const normalizeContractImage = (item) => {
+  if (typeof item === "string") {
+    const url = normalizeString(item);
+    return url ? { url, publicId: "" } : null;
+  }
+
+  if (item && typeof item === "object") {
+    const url = normalizeString(item.url);
+    if (!url) return null;
+    return {
+      url,
+      publicId: normalizeString(item.publicId),
+    };
+  }
+
+  return null;
+};
+
+const normalizeContractImages = (images) =>
+  Array.isArray(images) ? images.map(normalizeContractImage).filter(Boolean) : [];
+
+const getContractImagePublicIds = (images = []) =>
+  normalizeContractImages(images)
+    .map((item) => item.publicId)
+    .filter(Boolean);
+
+const getRemovedContractImagePublicIds = (oldImages = [], nextImages = []) => {
+  const nextPublicIds = new Set(getContractImagePublicIds(nextImages));
+  return getContractImagePublicIds(oldImages).filter((publicId) => !nextPublicIds.has(publicId));
+};
+
 const formatDateTime = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -62,9 +95,7 @@ const toIsoString = (value) => {
 };
 
 const normalizePayload = (body = {}) => {
-  const contractImages = Array.isArray(body.contractImages)
-    ? body.contractImages.map((item) => normalizeString(item)).filter(Boolean)
-    : [];
+  const contractImages = normalizeContractImages(body.contractImages);
   return {
     contractCode: normalizeString(body.contractCode),
     contractName: normalizeString(body.contractName),
@@ -149,7 +180,7 @@ const toResponseItem = (doc) => ({
   salesReceiverName: doc.salesReceiverName || "",
   salesReceiverEmail: doc.salesReceiverEmail || "",
   ccEmails: Array.isArray(doc.ccEmails) ? doc.ccEmails : [],
-  contractImages: Array.isArray(doc.contractImages) ? doc.contractImages : [],
+  contractImages: normalizeContractImages(doc.contractImages),
   expectedHandoverAt: toIsoString(doc.expectedHandoverAt),
   expectedHandoverAtLabel: formatDateTime(doc.expectedHandoverAt),
   handoverStatus: doc.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
@@ -263,7 +294,7 @@ export const listBusinessContractReferences = async (req, res) => {
       salesReceiverName: item.salesReceiverName || "",
       salesReceiverEmail: item.salesReceiverEmail || "",
       ccEmails: Array.isArray(item.ccEmails) ? item.ccEmails : [],
-      contractImages: Array.isArray(item.contractImages) ? item.contractImages : [],
+      contractImages: normalizeContractImages(item.contractImages),
       expectedHandoverAt: toIsoString(item.expectedHandoverAt),
       expectedHandoverAtLabel: formatDateTime(item.expectedHandoverAt),
       handoverStatus: item.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
@@ -326,6 +357,8 @@ export const updateBusinessContract = async (req, res) => {
   existing.salesReceiverName = mergedPayload.salesReceiverName;
   existing.salesReceiverEmail = mergedPayload.salesReceiverEmail;
   existing.ccEmails = mergedPayload.ccEmails;
+  const removedImagePublicIds = getRemovedContractImagePublicIds(existing.contractImages, mergedPayload.contractImages);
+
   existing.contractImages = mergedPayload.contractImages;
   existing.expectedHandoverAt = mergedPayload.expectedHandoverAt;
   existing.handoverStatus = mergedPayload.handoverStatus;
@@ -333,6 +366,8 @@ export const updateBusinessContract = async (req, res) => {
   existing.visible = mergedPayload.visible;
   existing.note = mergedPayload.note;
   await existing.save();
+
+  await Promise.all(removedImagePublicIds.map((publicId) => deleteCloudinaryAsset(publicId)));
 
   if (shouldSendMail) {
     try {
@@ -372,8 +407,13 @@ export const deleteBusinessContract = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
   const existing = await BusinessContract.findById(req.params.id);
   if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
+  const imagePublicIds = getContractImagePublicIds(existing.contractImages);
   existing.isDeleted = true;
+  existing.contractImages = [];
   await existing.save();
+
+  await Promise.all(imagePublicIds.map((publicId) => deleteCloudinaryAsset(publicId)));
+
   return res.json({ message: "Đã xóa hợp đồng kinh doanh" });
 };
 
@@ -383,7 +423,11 @@ export const deleteBusinessContracts = async (req, res) => {
     : [];
 
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
-  const result = await BusinessContract.updateMany(filters, { isDeleted: true });
+  const contracts = await BusinessContract.find(filters).select("contractImages").lean();
+  const result = await BusinessContract.updateMany(filters, { isDeleted: true, contractImages: [] });
+  const imagePublicIds = contracts.flatMap((contract) => getContractImagePublicIds(contract.contractImages));
+
+  await Promise.all(imagePublicIds.map((publicId) => deleteCloudinaryAsset(publicId)));
 
   return res.json({
     message: ids.length > 0 ? "Đã xóa các hợp đồng đã chọn" : "Đã xóa toàn bộ hợp đồng kinh doanh",
