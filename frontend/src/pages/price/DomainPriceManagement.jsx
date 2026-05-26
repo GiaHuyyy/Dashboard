@@ -1,10 +1,10 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { useManagementList } from "@/hooks/useManagementList";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,35 +20,34 @@ function DomainPriceManagement() {
   const canCreate = can("price.create");
   const canUpdate = can("price.update");
   const canDelete = can("price.delete");
-  const [rows, setRows] = useState([]);
-  const [searchText, setSearchText] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteRow, setDeleteRow] = useState(null);
-
-  const fetchRows = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await domainPriceApi.list({ search: searchText.trim() });
-      const nextRows = Array.isArray(response?.domainPrices) ? response.domainPrices : [];
-      setRows(nextRows);
-      setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
-    } catch (error) {
-      toast.error(error?.message || "Không thể tải bảng giá tên miền");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchText]);
-
-  useEffect(() => {
-    void fetchRows();
-  }, [fetchRows]);
-
-  const displayedRows = useMemo(() => rows, [rows]);
-  const displayedIds = displayedRows.map((item) => item.id);
-  const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
-  const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
+  const {
+    rows,
+    searchText,
+    setSearchText,
+    isLoading,
+    selectedIds,
+    deleteOpen,
+    setDeleteOpen,
+    deleteRow,
+    setDeleteRow,
+    displayedRows,
+    isAllFilteredSelected,
+    deleteManyLabel,
+    handleToggleAll,
+    handleToggleRow,
+    handleDelete,
+  } = useManagementList({
+    listApi: domainPriceApi.list,
+    removeApi: domainPriceApi.remove,
+    removeManyApi: domainPriceApi.removeMany,
+    responseKey: "domainPrices",
+    loadErrorMessage: "Không thể tải bảng giá tên miền",
+    noDeletePermissionMessage: "Bạn không có quyền xóa bảng giá",
+    deleteOneSuccessMessage: "Đã xóa bảng giá tên miền",
+    deleteManySuccessMessage: ({ deletedCount, selectedCount }) =>
+      `Đã xóa ${deletedCount || selectedCount} bảng giá tên miền`,
+    deleteAllSuccessMessage: ({ deletedCount }) => `Đã xóa toàn bộ (${deletedCount || 0}) bảng giá tên miền`,
+  });
 
   const openCreate = () => {
     if (!canCreate) {
@@ -59,50 +58,6 @@ function DomainPriceManagement() {
   };
   const openEdit = (row) => {
     navigate(`/bang-gia/ten-mien/chinh-sua/${row.id}`);
-  };
-
-  const handleToggleAll = (checked) => {
-    if (checked) {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((id) => !displayedIds.includes(id)));
-  };
-
-  const handleToggleRow = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) return prev.includes(id) ? prev : [...prev, id];
-      return prev.filter((item) => item !== id);
-    });
-  };
-
-  const handleDelete = async () => {
-    if (!canDelete) {
-      toast.error("Bạn không có quyền xóa bảng giá");
-      return;
-    }
-
-    try {
-      if (deleteRow?.id) {
-        await domainPriceApi.remove(deleteRow.id);
-        setRows((prev) => prev.filter((item) => item.id !== deleteRow.id));
-        toast.success("Đã xóa bảng giá tên miền");
-      } else if (selectedIds.length > 0) {
-        const response = await domainPriceApi.removeMany(selectedIds);
-        setRows((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
-        toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} bảng giá tên miền`);
-      } else {
-        const response = await domainPriceApi.removeMany([]);
-        setRows([]);
-        toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) bảng giá tên miền`);
-      }
-    } catch (error) {
-      toast.error(error?.message || "Xóa dữ liệu không thành công");
-    } finally {
-      setDeleteOpen(false);
-      setDeleteRow(null);
-      setSelectedIds([]);
-    }
   };
 
   return (
@@ -261,7 +216,7 @@ function DomainPriceManagement() {
             </button>
             <button
               type="button"
-              onClick={() => void handleDelete()}
+              onClick={() => void handleDelete({ canDelete })}
               className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Xóa
