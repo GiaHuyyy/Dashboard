@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { FormActions } from "@/components/program-form/FormActions";
+import { FormActions } from "@/components/forms/FormActions";
 import FormField from "@/components/ui/form-field";
 import { userApi } from "@/lib/api-client";
 import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";

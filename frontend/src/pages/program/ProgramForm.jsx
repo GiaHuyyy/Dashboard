@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/program-form/FormActions";
-import { ProgramInfo } from "@/components/program-form/ProgramInfo";
+import { FormActions } from "@/components/forms/FormActions";
+import { ProgramInfo } from "@/components/program/ProgramInfo";
 import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";

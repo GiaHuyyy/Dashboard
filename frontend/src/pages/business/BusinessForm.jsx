@@ -6,9 +6,9 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/program-form/FormActions";
-import { ImageLightbox } from "@/components/program-form/ImageLightbox";
-import { ImageUpload } from "@/components/program-form/ImageUpload";
+import { FormActions } from "@/components/forms/FormActions";
+import { ImageLightbox } from "@/components/forms/ImageLightbox";
+import { ImageUpload } from "@/components/forms/ImageUpload";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";

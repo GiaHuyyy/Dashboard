@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { ManagementActions } from "@/components/program/ManagementActions";
-import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { ManagementActions } from "@/components/management/ManagementActions";
+import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
 import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
 import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";

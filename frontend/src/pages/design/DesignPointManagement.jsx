@@ -2,7 +2,7 @@ import { Download, Lock, LockOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { Button } from "@/components/ui/button-v2";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { designPointApi } from "@/lib/api-client";

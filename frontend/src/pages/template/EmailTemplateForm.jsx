@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { FormActions } from "@/components/program-form/FormActions";
+import { FormActions } from "@/components/forms/FormActions";
 import { EmailTemplateEditor } from "@/components/template/EmailTemplateEditor";
 import FormField from "@/components/ui/form-field";
 import { emailTemplateApi } from "@/lib/api-client";

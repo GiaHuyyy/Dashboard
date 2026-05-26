@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { ManagementActions } from "@/components/program/ManagementActions";
-import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { ManagementActions } from "@/components/management/ManagementActions";
+import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { SOURCE_SEND_STATUS_OPTIONS } from "@/constants/program-source";
 import { sourceApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";

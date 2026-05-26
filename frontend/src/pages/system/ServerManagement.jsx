@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button-v2";
-import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermission } from "@/lib/permissions";
 

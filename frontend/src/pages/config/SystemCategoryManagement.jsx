@@ -5,8 +5,8 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { ManagementActions } from "@/components/program/ManagementActions";
-import { ManagementTableCard } from "@/components/program/ManagementTableCard";
+import { ManagementActions } from "@/components/management/ManagementActions";
+import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { Button } from "@/components/ui/button-v2";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";

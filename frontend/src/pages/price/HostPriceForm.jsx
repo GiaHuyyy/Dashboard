@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/program-form/FormActions";
+import { FormActions } from "@/components/forms/FormActions";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { hostPriceApi } from "@/lib/api-client";
