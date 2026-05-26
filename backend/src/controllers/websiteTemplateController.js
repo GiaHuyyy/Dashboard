@@ -5,6 +5,7 @@ import { formatDateTime } from "../utils/date.js";
 import { normalizeBoolean, normalizeString, normalizeStringArray, parsePositiveInteger } from "../utils/normalize.js";
 import { escapeRegex, isValidHttpUrl } from "../utils/query.js";
 import { deleteCloudinaryAsset } from "../services/cloudinaryService.js";
+import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const normalizePayload = (body = {}) => ({
   name: normalizeString(body.name),
@@ -96,7 +97,7 @@ export const listWebsiteTemplates = async (req, res) => {
     WebsiteTemplate.countDocuments(filters),
   ]);
 
-  return res.json({
+  return sendOk(res, {
     page,
     limit,
     total,
@@ -106,28 +107,28 @@ export const listWebsiteTemplates = async (req, res) => {
 
 export const getWebsiteTemplateById = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
-    return res.status(400).json({ message: "id không hợp lệ" });
+    return sendBadRequest(res, "id không hợp lệ");
   }
 
   const item = await WebsiteTemplate.findById(req.params.id).lean();
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy website mẫu" });
+    return sendNotFound(res, "Không tìm thấy website mẫu");
   }
 
-  return res.json({ websiteTemplate: toResponseItem(item) });
+  return sendOk(res, { websiteTemplate: toResponseItem(item) });
 };
 
 export const createWebsiteTemplate = async (req, res) => {
   const payload = normalizePayload(req.body);
   const validationError = await validatePayload(payload);
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   const created = await WebsiteTemplate.create({
     ...payload,
     createdBy: req.user.sub,
   });
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Đã thêm website mẫu",
     websiteTemplate: toResponseItem(created),
   });
@@ -135,12 +136,12 @@ export const createWebsiteTemplate = async (req, res) => {
 
 export const updateWebsiteTemplate = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
-    return res.status(400).json({ message: "id không hợp lệ" });
+    return sendBadRequest(res, "id không hợp lệ");
   }
 
   const existing = await WebsiteTemplate.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy website mẫu" });
+    return sendNotFound(res, "Không tìm thấy website mẫu");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -160,7 +161,7 @@ export const updateWebsiteTemplate = async (req, res) => {
   };
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   const oldPreviewImagePublicId = existing.previewImagePublicId || "";
   const shouldDeleteOldPreviewImage =
@@ -175,7 +176,7 @@ export const updateWebsiteTemplate = async (req, res) => {
     await deleteCloudinaryAsset(oldPreviewImagePublicId);
   }
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã cập nhật website mẫu",
     websiteTemplate: toResponseItem(existing),
   });
@@ -183,12 +184,12 @@ export const updateWebsiteTemplate = async (req, res) => {
 
 export const deleteWebsiteTemplate = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
-    return res.status(400).json({ message: "id không hợp lệ" });
+    return sendBadRequest(res, "id không hợp lệ");
   }
 
   const item = await WebsiteTemplate.findById(req.params.id);
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy website mẫu" });
+    return sendNotFound(res, "Không tìm thấy website mẫu");
   }
 
   const previewImagePublicId = item.previewImagePublicId || "";
@@ -201,7 +202,7 @@ export const deleteWebsiteTemplate = async (req, res) => {
     await deleteCloudinaryAsset(previewImagePublicId);
   }
 
-  return res.json({ message: "Đã xóa website mẫu" });
+  return sendOk(res, { message: "Đã xóa website mẫu" });
 };
 
 export const deleteWebsiteTemplates = async (req, res) => {
@@ -215,7 +216,7 @@ export const deleteWebsiteTemplates = async (req, res) => {
 
   await Promise.all(items.map((item) => deleteCloudinaryAsset(item.previewImagePublicId)));
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các website mẫu đã chọn" : "Đã xóa toàn bộ website mẫu",
     deletedCount: result.modifiedCount || 0,
   });

@@ -4,6 +4,7 @@ import SslPrice from "../models/SslPrice.js";
 import { formatDateTime } from "../utils/date.js";
 import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
+import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const SSL_TYPES = ["DV", "OV", "EV", "Wildcard"];
 const normalizePayload = (body = {}) => ({
@@ -66,28 +67,28 @@ export const listSslPrices = async (req, res) => {
   }
 
   const items = await SslPrice.find(filters).sort({ createdAt: 1 }).lean();
-  return res.json({ sslPrices: items.map(toResponseItem) });
+  return sendOk(res, { sslPrices: items.map(toResponseItem) });
 };
 
 export const getSslPriceById = async (req, res) => {
   const item = await SslPrice.findById(req.params.id).lean();
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá SSL" });
+    return sendNotFound(res, "Không tìm thấy bảng giá SSL");
   }
-  return res.json({ sslPrice: toResponseItem(item) });
+  return sendOk(res, { sslPrice: toResponseItem(item) });
 };
 
 export const createSslPrice = async (req, res) => {
   const payload = normalizePayload(req.body);
   const validationError = await validatePayload(payload);
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   const created = await SslPrice.create({
     ...payload,
     createdBy: req.user.sub,
   });
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Đã thêm bảng giá SSL",
     sslPrice: toResponseItem(created),
   });
@@ -96,7 +97,7 @@ export const createSslPrice = async (req, res) => {
 export const updateSslPrice = async (req, res) => {
   const existing = await SslPrice.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá SSL" });
+    return sendNotFound(res, "Không tìm thấy bảng giá SSL");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -111,7 +112,7 @@ export const updateSslPrice = async (req, res) => {
   };
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   existing.name = mergedPayload.name;
   existing.sslType = mergedPayload.sslType;
@@ -122,7 +123,7 @@ export const updateSslPrice = async (req, res) => {
   existing.note = mergedPayload.note;
   await existing.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã cập nhật bảng giá SSL",
     sslPrice: toResponseItem(existing),
   });
@@ -131,11 +132,11 @@ export const updateSslPrice = async (req, res) => {
 export const deleteSslPrice = async (req, res) => {
   const item = await SslPrice.findById(req.params.id);
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá SSL" });
+    return sendNotFound(res, "Không tìm thấy bảng giá SSL");
   }
   item.isDeleted = true;
   await item.save();
-  return res.json({ message: "Đã xóa bảng giá SSL" });
+  return sendOk(res, { message: "Đã xóa bảng giá SSL" });
 };
 
 export const deleteSslPrices = async (req, res) => {
@@ -145,7 +146,7 @@ export const deleteSslPrices = async (req, res) => {
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await SslPrice.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các bảng giá SSL đã chọn" : "Đã xóa toàn bộ bảng giá SSL",
     deletedCount: result.modifiedCount || 0,
   });

@@ -4,6 +4,7 @@ import PackagePrice from "../models/PackagePrice.js";
 import { formatDateTime } from "../utils/date.js";
 import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
+import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const normalizePayload = (body = {}) => ({
   name: normalizeString(body.name),
@@ -58,28 +59,28 @@ export const listPackagePrices = async (req, res) => {
     filters.$or = [{ name: { $regex: search, $options: "i" } }, { note: { $regex: search, $options: "i" } }];
   }
   const items = await PackagePrice.find(filters).sort({ createdAt: 1 }).lean();
-  return res.json({ packagePrices: items.map(toResponseItem) });
+  return sendOk(res, { packagePrices: items.map(toResponseItem) });
 };
 
 export const getPackagePriceById = async (req, res) => {
   const item = await PackagePrice.findById(req.params.id).lean();
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá trọn gói" });
+    return sendNotFound(res, "Không tìm thấy bảng giá trọn gói");
   }
-  return res.json({ packagePrice: toResponseItem(item) });
+  return sendOk(res, { packagePrice: toResponseItem(item) });
 };
 
 export const createPackagePrice = async (req, res) => {
   const payload = normalizePayload(req.body);
   const validationError = await validatePayload(payload);
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   const created = await PackagePrice.create({
     ...payload,
     createdBy: req.user.sub,
   });
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Đã thêm bảng giá trọn gói",
     packagePrice: toResponseItem(created),
   });
@@ -88,7 +89,7 @@ export const createPackagePrice = async (req, res) => {
 export const updatePackagePrice = async (req, res) => {
   const existing = await PackagePrice.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá trọn gói" });
+    return sendNotFound(res, "Không tìm thấy bảng giá trọn gói");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -105,7 +106,7 @@ export const updatePackagePrice = async (req, res) => {
   };
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   existing.name = mergedPayload.name;
   existing.includesHosting = mergedPayload.includesHosting;
@@ -117,7 +118,7 @@ export const updatePackagePrice = async (req, res) => {
   existing.note = mergedPayload.note;
   await existing.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã cập nhật bảng giá trọn gói",
     packagePrice: toResponseItem(existing),
   });
@@ -126,11 +127,11 @@ export const updatePackagePrice = async (req, res) => {
 export const deletePackagePrice = async (req, res) => {
   const item = await PackagePrice.findById(req.params.id);
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá trọn gói" });
+    return sendNotFound(res, "Không tìm thấy bảng giá trọn gói");
   }
   item.isDeleted = true;
   await item.save();
-  return res.json({ message: "Đã xóa bảng giá trọn gói" });
+  return sendOk(res, { message: "Đã xóa bảng giá trọn gói" });
 };
 
 export const deletePackagePrices = async (req, res) => {
@@ -140,7 +141,7 @@ export const deletePackagePrices = async (req, res) => {
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await PackagePrice.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các bảng giá trọn gói đã chọn" : "Đã xóa toàn bộ bảng giá trọn gói",
     deletedCount: result.modifiedCount || 0,
   });

@@ -4,6 +4,7 @@ import AdvertisingPrice from "../models/AdvertisingPrice.js";
 import { formatDateTime } from "../utils/date.js";
 import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
+import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const PLATFORM_OPTIONS = ["Google", "Facebook", "TikTok", "Zalo"];
 const normalizePayload = (body = {}) => ({
@@ -63,28 +64,28 @@ export const listAdvertisingPrices = async (req, res) => {
     ];
   }
   const items = await AdvertisingPrice.find(filters).sort({ createdAt: 1 }).lean();
-  return res.json({ advertisingPrices: items.map(toResponseItem) });
+  return sendOk(res, { advertisingPrices: items.map(toResponseItem) });
 };
 
 export const getAdvertisingPriceById = async (req, res) => {
   const item = await AdvertisingPrice.findById(req.params.id).lean();
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá quảng cáo" });
+    return sendNotFound(res, "Không tìm thấy bảng giá quảng cáo");
   }
-  return res.json({ advertisingPrice: toResponseItem(item) });
+  return sendOk(res, { advertisingPrice: toResponseItem(item) });
 };
 
 export const createAdvertisingPrice = async (req, res) => {
   const payload = normalizePayload(req.body);
   const validationError = await validatePayload(payload);
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   const created = await AdvertisingPrice.create({
     ...payload,
     createdBy: req.user.sub,
   });
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Đã thêm bảng giá quảng cáo",
     advertisingPrice: toResponseItem(created),
   });
@@ -93,7 +94,7 @@ export const createAdvertisingPrice = async (req, res) => {
 export const updateAdvertisingPrice = async (req, res) => {
   const existing = await AdvertisingPrice.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá quảng cáo" });
+    return sendNotFound(res, "Không tìm thấy bảng giá quảng cáo");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -109,7 +110,7 @@ export const updateAdvertisingPrice = async (req, res) => {
   };
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   existing.platform = mergedPayload.platform;
   existing.packageName = mergedPayload.packageName;
@@ -120,7 +121,7 @@ export const updateAdvertisingPrice = async (req, res) => {
   existing.note = mergedPayload.note;
   await existing.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã cập nhật bảng giá quảng cáo",
     advertisingPrice: toResponseItem(existing),
   });
@@ -129,11 +130,11 @@ export const updateAdvertisingPrice = async (req, res) => {
 export const deleteAdvertisingPrice = async (req, res) => {
   const item = await AdvertisingPrice.findById(req.params.id);
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá quảng cáo" });
+    return sendNotFound(res, "Không tìm thấy bảng giá quảng cáo");
   }
   item.isDeleted = true;
   await item.save();
-  return res.json({ message: "Đã xóa bảng giá quảng cáo" });
+  return sendOk(res, { message: "Đã xóa bảng giá quảng cáo" });
 };
 
 export const deleteAdvertisingPrices = async (req, res) => {
@@ -143,7 +144,7 @@ export const deleteAdvertisingPrices = async (req, res) => {
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await AdvertisingPrice.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các bảng giá quảng cáo đã chọn" : "Đã xóa toàn bộ bảng giá quảng cáo",
     deletedCount: result.modifiedCount || 0,
   });

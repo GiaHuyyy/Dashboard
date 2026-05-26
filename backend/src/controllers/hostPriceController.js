@@ -4,6 +4,7 @@ import HostPrice from "../models/HostPrice.js";
 import { formatDateTime } from "../utils/date.js";
 import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
+import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const normalizePayload = (body = {}) => ({
   name: normalizeString(body.name),
@@ -69,7 +70,7 @@ export const listHostPrices = async (req, res) => {
   }
 
   const items = await HostPrice.find(filters).sort({ createdAt: 1 }).lean();
-  return res.json({
+  return sendOk(res, {
     hostPrices: items.map(toResponseItem),
   });
 };
@@ -77,16 +78,16 @@ export const listHostPrices = async (req, res) => {
 export const getHostPriceById = async (req, res) => {
   const item = await HostPrice.findById(req.params.id).lean();
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá host" });
+    return sendNotFound(res, "Không tìm thấy bảng giá host");
   }
-  return res.json({ hostPrice: toResponseItem(item) });
+  return sendOk(res, { hostPrice: toResponseItem(item) });
 };
 
 export const createHostPrice = async (req, res) => {
   const payload = normalizePayload(req.body);
   const validationError = await validatePayload(payload);
   if (validationError) {
-    return res.status(validationError.status).json({ message: validationError.message });
+    return sendValidationError(res, validationError);
   }
 
   const created = await HostPrice.create({
@@ -94,7 +95,7 @@ export const createHostPrice = async (req, res) => {
     createdBy: req.user.sub,
   });
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Đã thêm bảng giá host",
     hostPrice: toResponseItem(created),
   });
@@ -103,7 +104,7 @@ export const createHostPrice = async (req, res) => {
 export const updateHostPrice = async (req, res) => {
   const existing = await HostPrice.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá host" });
+    return sendNotFound(res, "Không tìm thấy bảng giá host");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -120,7 +121,7 @@ export const updateHostPrice = async (req, res) => {
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));
   if (validationError) {
-    return res.status(validationError.status).json({ message: validationError.message });
+    return sendValidationError(res, validationError);
   }
 
   existing.name = mergedPayload.name;
@@ -133,7 +134,7 @@ export const updateHostPrice = async (req, res) => {
   existing.note = mergedPayload.note;
   await existing.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã cập nhật bảng giá host",
     hostPrice: toResponseItem(existing),
   });
@@ -142,12 +143,12 @@ export const updateHostPrice = async (req, res) => {
 export const deleteHostPrice = async (req, res) => {
   const item = await HostPrice.findById(req.params.id);
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá host" });
+    return sendNotFound(res, "Không tìm thấy bảng giá host");
   }
 
   item.isDeleted = true;
   await item.save();
-  return res.json({ message: "Đã xóa bảng giá host" });
+  return sendOk(res, { message: "Đã xóa bảng giá host" });
 };
 
 export const deleteHostPrices = async (req, res) => {
@@ -158,7 +159,7 @@ export const deleteHostPrices = async (req, res) => {
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await HostPrice.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các bảng giá host đã chọn" : "Đã xóa toàn bộ bảng giá host",
     deletedCount: result.modifiedCount || 0,
   });

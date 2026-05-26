@@ -4,6 +4,7 @@ import AdministrationPrice from "../models/AdministrationPrice.js";
 import { formatDateTime } from "../utils/date.js";
 import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
+import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const SCOPE_OPTIONS = ["Website", "Hệ thống", "Server"];
 const FREQUENCY_OPTIONS = ["Tháng", "Quý", "Năm", "Theo yêu cầu"];
@@ -61,28 +62,28 @@ export const listAdministrationPrices = async (req, res) => {
     ];
   }
   const items = await AdministrationPrice.find(filters).sort({ createdAt: 1 }).lean();
-  return res.json({ administrationPrices: items.map(toResponseItem) });
+  return sendOk(res, { administrationPrices: items.map(toResponseItem) });
 };
 
 export const getAdministrationPriceById = async (req, res) => {
   const item = await AdministrationPrice.findById(req.params.id).lean();
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá quản trị" });
+    return sendNotFound(res, "Không tìm thấy bảng giá quản trị");
   }
-  return res.json({ administrationPrice: toResponseItem(item) });
+  return sendOk(res, { administrationPrice: toResponseItem(item) });
 };
 
 export const createAdministrationPrice = async (req, res) => {
   const payload = normalizePayload(req.body);
   const validationError = await validatePayload(payload);
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   const created = await AdministrationPrice.create({
     ...payload,
     createdBy: req.user.sub,
   });
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Đã thêm bảng giá quản trị",
     administrationPrice: toResponseItem(created),
   });
@@ -91,7 +92,7 @@ export const createAdministrationPrice = async (req, res) => {
 export const updateAdministrationPrice = async (req, res) => {
   const existing = await AdministrationPrice.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá quản trị" });
+    return sendNotFound(res, "Không tìm thấy bảng giá quản trị");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -106,7 +107,7 @@ export const updateAdministrationPrice = async (req, res) => {
   };
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   existing.serviceName = mergedPayload.serviceName;
   existing.scope = mergedPayload.scope;
@@ -117,7 +118,7 @@ export const updateAdministrationPrice = async (req, res) => {
   existing.note = mergedPayload.note;
   await existing.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã cập nhật bảng giá quản trị",
     administrationPrice: toResponseItem(existing),
   });
@@ -126,11 +127,11 @@ export const updateAdministrationPrice = async (req, res) => {
 export const deleteAdministrationPrice = async (req, res) => {
   const item = await AdministrationPrice.findById(req.params.id);
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy bảng giá quản trị" });
+    return sendNotFound(res, "Không tìm thấy bảng giá quản trị");
   }
   item.isDeleted = true;
   await item.save();
-  return res.json({ message: "Đã xóa bảng giá quản trị" });
+  return sendOk(res, { message: "Đã xóa bảng giá quản trị" });
 };
 
 export const deleteAdministrationPrices = async (req, res) => {
@@ -140,7 +141,7 @@ export const deleteAdministrationPrices = async (req, res) => {
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await AdministrationPrice.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các bảng giá quản trị đã chọn" : "Đã xóa toàn bộ bảng giá quản trị",
     deletedCount: result.modifiedCount || 0,
   });
