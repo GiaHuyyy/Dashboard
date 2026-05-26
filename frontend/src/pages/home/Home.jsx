@@ -176,8 +176,6 @@ function Home() {
             <p>
               <span className="font-semibold text-slate-700">Quá hạn</span> khi đã vượt quá ngày dự kiến hoặc hạn hiệu lực link.
             </p>
-            <p>Source chỉ cảnh báo khi đã gửi, chưa tải và có hạn hiệu lực link.</p>
-            <p>Hợp đồng chỉ cảnh báo khi chưa bàn giao và có ngày dự kiến bàn giao.</p>
           </div>
         </div>
       </div>

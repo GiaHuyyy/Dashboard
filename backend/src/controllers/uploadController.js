@@ -41,6 +41,11 @@ const getImageUploadSettings = async () => {
 
 const getFileExtension = (filename = "") => filename.split(".").pop()?.toLowerCase() || "";
 
+const normalizeFolder = (folder = "") =>
+  String(folder || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9/_-]/g, "")
+    .replace(/^\/+|\/+$/g, "");
 
 export const uploadContractImage = async (req, res) => {
   if (!req.file) {
@@ -85,9 +90,11 @@ export const uploadContractImage = async (req, res) => {
         uploadStream.end(req.file.buffer);
       });
 
+    const baseFolder = normalizeFolder(process.env.CLOUDINARY_UPLOAD_FOLDER || "dashboard") || "dashboard";
+    const subFolder = normalizeFolder(req.body?.folder || "");
     const baseOptions = {
       resource_type: "auto",
-      folder: process.env.CLOUDINARY_UPLOAD_FOLDER || "dashboard",
+      folder: subFolder ? `${baseFolder}/${subFolder}` : baseFolder,
     };
     const result = await uploadWithOptions(baseOptions);
 

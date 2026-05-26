@@ -10,9 +10,14 @@ import { FormActions } from "@/components/program-form/FormActions";
 import FormField from "@/components/ui/form-field";
 import { hasPermission } from "@/lib/permissions";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { uploadApi } from "@/lib/upload";
 import { websiteTemplateApi } from "@/lib/api-client";
 
 const PLATFORM_OPTIONS = ["React", "HTML/CSS", "WordPress", "Laravel", "Khác"];
+const PREVIEW_IMAGE_MODES = {
+  LINK: "link",
+  UPLOAD: "upload",
+};
 
 const optionalUrlSchema = z
   .string()
@@ -24,10 +29,7 @@ const optionalPreviewImageSchema = z
   .string()
   .trim()
   .optional()
-  .refine(
-    (value) => !value || /^https?:\/\//i.test(value) || /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/i.test(value),
-    "Link ảnh preview không hợp lệ",
-  );
+  .refine((value) => !value || /^https?:\/\//i.test(value), "Link ảnh preview không hợp lệ");
 
 const getGoogleDriveFileId = (url) => {
   const value = String(url || "").trim();
@@ -45,7 +47,6 @@ const getGoogleDriveFileId = (url) => {
 const getPreviewImageUrl = (url) => {
   const value = String(url || "").trim();
   if (!value) return "";
-  if (/^data:image\//i.test(value)) return value;
 
   const driveFileId = getGoogleDriveFileId(value);
   if (driveFileId) {
@@ -111,12 +112,17 @@ function WebsiteTemplateForm() {
   const { options: categoryOptions, isLoading: isLoadingCategories } = useSystemCategoryOptions("websiteTemplate");
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
+  const [previewImageMode, setPreviewImageMode] = useState(PREVIEW_IMAGE_MODES.LINK);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState("");
+  const [isUploadingPreview, setIsUploadingPreview] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
@@ -124,7 +130,10 @@ function WebsiteTemplateForm() {
   });
 
   const previewImageValue = useWatch({ control, name: "previewImage" });
-  const previewImageUrl = useMemo(() => getPreviewImageUrl(previewImageValue), [previewImageValue]);
+  const previewImageUrl = useMemo(() => {
+    if (previewImageMode === PREVIEW_IMAGE_MODES.UPLOAD) return localPreviewUrl;
+    return getPreviewImageUrl(previewImageValue);
+  }, [localPreviewUrl, previewImageMode, previewImageValue]);
 
   const categorySelectOptions = useMemo(() => {
     if (categoryOptions.length === 0) return [{ label: "Không có dữ liệu", value: "" }];
@@ -132,10 +141,19 @@ function WebsiteTemplateForm() {
   }, [categoryOptions]);
 
   useEffect(() => {
+    return () => {
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    };
+  }, [localPreviewUrl]);
+
+  useEffect(() => {
     if (isEditMode || categoryOptions.length === 0) return;
     const nextDefault = { ...defaultValues, category: categoryOptions[0].value };
     reset(nextDefault);
     setInitialSnapshot(nextDefault);
+    setPreviewImageMode(PREVIEW_IMAGE_MODES.LINK);
+    setPreviewFile(null);
+    setLocalPreviewUrl("");
   }, [categoryOptions, isEditMode, reset]);
 
   useEffect(() => {
@@ -153,6 +171,9 @@ function WebsiteTemplateForm() {
         const mapped = mapTemplateToForm(item);
         reset(mapped);
         setInitialSnapshot(mapped);
+        setPreviewImageMode(PREVIEW_IMAGE_MODES.LINK);
+        setPreviewFile(null);
+        setLocalPreviewUrl("");
       } catch (error) {
         toast.error(error?.message || "Không thể tải chi tiết website mẫu");
         navigate(returnPath);
@@ -163,21 +184,62 @@ function WebsiteTemplateForm() {
     void fetchDetail();
   }, [id, isEditMode, navigate, reset, returnPath]);
 
-  const persistTemplate = async (values, mode) => {
-    const payload = {
-      name: values.name,
-      demoUrl: values.demoUrl,
-      templateUrl: values.templateUrl || "",
-      previewImage: values.previewImage || "",
-      category: values.category,
-      platform: values.platform || "",
-      tags: tagsToArray(values.tagsText),
-      description: values.description || "",
-      note: values.note || "",
-      isActive: values.isActive,
-    };
+  const handlePreviewModeChange = (mode) => {
+    setPreviewImageMode(mode);
+    setPreviewFile(null);
+    setLocalPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return "";
+    });
 
+    if (mode === PREVIEW_IMAGE_MODES.UPLOAD) {
+      setValue("previewImage", "", { shouldDirty: true, shouldValidate: true });
+    }
+  };
+
+  const handlePreviewFileChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    setPreviewFile(file);
+
+    setLocalPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return file ? URL.createObjectURL(file) : "";
+    });
+
+    setValue("previewImage", "", { shouldDirty: true, shouldValidate: true });
+  };
+
+  const uploadPreviewImageIfNeeded = async () => {
+    if (previewImageMode !== PREVIEW_IMAGE_MODES.UPLOAD) return null;
+    if (!previewFile) return "";
+
+    setIsUploadingPreview(true);
     try {
+      const uploadResult = await uploadApi.uploadToCloudinary(previewFile);
+      return uploadResult?.url || "";
+    } finally {
+      setIsUploadingPreview(false);
+    }
+  };
+
+  const persistTemplate = async (values, mode) => {
+    try {
+      const uploadedPreviewImage = await uploadPreviewImageIfNeeded();
+      const previewImage = previewImageMode === PREVIEW_IMAGE_MODES.UPLOAD ? uploadedPreviewImage || "" : values.previewImage || "";
+
+      const payload = {
+        name: values.name,
+        demoUrl: values.demoUrl,
+        templateUrl: values.templateUrl || "",
+        previewImage,
+        category: values.category,
+        platform: values.platform || "",
+        tags: tagsToArray(values.tagsText),
+        description: values.description || "",
+        note: values.note || "",
+        isActive: values.isActive,
+      };
+
       let response = null;
       if (isEditMode) {
         response = await websiteTemplateApi.update(id, payload);
@@ -196,6 +258,9 @@ function WebsiteTemplateForm() {
         const nextSnapshot = mapTemplateToForm(saved || payload);
         reset(nextSnapshot);
         setInitialSnapshot(nextSnapshot);
+        setPreviewImageMode(PREVIEW_IMAGE_MODES.LINK);
+        setPreviewFile(null);
+        setLocalPreviewUrl("");
         return;
       }
 
@@ -228,9 +293,14 @@ function WebsiteTemplateForm() {
       <FormActions
         onSave={() => submitWithMode("save")}
         onSaveStay={() => submitWithMode("save-stay")}
-        onReset={() => reset(initialSnapshot)}
+        onReset={() => {
+          reset(initialSnapshot);
+          setPreviewImageMode(PREVIEW_IMAGE_MODES.LINK);
+          setPreviewFile(null);
+          setLocalPreviewUrl("");
+        }}
         isSubmitting={isSubmitting}
-        isUploading={false}
+        isUploading={isUploadingPreview}
         isEditMode={isEditMode}
         exitPath={returnPath}
         showSaveMail={false}
@@ -238,7 +308,7 @@ function WebsiteTemplateForm() {
         readOnlyTitle="Bạn không có quyền lưu website mẫu"
       />
 
-      <fieldset disabled={!canSave} className="contents">
+      <fieldset disabled={!canSave || isUploadingPreview} className="contents">
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
             Thông tin website mẫu
@@ -268,6 +338,18 @@ function WebsiteTemplateForm() {
                 selectProps={register("platform")}
                 error={errors.platform?.message}
               />
+              <FormField
+                label="Mô tả ngắn"
+                type="textarea"
+                inputProps={{ ...register("description"), rows: 3, placeholder: "Mô tả nhanh về mẫu website" }}
+                error={errors.description?.message}
+              />
+              <FormField
+                label="Ghi chú nội bộ"
+                type="textarea"
+                inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm nếu có" }}
+                error={errors.note?.message}
+              />
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                 <input type="checkbox" {...register("isActive")} />
                 Kích hoạt
@@ -275,7 +357,7 @@ function WebsiteTemplateForm() {
             </div>
 
             <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
-              <p className="text-md font-semibold text-slate-700">Liên kết</p>
+              <p className="text-md font-semibold text-slate-700">Liên kết & ảnh preview</p>
               <FormField
                 label="Link demo"
                 inputProps={{ ...register("demoUrl"), placeholder: "https://..." }}
@@ -286,53 +368,73 @@ function WebsiteTemplateForm() {
                 inputProps={{ ...register("templateUrl"), placeholder: "https://..." }}
                 error={errors.templateUrl?.message}
               />
-              <FormField
-                label="Link ảnh preview"
-                inputProps={{
-                  ...register("previewImage"),
-                  placeholder: "https://..., link Google Drive hoặc data:image/...;base64,...",
-                }}
-                error={errors.previewImage?.message}
-              />
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3">
-                <p className="mb-2 text-xs font-semibold text-slate-500">Xem trước ảnh</p>
-                {previewImageUrl ? (
-                  <img
-                    src={previewImageUrl}
-                    alt="Preview website mẫu"
-                    className="h-36 w-full rounded-lg border border-slate-200 bg-white object-contain p-1"
-                    referrerPolicy="no-referrer"
+
+              <div className="flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-600">
+                  <span>Ảnh preview</span>
+                  <label className="flex items-center gap-2 font-medium">
+                    <input
+                      type="radio"
+                      checked={previewImageMode === PREVIEW_IMAGE_MODES.LINK}
+                      onChange={() => handlePreviewModeChange(PREVIEW_IMAGE_MODES.LINK)}
+                    />
+                    Dùng link ảnh
+                  </label>
+                  <label className="flex items-center gap-2 font-medium">
+                    <input
+                      type="radio"
+                      checked={previewImageMode === PREVIEW_IMAGE_MODES.UPLOAD}
+                      onChange={() => handlePreviewModeChange(PREVIEW_IMAGE_MODES.UPLOAD)}
+                    />
+                    Upload từ máy
+                  </label>
+                </div>
+
+                {previewImageMode === PREVIEW_IMAGE_MODES.LINK ? (
+                  <FormField
+                    label="Link ảnh preview"
+                    inputProps={{
+                      ...register("previewImage"),
+                      placeholder: "https://... hoặc link Google Drive",
+                    }}
+                    error={errors.previewImage?.message}
                   />
                 ) : (
-                  <div className="flex h-36 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-xs text-slate-400">
-                    Chưa có ảnh preview
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600">Upload ảnh preview</label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm file:mr-3 file:rounded-md file:border-0 file:bg-sky-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-sky-700 hover:file:bg-sky-100"
+                      onChange={handlePreviewFileChange}
+                    />
+                    <p className="text-xs text-slate-500">Chấp nhận JPG, PNG, WebP, ... theo cấu hình upload hệ thống.</p>
                   </div>
                 )}
+
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white p-3">
+                  <p className="mb-2 text-xs font-semibold text-slate-500">Xem trước ảnh</p>
+                  {previewImageUrl ? (
+                    <img
+                      src={previewImageUrl}
+                      alt="Preview website mẫu"
+                      className="h-40 w-full rounded-lg border border-slate-200 bg-white object-contain p-1"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-xs text-slate-400">
+                      Chưa có ảnh preview
+                    </div>
+                  )}
+                </div>
               </div>
+
               <FormField
                 label="Tags"
                 inputProps={{ ...register("tagsText"), placeholder: "landing-page, responsive, spa" }}
                 error={errors.tagsText?.message}
               />
             </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Mô tả & ghi chú</div>
-          <div className="grid gap-5 p-5 lg:grid-cols-2">
-            <FormField
-              label="Mô tả ngắn"
-              type="textarea"
-              inputProps={{ ...register("description"), rows: 4, placeholder: "Mô tả nhanh về mẫu website" }}
-              error={errors.description?.message}
-            />
-            <FormField
-              label="Ghi chú nội bộ"
-              type="textarea"
-              inputProps={{ ...register("note"), rows: 4, placeholder: "Ghi chú thêm nếu có" }}
-              error={errors.note?.message}
-            />
           </div>
         </div>
       </fieldset>

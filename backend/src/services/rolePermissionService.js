@@ -166,6 +166,12 @@ export const PERMISSION_GROUPS = [
 ];
 
 const ALL_PERMISSION_KEYS = PERMISSION_GROUPS.flatMap((group) => group.permissions.map((item) => item.key));
+const WEBSITE_TEMPLATE_PERMISSION_KEYS = [
+  "websiteTemplate.view",
+  "websiteTemplate.create",
+  "websiteTemplate.update",
+  "websiteTemplate.delete",
+];
 const unique = (items = []) => Array.from(new Set(items));
 
 const baseViewPermissions = ALL_PERMISSION_KEYS.filter((permission) => permission.endsWith(".view"));
@@ -237,9 +243,14 @@ const seedRolePermission = async (role, userId = null) => {
   const existing = await RolePermission.findOne({ role: normalizedRole });
   if (existing) {
     // Super Admin luôn phải hiển thị đủ toàn bộ quyền mới nhất trên ma trận.
+    // Admin mặc định phải có đủ quyền Website mẫu để dùng được module Kho mẫu ngay sau khi cập nhật.
     // Các role khác giữ nguyên cấu hình người dùng đã chỉnh, tránh tự bật quyền mới ngoài ý muốn.
-    if (normalizedRole === "super_admin") {
-      const nextPermissions = ALL_PERMISSION_KEYS;
+    if (normalizedRole === "super_admin" || normalizedRole === "admin") {
+      const nextPermissions =
+        normalizedRole === "super_admin"
+          ? ALL_PERMISSION_KEYS
+          : unique([...normalizePermissions(existing.permissions), ...WEBSITE_TEMPLATE_PERMISSION_KEYS]);
+
       const currentPermissions = normalizePermissions(existing.permissions);
       const hasDifference =
         currentPermissions.length !== nextPermissions.length || nextPermissions.some((permission) => !currentPermissions.includes(permission));

@@ -36,13 +36,9 @@ const formatDateTime = (value) => {
   const minutes = String(date.getMinutes()).padStart(2, "0");
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
-const isValidHttpUrl = (value, { required = false, allowDataImage = false } = {}) => {
+const isValidHttpUrl = (value, { required = false } = {}) => {
   const normalized = normalizeString(value);
   if (!normalized) return !required;
-
-  if (allowDataImage && /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/i.test(normalized)) {
-    return true;
-  }
 
   try {
     const parsed = new URL(normalized);
@@ -75,8 +71,8 @@ const validatePayload = async (payload, excludeId = "") => {
   if (!isValidHttpUrl(payload.templateUrl)) {
     return { status: 400, message: "Link template không hợp lệ (chỉ chấp nhận http/https)" };
   }
-  if (!isValidHttpUrl(payload.previewImage, { allowDataImage: true })) {
-    return { status: 400, message: "Link ảnh preview không hợp lệ (chỉ chấp nhận http/https hoặc data:image base64)" };
+  if (!isValidHttpUrl(payload.previewImage)) {
+    return { status: 400, message: "Link ảnh preview không hợp lệ (chỉ chấp nhận http/https)" };
   }
   if (payload.isActive === null) return { status: 400, message: "isActive phải là kiểu boolean" };
 
@@ -136,7 +132,7 @@ export const listWebsiteTemplates = async (req, res) => {
 
   const skip = (page - 1) * limit;
   const [items, total] = await Promise.all([
-    WebsiteTemplate.find(filters).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    WebsiteTemplate.find(filters).sort({ createdAt: 1 }).skip(skip).limit(limit).lean(),
     WebsiteTemplate.countDocuments(filters),
   ]);
 

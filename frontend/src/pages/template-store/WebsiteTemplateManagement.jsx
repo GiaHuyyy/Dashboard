@@ -37,8 +37,6 @@ const getGoogleDriveFileId = (url) => {
 const getPreviewImageUrl = (url) => {
   const value = String(url || "").trim();
   if (!value) return "";
-  if (/^data:image\//i.test(value)) return value;
-
   const driveFileId = getGoogleDriveFileId(value);
   if (driveFileId) {
     return `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveFileId)}&sz=w1000`;
@@ -59,7 +57,7 @@ function PreviewImage({ src, alt }) {
   if (!imageUrl || hasError) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[11px] text-slate-400">
-        <ImageOff  />
+        <ImageOff />
         Chưa có ảnh
       </div>
     );
@@ -254,8 +252,12 @@ function WebsiteTemplateManagement() {
                   onClick={(event) => event.stopPropagation()}
                 />
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
-              <TableHead className="w-40 border border-slate-200 p-4 px-10 text-center font-semibold text-slate-500">Ảnh</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                STT
+              </TableHead>
+              <TableHead className="w-40 border border-slate-200 p-4 px-10 text-center font-semibold text-slate-500">
+                Ảnh
+              </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Website mẫu
               </TableHead>
@@ -265,8 +267,12 @@ function WebsiteTemplateManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Nền tảng
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Tags</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Link</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Tags
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Link
+              </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Kích hoạt
               </TableHead>
@@ -315,16 +321,26 @@ function WebsiteTemplateManagement() {
                   </TableCell>
                   <TableCell className="max-w-72 border border-slate-200 p-4 text-left">
                     <div className="font-semibold text-sky-700">{row.name}</div>
-                    {row.description ? <div className="mt-1 line-clamp-2 text-xs text-slate-500">{row.description}</div> : null}
+                    {row.description ? (
+                      <div className="mt-1 line-clamp-2 text-xs text-slate-500">{row.description}</div>
+                    ) : null}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.category || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.platform || "-"}</TableCell>
-                  <TableCell className="max-w-56 border border-slate-200 p-4 text-left">
+                  <TableCell
+                    className="max-w-56 border border-slate-200 p-4 text-left truncate"
+                    title={row.tags?.join(", ")}
+                  >
                     {Array.isArray(row.tags) && row.tags.length > 0 ? row.tags.join(", ") : "-"}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <div className="flex flex-wrap items-center justify-center gap-2">
-                      <Button icon={ExternalLink} label="Demo" size="sm" onClick={() => openExternalLink(row.demoUrl)} />
+                      <Button
+                        icon={ExternalLink}
+                        label="Demo"
+                        size="sm"
+                        onClick={() => openExternalLink(row.demoUrl)}
+                      />
                       <Button
                         icon={ExternalLink}
                         label="Template"
@@ -347,7 +363,10 @@ function WebsiteTemplateManagement() {
                     </label>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.createdAt || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-center" onClick={(event) => event.stopPropagation()}>
+                  <TableCell
+                    className="border border-slate-200 p-4 text-center"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <div className="flex items-center justify-center gap-2">
                       <Button
                         icon={SquarePen}
