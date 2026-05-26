@@ -1,35 +1,12 @@
 import mongoose from "mongoose";
 
 import AdministrationPrice from "../models/AdministrationPrice.js";
+import { formatDateTime } from "../utils/date.js";
+import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
+import { escapeRegex } from "../utils/query.js";
 
 const SCOPE_OPTIONS = ["Website", "Hệ thống", "Server"];
 const FREQUENCY_OPTIONS = ["Tháng", "Quý", "Năm", "Theo yêu cầu"];
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-};
-
 const normalizePayload = (body = {}) => ({
   serviceName: normalizeString(body.serviceName),
   scope: normalizeString(body.scope),
@@ -48,7 +25,7 @@ const validatePayload = async (payload, excludeId = "") => {
   if (payload.slaHours === null || payload.slaHours < 0) return { status: 400, message: "slaHours không hợp lệ" };
   if (payload.visible === null) return { status: 400, message: "visible phải là kiểu boolean" };
 
-  const escapedService = payload.serviceName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedService = escapeRegex(payload.serviceName);
   const existing = await AdministrationPrice.findOne({
     serviceName: { $regex: `^${escapedService}$`, $options: "i" },
     scope: payload.scope,

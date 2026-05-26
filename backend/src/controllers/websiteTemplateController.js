@@ -1,53 +1,10 @@
 import mongoose from "mongoose";
 
 import WebsiteTemplate from "../models/WebsiteTemplate.js";
-import { deleteImageAsset } from "../services/uploadAssetService.js";
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const parsePositiveInteger = (value) => {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-};
-const normalizeTags = (value) => {
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeString(item)).filter(Boolean);
-  }
-
-  return normalizeString(value)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-};
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-const isValidHttpUrl = (value, { required = false } = {}) => {
-  const normalized = normalizeString(value);
-  if (!normalized) return !required;
-
-  try {
-    const parsed = new URL(normalized);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-};
+import { formatDateTime } from "../utils/date.js";
+import { normalizeBoolean, normalizeString, normalizeStringArray, parsePositiveInteger } from "../utils/normalize.js";
+import { escapeRegex, isValidHttpUrl } from "../utils/query.js";
+import { deleteCloudinaryAsset } from "../services/cloudinaryService.js";
 
 const normalizePayload = (body = {}) => ({
   name: normalizeString(body.name),
@@ -57,7 +14,7 @@ const normalizePayload = (body = {}) => ({
   previewImagePublicId: normalizeString(body.previewImagePublicId),
   category: normalizeString(body.category),
   platform: normalizeString(body.platform),
-  tags: normalizeTags(body.tags),
+  tags: normalizeStringArray(body.tags),
   description: normalizeString(body.description),
   note: normalizeString(body.note),
   isActive: normalizeBoolean(body.isActive),
@@ -78,7 +35,7 @@ const validatePayload = async (payload, excludeId = "") => {
   }
   if (payload.isActive === null) return { status: 400, message: "isActive phải là kiểu boolean" };
 
-  const escapedName = payload.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedName = escapeRegex(payload.name);
   const duplicate = await WebsiteTemplate.findOne({
     name: { $regex: `^${escapedName}$`, $options: "i" },
     isDeleted: false,
@@ -103,8 +60,8 @@ const toResponseItem = (doc) => ({
   description: doc.description || "",
   note: doc.note || "",
   isActive: Boolean(doc.isActive),
-  createdAt: formatDateTime(doc.createdAt),
-  updatedAt: formatDateTime(doc.updatedAt),
+  createdAt: formatDateTime(doc.createdAt, { includeSeconds: false }),
+  updatedAt: formatDateTime(doc.updatedAt, { includeSeconds: false }),
 });
 
 export const listWebsiteTemplates = async (req, res) => {
@@ -215,7 +172,7 @@ export const updateWebsiteTemplate = async (req, res) => {
   await existing.save();
 
   if (shouldDeleteOldPreviewImage) {
-    await deleteImageAsset(oldPreviewImagePublicId);
+    await deleteCloudinaryAsset(oldPreviewImagePublicId);
   }
 
   return res.json({
@@ -241,7 +198,7 @@ export const deleteWebsiteTemplate = async (req, res) => {
   await item.save();
 
   if (previewImagePublicId) {
-    await deleteImageAsset(previewImagePublicId);
+    await deleteCloudinaryAsset(previewImagePublicId);
   }
 
   return res.json({ message: "Đã xóa website mẫu" });
@@ -256,7 +213,7 @@ export const deleteWebsiteTemplates = async (req, res) => {
   const items = await WebsiteTemplate.find(filters).select("previewImagePublicId").lean();
   const result = await WebsiteTemplate.updateMany(filters, { isDeleted: true, previewImage: "", previewImagePublicId: "" });
 
-  await Promise.all(items.map((item) => deleteImageAsset(item.previewImagePublicId)));
+  await Promise.all(items.map((item) => deleteCloudinaryAsset(item.previewImagePublicId)));
 
   return res.json({
     message: ids.length > 0 ? "Đã xóa các website mẫu đã chọn" : "Đã xóa toàn bộ website mẫu",

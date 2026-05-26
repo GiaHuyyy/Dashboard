@@ -1,32 +1,9 @@
 import mongoose from "mongoose";
 
 import PackagePrice from "../models/PackagePrice.js";
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-};
+import { formatDateTime } from "../utils/date.js";
+import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
+import { escapeRegex } from "../utils/query.js";
 
 const normalizePayload = (body = {}) => ({
   name: normalizeString(body.name),
@@ -52,7 +29,7 @@ const validatePayload = async (payload, excludeId = "") => {
   if (payload.visible === null) return { status: 400, message: "visible phải là kiểu boolean" };
 
   const existing = await PackagePrice.findOne({
-    name: { $regex: `^${payload.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+    name: { $regex: `^${escapeRegex(payload.name)}$`, $options: "i" },
     isDeleted: false,
   }).lean();
   if (existing && String(existing._id) !== excludeId) {

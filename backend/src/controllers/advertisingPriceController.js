@@ -1,34 +1,11 @@
 import mongoose from "mongoose";
 
 import AdvertisingPrice from "../models/AdvertisingPrice.js";
+import { formatDateTime } from "../utils/date.js";
+import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
+import { escapeRegex } from "../utils/query.js";
 
 const PLATFORM_OPTIONS = ["Google", "Facebook", "TikTok", "Zalo"];
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-};
-
 const normalizePayload = (body = {}) => ({
   platform: normalizeString(body.platform),
   packageName: normalizeString(body.packageName),
@@ -51,7 +28,7 @@ const validatePayload = async (payload, excludeId = "") => {
   if (payload.setupFee === null || payload.setupFee < 0) return { status: 400, message: "setupFee không hợp lệ" };
   if (payload.visible === null) return { status: 400, message: "visible phải là kiểu boolean" };
 
-  const escapedName = payload.packageName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedName = escapeRegex(payload.packageName);
   const existing = await AdvertisingPrice.findOne({
     packageName: { $regex: `^${escapedName}$`, $options: "i" },
     platform: payload.platform,
