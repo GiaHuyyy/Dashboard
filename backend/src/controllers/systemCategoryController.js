@@ -2,11 +2,12 @@ import mongoose from "mongoose";
 
 import SystemCategory from "../models/SystemCategory.js";
 
-const CATEGORY_TYPES = ["module", "status", "priority"];
+const CATEGORY_TYPES = ["module", "status", "priority", "websiteTemplate"];
 const DEFAULT_CATEGORIES = {
   module: ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"],
   status: ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"],
   priority: ["Thấp", "Trung bình", "Cao", "Khẩn"],
+  websiteTemplate: ["Landing Page", "Website công ty", "Bán hàng", "Spa - Thẩm mỹ", "Nhà hàng - Cafe", "Bất động sản", "Giáo dục", "Tin tức - Blog"],
 };
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");

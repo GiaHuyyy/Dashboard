@@ -85,6 +85,17 @@ export const PERMISSION_GROUPS = [
       { key: "source.updateStatus", label: "Đổi trạng thái" },
     ],
   },
+
+  {
+    key: "websiteTemplate",
+    label: "Website mẫu",
+    permissions: [
+      { key: "websiteTemplate.view", label: "Xem" },
+      { key: "websiteTemplate.create", label: "Thêm" },
+      { key: "websiteTemplate.update", label: "Sửa" },
+      { key: "websiteTemplate.delete", label: "Xóa" },
+    ],
+  },
   {
     key: "server",
     label: "Server",
@@ -180,6 +191,8 @@ const ROLE_DEFAULT_PERMISSIONS = {
     "source.update",
     "source.sendMail",
     "source.updateStatus",
+    "websiteTemplate.create",
+    "websiteTemplate.update",
     "contract.create",
     "contract.update",
     "contract.sendMail",
@@ -198,6 +211,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
     "upgrade.update",
     "upgrade.updateStatus",
     "source.view",
+    "websiteTemplate.view",
   ],
   designer: ["design.view", "design.update", "design.updateStatus", "design.updatePoint"],
   sale: [
@@ -208,9 +222,10 @@ const ROLE_DEFAULT_PERMISSIONS = {
     "source.view",
     "source.sendMail",
     "template.view",
+    "websiteTemplate.view",
   ],
   viewer: baseViewPermissions,
-  user: ["program.view", "design.view", "source.view", "contract.view"],
+  user: ["program.view", "design.view", "source.view", "contract.view", "websiteTemplate.view"],
 };
 
 const normalizeRole = (role) => (USER_ROLES.includes(role) ? role : "user");

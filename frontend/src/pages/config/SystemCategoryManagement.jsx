@@ -18,6 +18,7 @@ const CATEGORY_TYPES = [
   { value: "module", label: "Module", description: "Danh mục module" },
   { value: "status", label: "Trạng thái", description: "Danh mục trạng thái" },
   { value: "priority", label: "Ưu tiên", description: "Danh mục ưu tiên" },
+  { value: "websiteTemplate", label: "Website mẫu", description: "danh mục website mẫu" },
 ];
 
 const formSchema = z.object({

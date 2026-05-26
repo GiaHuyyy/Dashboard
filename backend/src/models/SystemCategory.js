@@ -10,7 +10,7 @@ const systemCategorySchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["module", "status", "priority"],
+      enum: ["module", "status", "priority", "websiteTemplate"],
       index: true,
     },
     sortOrder: {

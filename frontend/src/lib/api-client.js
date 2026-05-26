@@ -1,4 +1,3 @@
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 export const SESSION_EXPIRED_EVENT = "auth:session-expired";
 let hasDispatchedSessionExpired = false;
@@ -84,6 +83,15 @@ export const userApi = {
   remove: (id) =>
     request(`/users/${id}`, {
       method: "DELETE",
+    }),
+};
+
+export const rolePermissionApi = {
+  list: () => request("/role-permissions"),
+  update: (role, permissions = []) =>
+    request(`/role-permissions/${role}`, {
+      method: "PUT",
+      body: JSON.stringify({ permissions }),
     }),
 };
 
@@ -292,6 +300,40 @@ export const sourceApi = {
     }),
   removeMany: (ids) =>
     request("/program-sources", {
+      method: "DELETE",
+      body: JSON.stringify({ ids }),
+    }),
+};
+
+
+export const websiteTemplateApi = {
+  list: ({ search = "", category = "all", platform = "all", active = "all", page = 1, limit = 200 } = {}) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("search", search);
+    searchParams.set("category", category);
+    searchParams.set("platform", platform);
+    searchParams.set("active", active);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
+    return request(`/website-templates?${searchParams.toString()}`);
+  },
+  detail: (id) => request(`/website-templates/${id}`),
+  create: (payload) =>
+    request("/website-templates", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id, payload) =>
+    request(`/website-templates/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id) =>
+    request(`/website-templates/${id}`, {
+      method: "DELETE",
+    }),
+  removeMany: (ids) =>
+    request("/website-templates", {
       method: "DELETE",
       body: JSON.stringify({ ids }),
     }),

@@ -34,12 +34,42 @@ const navItems = [
     path: "/bang-gia",
     icon: FileText,
     children: [
-      { label: "Bảng giá host", path: "/bang-gia/host", permission: "price.view", activePathPrefixes: ["/bang-gia/host/"] },
-      { label: "Bảng giá ssl", path: "/bang-gia/ssl", permission: "price.view", activePathPrefixes: ["/bang-gia/ssl/"] },
-      { label: "Bảng giá tên miền", path: "/bang-gia/ten-mien", permission: "price.view", activePathPrefixes: ["/bang-gia/ten-mien/"] },
-      { label: "Bảng giá trọn gói", path: "/bang-gia/tron-goi", permission: "price.view", activePathPrefixes: ["/bang-gia/tron-goi/"] },
-      { label: "Bảng giá quản trị", path: "/bang-gia/quan-tri", permission: "price.view", activePathPrefixes: ["/bang-gia/quan-tri/"] },
-      { label: "Bảng giá quảng cáo", path: "/bang-gia/quang-cao", permission: "price.view", activePathPrefixes: ["/bang-gia/quang-cao/"] },
+      {
+        label: "Bảng giá host",
+        path: "/bang-gia/host",
+        permission: "price.view",
+        activePathPrefixes: ["/bang-gia/host/"],
+      },
+      {
+        label: "Bảng giá ssl",
+        path: "/bang-gia/ssl",
+        permission: "price.view",
+        activePathPrefixes: ["/bang-gia/ssl/"],
+      },
+      {
+        label: "Bảng giá tên miền",
+        path: "/bang-gia/ten-mien",
+        permission: "price.view",
+        activePathPrefixes: ["/bang-gia/ten-mien/"],
+      },
+      {
+        label: "Bảng giá trọn gói",
+        path: "/bang-gia/tron-goi",
+        permission: "price.view",
+        activePathPrefixes: ["/bang-gia/tron-goi/"],
+      },
+      {
+        label: "Bảng giá quản trị",
+        path: "/bang-gia/quan-tri",
+        permission: "price.view",
+        activePathPrefixes: ["/bang-gia/quan-tri/"],
+      },
+      {
+        label: "Bảng giá quảng cáo",
+        path: "/bang-gia/quang-cao",
+        permission: "price.view",
+        activePathPrefixes: ["/bang-gia/quang-cao/"],
+      },
     ],
   },
   {
@@ -81,6 +111,19 @@ const navItems = [
         activePathPrefixes: ["/design/them-moi", "/design/chinh-sua/"],
       },
       { label: "Quản lý điểm", path: "/design/quan-ly-diem", permission: "design.updatePoint" },
+    ],
+  },
+  {
+    label: "Quản lý kho mẫu",
+    path: "/kho-mau",
+    icon: FileText,
+    children: [
+      {
+        label: "Website mẫu",
+        path: "/kho-mau/website-mau",
+        permission: "websiteTemplate.view",
+        activePathPrefixes: ["/kho-mau/website-mau/"],
+      },
     ],
   },
   {

@@ -22,9 +22,11 @@ import systemCategoryRoutes from "./system-category.js";
 import mailConfigurationRoutes from "./mail-configuration.js";
 import systemSettingRoutes from "./system-setting.js";
 import emailTemplateRoutes from "./email-template.js";
+import websiteTemplateRoutes from "./website-template.js";
 import userRoutes from "./user.js";
 import authenticate from "../middleware/authenticate.js";
 import authorizeRoles from "../middleware/authorizeRoles.js";
+import rolePermissionRoutes from "./role-permission.js";
 
 const router = Router();
 
@@ -54,7 +56,9 @@ router.use("/system-categories", systemCategoryRoutes);
 router.use("/mail-configuration", mailConfigurationRoutes);
 router.use("/system-settings", systemSettingRoutes);
 router.use("/email-templates", emailTemplateRoutes);
+router.use("/website-templates", websiteTemplateRoutes);
 router.use("/users", userRoutes);
+router.use("/role-permissions", rolePermissionRoutes);
 
 router.get("/protected", authenticate, (req, res) => {
   res.json({

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
@@ -35,6 +34,8 @@ import StaffManagement from "./pages/staff/StaffManagement";
 import SourceForm from "./pages/system/SourceForm";
 import SourceManagement from "./pages/system/SourceManagement";
 import ServerManagement from "./pages/system/ServerManagement";
+import WebsiteTemplateManagement from "./pages/template-store/WebsiteTemplateManagement";
+import WebsiteTemplateForm from "./pages/template-store/WebsiteTemplateForm";
 import SystemCategoryManagement from "./pages/config/SystemCategoryManagement";
 import MailConfigurationManagement from "./pages/config/MailConfigurationManagement";
 import SystemSettingManagement from "./pages/config/SystemSettingManagement";
@@ -45,6 +46,7 @@ import BusinessForm from "./pages/business/BusinessForm";
 import Login from "./pages/auth/Login";
 import UserManagement from "./pages/users/UserManagement";
 import UserForm from "./pages/users/UserForm";
+import RolePermissionManagement from "./pages/permissions/RolePermissionManagement";
 import { fetchCurrentUser, logoutUser } from "./store/auth-slice";
 
 function RequireAuth({ children, isAuthenticated, isInitializing, isSessionExpiredModalOpen }) {
@@ -136,6 +138,10 @@ function App() {
           <Route path="he-thong/source/them-moi" element={<SourceForm />} />
           <Route path="he-thong/source/chinh-sua/:id" element={<SourceForm />} />
           <Route path="he-thong/server" element={<ServerManagement />} />
+          <Route path="kho-mau" element={<Navigate to="/kho-mau/website-mau" replace />} />
+          <Route path="kho-mau/website-mau" element={<WebsiteTemplateManagement />} />
+          <Route path="kho-mau/website-mau/them-moi" element={<WebsiteTemplateForm />} />
+          <Route path="kho-mau/website-mau/chinh-sua/:id" element={<WebsiteTemplateForm />} />
           <Route path="bang-gia" element={<Navigate to="/bang-gia/host" replace />} />
           <Route path="bang-gia/host" element={<HostPriceManagement />} />
           <Route path="bang-gia/host/them-moi" element={<HostPriceForm />} />
@@ -187,6 +193,7 @@ function App() {
           <Route path="phan-quyen/tai-khoan" element={<UserManagement />} />
           <Route path="phan-quyen/tai-khoan/them-moi" element={<UserForm />} />
           <Route path="phan-quyen/tai-khoan/chinh-sua/:id" element={<UserForm />} />
+          <Route path="phan-quyen/vai-tro" element={<RolePermissionManagement />} />
           <Route path="bieu-mau" element={<Navigate to="/bieu-mau/mau-email" replace />} />
           <Route path="bieu-mau/mau-email" element={<EmailTemplateManagement />} />
           <Route path="bieu-mau/mau-email/them-moi" element={<EmailTemplateForm />} />
