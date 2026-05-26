@@ -12,6 +12,7 @@ import { ImageUpload } from "@/components/forms/ImageUpload";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
+import { UPLOAD_FOLDERS } from "@/constants/upload-folders";
 import { MAIL_STATUS_OPTIONS } from "@/constants/program";
 import { businessContractApi, staffApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
@@ -245,7 +246,7 @@ function BusinessForm() {
     try {
       const uploadedImageUrls = await Promise.all(
         newImageFiles.map(async (file) => {
-          const response = await uploadApi.uploadToCloudinary(file, { folder: "business-contracts" });
+          const response = await uploadApi.uploadToCloudinary(file, { folder: UPLOAD_FOLDERS.BUSINESS_CONTRACTS });
           return { url: response.url, publicId: response.publicId || "" };
         }),
       );

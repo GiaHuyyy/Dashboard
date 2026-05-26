@@ -1,7 +1,9 @@
 import "dotenv/config";
 
 import { getSystemSettingsObject } from "../services/systemSettingService.js";
-import { getMissingCloudinaryEnv, uploadBufferToCloudinary } from "../services/cloudinaryService.js";
+import { resolveCloudinaryUploadFolder } from "../constants/upload-folders.js";
+import { getMissingCloudinaryEnv } from "../services/cloudinaryService.js";
+import { uploadImageAsset } from "../services/uploadAssetService.js";
 
 const DEFAULT_UPLOAD_SETTINGS = {
   maxUploadSizeMb: 5,
@@ -68,12 +70,20 @@ export const uploadContractImage = async (req, res) => {
   }
 
   try {
-    const result = await uploadBufferToCloudinary(req.file.buffer, { folder: req.body?.folder });
+    const uploadFolder = resolveCloudinaryUploadFolder(req.body?.folder);
+
+    if (uploadFolder === null) {
+      return res.status(400).json({
+        message: "Thư mục upload không hợp lệ",
+      });
+    }
+
+    const result = await uploadImageAsset(req.file.buffer, { folder: uploadFolder });
 
     return res.json({
       message: "Upload thành công",
-      url: result.secure_url,
-      publicId: result.public_id,
+      url: result.url,
+      publicId: result.publicId,
     });
   } catch (error) {
     console.error("Cloudinary upload failed:", {

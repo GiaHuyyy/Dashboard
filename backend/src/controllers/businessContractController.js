@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 import BusinessContract from "../models/BusinessContract.js";
-import { deleteCloudinaryAsset } from "../services/cloudinaryService.js";
+import { deleteImageAsset } from "../services/uploadAssetService.js";
 import { sendBusinessContractMail } from "../services/businessContractMailService.js";
 
 const HANDOVER_STATUS_OPTIONS = ["Chưa bàn giao", "Đã bàn giao"];
@@ -367,7 +367,7 @@ export const updateBusinessContract = async (req, res) => {
   existing.note = mergedPayload.note;
   await existing.save();
 
-  await Promise.all(removedImagePublicIds.map((publicId) => deleteCloudinaryAsset(publicId)));
+  await Promise.all(removedImagePublicIds.map((publicId) => deleteImageAsset(publicId)));
 
   if (shouldSendMail) {
     try {
@@ -412,7 +412,7 @@ export const deleteBusinessContract = async (req, res) => {
   existing.contractImages = [];
   await existing.save();
 
-  await Promise.all(imagePublicIds.map((publicId) => deleteCloudinaryAsset(publicId)));
+  await Promise.all(imagePublicIds.map((publicId) => deleteImageAsset(publicId)));
 
   return res.json({ message: "Đã xóa hợp đồng kinh doanh" });
 };
@@ -427,7 +427,7 @@ export const deleteBusinessContracts = async (req, res) => {
   const result = await BusinessContract.updateMany(filters, { isDeleted: true, contractImages: [] });
   const imagePublicIds = contracts.flatMap((contract) => getContractImagePublicIds(contract.contractImages));
 
-  await Promise.all(imagePublicIds.map((publicId) => deleteCloudinaryAsset(publicId)));
+  await Promise.all(imagePublicIds.map((publicId) => deleteImageAsset(publicId)));
 
   return res.json({
     message: ids.length > 0 ? "Đã xóa các hợp đồng đã chọn" : "Đã xóa toàn bộ hợp đồng kinh doanh",

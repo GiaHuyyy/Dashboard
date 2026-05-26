@@ -10,6 +10,7 @@ import { FormActions } from "@/components/forms/FormActions";
 import FormField from "@/components/ui/form-field";
 import { hasPermission } from "@/lib/permissions";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { UPLOAD_FOLDERS } from "@/constants/upload-folders";
 import { uploadApi } from "@/lib/upload";
 import { websiteTemplateApi } from "@/lib/api-client";
 
@@ -217,7 +218,7 @@ function WebsiteTemplateForm() {
 
     setIsUploadingPreview(true);
     try {
-      return await uploadApi.uploadToCloudinary(previewFile, { folder: "website-templates" });
+      return await uploadApi.uploadToCloudinary(previewFile, { folder: UPLOAD_FOLDERS.WEBSITE_TEMPLATES });
     } finally {
       setIsUploadingPreview(false);
     }

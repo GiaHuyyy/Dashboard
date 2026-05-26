@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 import WebsiteTemplate from "../models/WebsiteTemplate.js";
-import { deleteCloudinaryAsset } from "../services/cloudinaryService.js";
+import { deleteImageAsset } from "../services/uploadAssetService.js";
 
 const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 const normalizeBoolean = (value) => {
@@ -215,7 +215,7 @@ export const updateWebsiteTemplate = async (req, res) => {
   await existing.save();
 
   if (shouldDeleteOldPreviewImage) {
-    await deleteCloudinaryAsset(oldPreviewImagePublicId);
+    await deleteImageAsset(oldPreviewImagePublicId);
   }
 
   return res.json({
@@ -241,7 +241,7 @@ export const deleteWebsiteTemplate = async (req, res) => {
   await item.save();
 
   if (previewImagePublicId) {
-    await deleteCloudinaryAsset(previewImagePublicId);
+    await deleteImageAsset(previewImagePublicId);
   }
 
   return res.json({ message: "Đã xóa website mẫu" });
@@ -256,7 +256,7 @@ export const deleteWebsiteTemplates = async (req, res) => {
   const items = await WebsiteTemplate.find(filters).select("previewImagePublicId").lean();
   const result = await WebsiteTemplate.updateMany(filters, { isDeleted: true, previewImage: "", previewImagePublicId: "" });
 
-  await Promise.all(items.map((item) => deleteCloudinaryAsset(item.previewImagePublicId)));
+  await Promise.all(items.map((item) => deleteImageAsset(item.previewImagePublicId)));
 
   return res.json({
     message: ids.length > 0 ? "Đã xóa các website mẫu đã chọn" : "Đã xóa toàn bộ website mẫu",

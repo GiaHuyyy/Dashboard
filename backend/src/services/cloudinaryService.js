@@ -1,6 +1,8 @@
 import "dotenv/config";
 import cloudinary from "cloudinary";
 
+import { DEFAULT_CLOUDINARY_BASE_FOLDER, normalizeCloudinaryFolder } from "../constants/upload-folders.js";
+
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -10,18 +12,10 @@ cloudinary.v2.config({
 export const getMissingCloudinaryEnv = () =>
   ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"].filter((key) => !process.env[key]);
 
-const normalizeFolderSegment = (value = "") =>
-  String(value || "")
-    .trim()
-    .replace(/^\/+|\/+$/g, "")
-    .split("/")
-    .map((segment) => segment.trim().replace(/[^a-zA-Z0-9_-]/g, "-"))
-    .filter(Boolean)
-    .join("/");
 
 export const buildCloudinaryFolder = (folder = "") => {
-  const baseFolder = normalizeFolderSegment(process.env.CLOUDINARY_UPLOAD_FOLDER || "dashboard");
-  const childFolder = normalizeFolderSegment(folder);
+  const baseFolder = normalizeCloudinaryFolder(process.env.CLOUDINARY_UPLOAD_FOLDER || DEFAULT_CLOUDINARY_BASE_FOLDER);
+  const childFolder = normalizeCloudinaryFolder(folder);
   return [baseFolder, childFolder].filter(Boolean).join("/");
 };
 
