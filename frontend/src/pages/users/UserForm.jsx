@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import FormField from "@/components/ui/form-field";
 import { userApi } from "@/lib/api-client";
 import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
@@ -150,26 +150,25 @@ function UserForm() {
   };
 
   return (
-    <form className="space-y-4">
-      <FormActions
-        onSave={() => void handleSubmit((values) => onSubmit(values, "save"))()}
-        onSaveStay={() => void handleSubmit((values) => onSubmit(values, "save-stay"))()}
-        onSaveMail={() => null}
-        onReset={() => reset(defaultValues)}
-        isSubmitting={isSubmitting}
-        isUploading={false}
-        isEditMode={isEditMode}
-        exitPath="/phan-quyen/tai-khoan"
-        showSaveMail={false}
-        readOnlyMode={!canSave}
-        readOnlyTitle={isReadOnly ? "Bạn chỉ có quyền xem tài khoản này" : PERMISSION_DENIED_MESSAGE}
-      />
-
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Thông tin tài khoản
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
+    <FormPageLayout
+      disabled={!canSave}
+      actions={
+        <FormActions
+          onSave={() => void handleSubmit((values) => onSubmit(values, "save"))()}
+          onSaveStay={() => void handleSubmit((values) => onSubmit(values, "save-stay"))()}
+          onSaveMail={() => null}
+          onReset={() => reset(defaultValues)}
+          isSubmitting={isSubmitting}
+          isUploading={false}
+          isEditMode={isEditMode}
+          exitPath="/phan-quyen/tai-khoan"
+          showSaveMail={false}
+          readOnlyMode={!canSave}
+          readOnlyTitle={isReadOnly ? "Bạn chỉ có quyền xem tài khoản này" : PERMISSION_DENIED_MESSAGE}
+        />
+      }
+    >
+      <FormSection title="Thông tin tài khoản">
           <FormField
             label="Họ tên"
             type="text"
@@ -258,9 +257,8 @@ function UserForm() {
             Tài khoản nội bộ do quản trị viên cấp. Không chia sẻ tài khoản cho người khác và nên đổi mật khẩu tạm sau
             khi nhận tài khoản.
           </div>
-        </div>
-      </div>
-    </form>
+      </FormSection>
+    </FormPageLayout>
   );
 }
 

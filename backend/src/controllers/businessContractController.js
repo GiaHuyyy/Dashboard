@@ -127,6 +127,7 @@ const validatePayload = async (payload, { excludeId = "" } = {}) => {
   if (!payload.customerName) return { status: 400, message: "customerName là bắt buộc" };
   if (!payload.customerEmail) return { status: 400, message: "customerEmail là bắt buộc" };
   if (!payload.selectedSalesStaff) return { status: 400, message: "selectedSalesStaff là bắt buộc" };
+  if (!payload.expectedHandoverAt) return { status: 400, message: "expectedHandoverAt là bắt buộc" };
 
   if (!STATUS_OPTIONS.includes(payload.status)) {
     return { status: 400, message: `status không hợp lệ. Giá trị cho phép: ${STATUS_OPTIONS.join(", ")}` };

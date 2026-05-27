@@ -96,7 +96,7 @@ const businessContractSchema = new mongoose.Schema(
     },
     expectedHandoverAt: {
       type: Date,
-      default: null,
+      required: true,
       index: true,
     },
     handoverAt: {

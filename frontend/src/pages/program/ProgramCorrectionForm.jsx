@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { CORRECTION_COMPLETED_STATUS } from "@/constants/program-correction";
 import { businessContractApi, correctionApi, programApi, staffApi } from "@/lib/api-client";
@@ -333,28 +333,26 @@ function ProgramCorrectionForm() {
 
   return (
     <>
-      <form className="space-y-4">
-        <FormActions
-          onSave={() => submitWithMode("save")}
-          onSaveStay={() => submitWithMode("save-stay")}
-          onSaveMail={() => null}
-          onReset={() => reset(initialSnapshot)}
-          isSubmitting={isSubmitting}
-          isUploading={false}
-          isEditMode={isEditMode}
-          exitPath="/lap-trinh/chinh-sua"
-          showSaveMail={false}
-          saveLabel={isEditMode ? "Cập nhật" : "Lưu"}
-          saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
-          readOnlyMode={isReadOnlyMode}
-        />
-
-        <fieldset disabled={isReadOnlyMode}>
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-              Nội dung chỉnh sửa
-            </div>
-            <div className="grid gap-5 p-5 lg:grid-cols-2">
+      <FormPageLayout
+        disabled={isReadOnlyMode}
+        actions={(
+          <FormActions
+            onSave={() => submitWithMode("save")}
+            onSaveStay={() => submitWithMode("save-stay")}
+            onSaveMail={() => null}
+            onReset={() => reset(initialSnapshot)}
+            isSubmitting={isSubmitting}
+            isUploading={false}
+            isEditMode={isEditMode}
+            exitPath="/lap-trinh/chinh-sua"
+            showSaveMail={false}
+            saveLabel={isEditMode ? "Cập nhật" : "Lưu"}
+            saveStayLabel={isEditMode ? "Cập nhật tại trang" : "Lưu tại trang"}
+            readOnlyMode={isReadOnlyMode}
+          />
+        )}
+      >
+        <FormSection title="Nội dung chỉnh sửa">
               <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
                 <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
 
@@ -524,10 +522,8 @@ function ProgramCorrectionForm() {
                   Hiển thị
                 </label>
               </div>
-            </div>
-          </div>
-        </fieldset>
-      </form>
+        </FormSection>
+      </FormPageLayout>
 
       <Modal
         open={completeConfirmOpen}

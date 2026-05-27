@@ -23,7 +23,15 @@ const normalizeExtensions = (value) =>
     .map((item) => item.trim().replace(/^\./, "").toLowerCase())
     .filter(Boolean);
 
-export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageClick, isUploading, maxImages = 6, disabled = false }) {
+export function ImageUpload({
+  previews,
+  onFilesSelected,
+  onRemoveImage,
+  onImageClick,
+  isUploading,
+  maxImages = 6,
+  disabled = false,
+}) {
   const [uploadSettings, setUploadSettings] = useState(DEFAULT_UPLOAD_SETTINGS);
 
   useEffect(() => {
@@ -63,6 +71,7 @@ export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageC
   const effectiveMaxImages = Math.min(maxImages, Number(uploadSettings.maxFilesPerUpload || maxImages));
   const maxSizeBytes = Number(uploadSettings.maxUploadSizeMb || DEFAULT_UPLOAD_SETTINGS.maxUploadSizeMb) * 1024 * 1024;
   const acceptValue = imageExtensions.map((item) => `.${item}`).join(",");
+  const canAddMore = !disabled && previews.length < effectiveMaxImages;
 
   const getImageSrc = (item) => {
     if (!item) return "";
@@ -80,6 +89,7 @@ export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageC
 
     if (totalImages > effectiveMaxImages) {
       toast.error(`Tối đa ${effectiveMaxImages} ảnh hợp đồng`);
+      e.target.value = "";
       return;
     }
 
@@ -100,19 +110,22 @@ export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageC
     if (validFiles.length > 0) {
       onFilesSelected(validFiles);
     }
+
+    e.target.value = "";
   };
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <label className="text-sm font-semibold text-slate-600">Ảnh hợp đồng</label>
         <span className="text-xs text-slate-500">
           {previews.length}/{effectiveMaxImages} ảnh
         </span>
       </div>
-      <div className="flex flex-col gap-3">
-        {!disabled && previews.length < effectiveMaxImages && (
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-6 transition-colors hover:border-slate-400 disabled:cursor-not-allowed">
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+        {canAddMore && (
+          <label className="flex h-28 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-4 text-center transition-colors hover:border-slate-400 hover:bg-slate-100">
             <Upload className="h-5 w-5 text-slate-500" />
             <span className="text-sm text-slate-600">Chọn ảnh</span>
             <input
@@ -126,28 +139,30 @@ export function ImageUpload({ previews, onFilesSelected, onRemoveImage, onImageC
           </label>
         )}
 
-        {previews.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            {previews.map((item, index) => (
-              <div key={index} className="relative group">
-                <img
-                  src={getImageSrc(item)}
-                  alt={`Contract ${index + 1}`}
-                  className="h-24 w-full rounded-lg border border-slate-200 object-cover cursor-pointer transition-opacity hover:opacity-75"
-                  onClick={() => onImageClick(index)}
-                />
-                {!disabled && (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveImage(index)}
-                    disabled={isUploading || disabled}
-                    className="absolute right-1 top-1 rounded-full bg-rose-600 p-1 text-white opacity-0 transition-opacity hover:bg-rose-700 disabled:cursor-not-allowed group-hover:opacity-100"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+        {previews.map((item, index) => (
+          <div key={index} className="group relative h-28 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+            <img
+              src={getImageSrc(item)}
+              alt={`Contract ${index + 1}`}
+              className="h-full w-full cursor-pointer object-contain p-1 transition-opacity hover:opacity-75"
+              onClick={() => onImageClick(index)}
+            />
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => onRemoveImage(index)}
+                disabled={isUploading || disabled}
+                className="absolute right-1 top-1 rounded-full bg-rose-600 p-1 text-white opacity-0 transition-opacity hover:bg-rose-700 disabled:cursor-not-allowed group-hover:opacity-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ))}
+
+        {!canAddMore && previews.length === 0 && (
+          <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
+            Chưa có ảnh hợp đồng
           </div>
         )}
       </div>

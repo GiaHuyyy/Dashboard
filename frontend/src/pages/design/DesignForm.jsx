@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { designApi, staffApi } from "@/lib/api-client";
@@ -333,25 +333,25 @@ function DesignForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
-        onSave={() => submitWithMode("save")}
-        onSaveStay={() => submitWithMode("save-stay")}
-        onSaveMail={() => null}
-        onReset={() => reset(initialSnapshot)}
-        isSubmitting={isSubmitting}
-        isUploading={false}
-        isEditMode={isEditMode}
-        exitPath="/design/danh-sach"
-        showSaveMail={false}
-        readOnlyMode={isFormReadOnly}
-      />
-
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Thông tin công việc design
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
+    <>
+      <FormPageLayout
+        disabled={isFormReadOnly}
+        actions={
+          <FormActions
+            onSave={() => submitWithMode("save")}
+            onSaveStay={() => submitWithMode("save-stay")}
+            onSaveMail={() => null}
+            onReset={() => reset(initialSnapshot)}
+            isSubmitting={isSubmitting}
+            isUploading={false}
+            isEditMode={isEditMode}
+            exitPath="/design/danh-sach"
+            showSaveMail={false}
+            readOnlyMode={isFormReadOnly}
+          />
+        }
+      >
+        <FormSection title="Thông tin công việc design">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin yêu cầu</p>
 
@@ -470,8 +470,8 @@ function DesignForm() {
               Hiển thị
             </label>
           </div>
-        </div>
-      </div>
+        </FormSection>
+      </FormPageLayout>
 
       <Modal
         open={completeConfirmOpen}
@@ -515,7 +515,7 @@ function DesignForm() {
           <span className="font-semibold text-slate-800"> {COMPLETED_STATUS}</span>. Xác nhận để lưu cập nhật.
         </p>
       </Modal>
-    </form>
+    </>
   );
 }
 

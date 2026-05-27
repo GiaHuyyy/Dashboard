@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { ProgramInfo } from "@/components/program/ProgramInfo";
 import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
@@ -427,36 +427,36 @@ function ProgramForm() {
 
   return (
     <>
-      <form className="space-y-4">
-        <FormActions
-          onSave={() => submitWithMode("save")}
-          onSaveMail={() => null}
-          onSaveStay={() => submitWithMode("save-stay")}
-          onReset={() => reset(initialSnapshot)}
-          isSubmitting={isSubmitting}
-          isUploading={false}
-          isEditMode={isEditMode}
-          exitPath={returnPath}
-          showSaveMail={false}
-          readOnlyMode={isReadOnlyMode}
-        />
+      <FormPageLayout
+        disabled={isReadOnlyMode}
+        actions={
+          <FormActions
+            onSave={() => submitWithMode("save")}
+            onSaveMail={() => null}
+            onSaveStay={() => submitWithMode("save-stay")}
+            onReset={() => reset(initialSnapshot)}
+            isSubmitting={isSubmitting}
+            isUploading={false}
+            isEditMode={isEditMode}
+            exitPath={returnPath}
+            showSaveMail={false}
+            readOnlyMode={isReadOnlyMode}
+          />
+        }
+      >
+        <FormSection title="Nội dung">
+          <ProgramInfo
+            register={register}
+            errors={errors}
+            contractOptions={contractOptions}
+            selectedContract={selectedBusinessContract}
+            designTaskOptions={designTaskOptions}
+            moduleOptions={moduleCategories.options}
+            priorityOptions={priorityCategories.options}
+            designEnabled={Boolean(selectedDesign)}
+          />
 
-        <fieldset disabled={isReadOnlyMode}>
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Nội dung</div>
-            <div className="grid gap-5 p-5 lg:grid-cols-2">
-              <ProgramInfo
-                register={register}
-                errors={errors}
-                contractOptions={contractOptions}
-                selectedContract={selectedBusinessContract}
-                designTaskOptions={designTaskOptions}
-                moduleOptions={moduleCategories.options}
-                priorityOptions={priorityCategories.options}
-                designEnabled={Boolean(selectedDesign)}
-              />
-
-              <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
+          <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
                 <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
 
                 <FormField
@@ -522,11 +522,9 @@ function ProgramForm() {
                   <input type="checkbox" {...register("visible")} />
                   Hiển thị
                 </label>
-              </div>
-            </div>
           </div>
-        </fieldset>
-      </form>
+        </FormSection>
+      </FormPageLayout>
 
       <Modal
         open={completeConfirmOpen}

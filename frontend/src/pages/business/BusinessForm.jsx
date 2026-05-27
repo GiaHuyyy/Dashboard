@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { ImageLightbox } from "@/components/forms/ImageLightbox";
 import { ImageUpload } from "@/components/forms/ImageUpload";
 import FormField from "@/components/ui/form-field";
@@ -39,7 +39,7 @@ const schema = z.object({
         .filter(Boolean)
         .every((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
     }, "Danh sách email cc không hợp lệ"),
-  expectedHandoverAt: z.string().optional(),
+  expectedHandoverAt: z.string().trim().min(1, "Vui lòng chọn ngày dự kiến bàn giao"),
   handoverStatus: z.enum(HANDOVER_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái bàn giao hợp lệ" }),
   handoverAt: z.string().optional(),
   visible: z.boolean(),
@@ -347,35 +347,34 @@ function BusinessForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
-        onSave={() => submitWithMode("save")}
-        onSaveStay={() => submitWithMode("save-stay")}
-        onSaveMail={() => submitWithMode("save-mail")}
-        onReset={() => {
-          contractImages.forEach((item) => {
-            if (item.kind === "file" && item.previewUrl) {
-              URL.revokeObjectURL(item.previewUrl);
-            }
-          });
-          reset(initialSnapshot.values);
-          setContractImages(initialSnapshot.images);
-        }}
-        isSubmitting={isSubmitting}
-        isUploading={isUploadingImages}
-        isEditMode={isEditMode}
-        exitPath="/kinh-doanh/danh-sach"
-        showSaveMail
-        saveMailDisabled={!canSendMail}
-        saveMailDisabledTitle="Bạn không có quyền gửi mail hợp đồng"
-        readOnlyMode={isFormReadOnly}
-      />
-
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Thông tin hợp đồng kinh doanh
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
+    <FormPageLayout
+      disabled={isFormReadOnly}
+      actions={
+        <FormActions
+          onSave={() => submitWithMode("save")}
+          onSaveStay={() => submitWithMode("save-stay")}
+          onSaveMail={() => submitWithMode("save-mail")}
+          onReset={() => {
+            contractImages.forEach((item) => {
+              if (item.kind === "file" && item.previewUrl) {
+                URL.revokeObjectURL(item.previewUrl);
+              }
+            });
+            reset(initialSnapshot.values);
+            setContractImages(initialSnapshot.images);
+          }}
+          isSubmitting={isSubmitting}
+          isUploading={isUploadingImages}
+          isEditMode={isEditMode}
+          exitPath="/kinh-doanh/danh-sach"
+          showSaveMail
+          saveMailDisabled={!canSendMail}
+          saveMailDisabledTitle="Bạn không có quyền gửi mail hợp đồng"
+          readOnlyMode={isFormReadOnly}
+        />
+      }
+    >
+      <FormSection title="Thông tin hợp đồng kinh doanh">
           <FormField
             label="Số hợp đồng"
             type="text"
@@ -483,8 +482,7 @@ function BusinessForm() {
               error={errors.note?.message}
             />
           </div>
-        </div>
-      </div>
+      </FormSection>
 
       <ImageLightbox
         currentIndex={lightboxIndex}
@@ -536,7 +534,7 @@ function BusinessForm() {
           <span className="font-semibold text-slate-800"> Đã bàn giao</span>. Sau khi bàn giao, hợp đồng chỉ được xem chi tiết và không thể chỉnh sửa.
         </p>
       </Modal>
-    </form>
+    </FormPageLayout>
   );
 }
 

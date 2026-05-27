@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { staffApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
@@ -109,59 +109,57 @@ function StaffForm() {
   };
 
   return (
-    <form className="space-y-4">
-      <FormActions
-        onSave={() => void handleSubmit((values) => onSubmit(values, "save"))()}
-        onSaveStay={() => void handleSubmit((values) => onSubmit(values, "save-stay"))()}
-        onSaveMail={() => null}
-        onReset={() => reset(defaultValues)}
-        isSubmitting={isSubmitting}
-        isUploading={false}
-        isEditMode={isEditMode}
-        exitPath="/nhan-su/danh-sach"
-        readOnlyMode={isReadOnlyMode}
-        readOnlyTitle={!canSave ? "Bạn chỉ có quyền xem nhân sự" : undefined}
-        showSaveMail={false}
-      />
-
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Thông tin nhân sự
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
-          <FormField
-            label="Họ tên"
-            type="text"
-            inputProps={{ ...register("fullName"), disabled: isReadOnlyMode }}
-            error={errors.fullName?.message}
-          />
-          <FormField label="Email" type="text" inputProps={{ ...register("email"), disabled: isReadOnlyMode }} error={errors.email?.message} />
-          <FormField
-            label="Số điện thoại"
-            type="text"
-            inputProps={{ ...register("phone"), disabled: isReadOnlyMode }}
-            error={errors.phone?.message}
-          />
-           <FormField
-             label="Phòng ban"
-             type="text"
-             inputProps={{ ...register("department"), readOnly: true, disabled: isReadOnlyMode, className: "bg-slate-50" }}
-             error={errors.department?.message}
-           />
-           <FormField
-             label="Vai trò"
-             type="select"
-             options={STAFF_ROLE_OPTIONS.map((item) => ({ label: item, value: item }))}
-             selectProps={{ ...register("role"), disabled: isReadOnlyMode }}
-             error={errors.role?.message}
-           />
-          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <input type="checkbox" {...register("isActive")} disabled={isReadOnlyMode} />
-            Đang hoạt động
-          </label>
-        </div>
-      </div>
-    </form>
+    <FormPageLayout
+      disabled={isReadOnlyMode}
+      actions={
+        <FormActions
+          onSave={() => void handleSubmit((values) => onSubmit(values, "save"))()}
+          onSaveStay={() => void handleSubmit((values) => onSubmit(values, "save-stay"))()}
+          onSaveMail={() => null}
+          onReset={() => reset(defaultValues)}
+          isSubmitting={isSubmitting}
+          isUploading={false}
+          isEditMode={isEditMode}
+          exitPath="/nhan-su/danh-sach"
+          readOnlyMode={isReadOnlyMode}
+          readOnlyTitle={!canSave ? "Bạn chỉ có quyền xem nhân sự" : undefined}
+          showSaveMail={false}
+        />
+      }
+    >
+      <FormSection title="Thông tin nhân sự">
+        <FormField
+          label="Họ tên"
+          type="text"
+          inputProps={{ ...register("fullName") }}
+          error={errors.fullName?.message}
+        />
+        <FormField label="Email" type="text" inputProps={{ ...register("email") }} error={errors.email?.message} />
+        <FormField
+          label="Số điện thoại"
+          type="text"
+          inputProps={{ ...register("phone") }}
+          error={errors.phone?.message}
+        />
+        <FormField
+          label="Phòng ban"
+          type="text"
+          inputProps={{ ...register("department"), readOnly: true, className: "bg-slate-50" }}
+          error={errors.department?.message}
+        />
+        <FormField
+          label="Vai trò"
+          type="select"
+          options={STAFF_ROLE_OPTIONS.map((item) => ({ label: item, value: item }))}
+          selectProps={{ ...register("role") }}
+          error={errors.role?.message}
+        />
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+          <input type="checkbox" {...register("isActive")} />
+          Đang hoạt động
+        </label>
+      </FormSection>
+    </FormPageLayout>
   );
 }
 
