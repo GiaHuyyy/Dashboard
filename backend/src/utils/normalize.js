@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 export const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
 
 export const normalizeBoolean = (value) => {
@@ -32,4 +34,18 @@ export const normalizeStringArray = (value) => {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+};
+
+export const normalizeObjectId = (value) => {
+  const normalized = normalizeString(value);
+  if (!normalized) return null;
+
+  return mongoose.isValidObjectId(normalized) ? normalized : null;
+};
+
+export const normalizeDate = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 };

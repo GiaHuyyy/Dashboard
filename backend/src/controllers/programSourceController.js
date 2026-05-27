@@ -10,6 +10,10 @@ import AdministrationPrice from "../models/AdministrationPrice.js";
 import AdvertisingPrice from "../models/AdvertisingPrice.js";
 import { sendProgramSourceMail } from "../services/programSourceMailService.js";
 import { getSystemSettingValue } from "../services/systemSettingService.js";
+import { formatDateTime, toIsoString } from "../utils/date.js";
+import { normalizeBoolean, normalizeDate, normalizeNumber, normalizeObjectId, normalizeString, parsePositiveInteger } from "../utils/normalize.js";
+import { isValidHttpUrl } from "../utils/query.js";
+import { sendCreated, sendError, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const SEND_STATUS_OPTIONS = ["Chưa gửi", "Đã gửi"];
 const DOWNLOAD_STATUS_OPTIONS = ["Chưa tải", "Đã tải"];
@@ -50,35 +54,6 @@ const applyMailSuccessState = (source, settings) => {
   }
 };
 
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const normalizeObjectId = (value) => {
-  const normalized = normalizeString(value);
-  if (!normalized) return null;
-  return mongoose.isValidObjectId(normalized) ? normalized : null;
-};
-const normalizeDate = (value) => {
-  if (value === null || value === undefined || value === "") return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
-};
-const parsePositiveInteger = (value) => {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-};
-
 const fetchPriceReferences = async (source) => {
   if (!source) return {};
   const [domainPrice, hostPrice, sslPrice, packagePrice, administrationPrice, advertisingPrice] = await Promise.all([
@@ -114,33 +89,6 @@ const fetchPriceReferences = async (source) => {
     administrationPrice,
     advertisingPrice,
   };
-};
-
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-};
-const toIsoString = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString();
-};
-const isValidHttpUrl = (value) => {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
 };
 
 const normalizePayload = (body = {}) => ({
@@ -264,13 +212,13 @@ export const createProgramSource = async (req, res) => {
   const sourceSettings = await getSourceSettings();
   const validationResult = await validatePayload(payload, sourceSettings);
   if (validationResult.status) {
-    return res.status(validationResult.status).json({ message: validationResult.message });
+    return sendValidationError(res, validationResult);
   }
 
   if (shouldSendMail) {
     const sendValidation = validateCanSendSourceMail(payload.expiresAt, sourceSettings);
     if (sendValidation) {
-      return res.status(sendValidation.status).json({ message: sendValidation.message });
+      return sendValidationError(res, sendValidation);
     }
   }
 
@@ -292,9 +240,7 @@ export const createProgramSource = async (req, res) => {
       applyMailSuccessState(created, sourceSettings);
       await created.save();
     } catch (error) {
-      return res.status(500).json({
-        message: `Đã lưu source nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
-      });
+      return sendError(res, 500, `Đã lưu source nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`);
     }
   }
 
@@ -302,7 +248,7 @@ export const createProgramSource = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: shouldSendMail ? "Lưu source và gửi mail thành công" : "Lưu source thành công",
     source: toResponseItem(populated),
   });
@@ -353,7 +299,7 @@ export const listProgramSources = async (req, res) => {
     ProgramSource.countDocuments(filters),
   ]);
 
-  return res.json({
+  return sendOk(res, {
     sources: items.map(toResponseItem),
     pagination: {
       page: pageNumber,
@@ -368,17 +314,17 @@ export const getProgramSourceById = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
   if (!source || source.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy source" });
+    return sendNotFound(res, "Không tìm thấy source");
   }
 
-  return res.json({ source: toResponseItem(source) });
+  return sendOk(res, { source: toResponseItem(source) });
 };
 
 export const updateProgramSource = async (req, res) => {
   const shouldSendMail = normalizeBoolean(req.body.sendMail) === true;
   const existing = await ProgramSource.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy source" });
+    return sendNotFound(res, "Không tìm thấy source");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -407,7 +353,7 @@ export const updateProgramSource = async (req, res) => {
   const sourceSettings = await getSourceSettings();
   const validationResult = await validatePayload(mergedPayload, sourceSettings);
   if (validationResult.status) {
-    return res.status(validationResult.status).json({ message: validationResult.message });
+    return sendValidationError(res, validationResult);
   }
 
   existing.programId = mergedPayload.programId;
@@ -431,7 +377,7 @@ export const updateProgramSource = async (req, res) => {
   if (shouldSendMail) {
     const sendValidation = validateCanSendSourceMail(existing.expiresAt, sourceSettings);
     if (sendValidation) {
-      return res.status(sendValidation.status).json({ message: sendValidation.message });
+      return sendValidationError(res, sendValidation);
     }
 
     try {
@@ -445,9 +391,7 @@ export const updateProgramSource = async (req, res) => {
       applyMailSuccessState(existing, sourceSettings);
       await existing.save();
     } catch (error) {
-      return res.status(500).json({
-        message: `Đã cập nhật source nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
-      });
+      return sendError(res, 500, `Đã cập nhật source nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`);
     }
   }
 
@@ -455,7 +399,7 @@ export const updateProgramSource = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
 
-  return res.json({
+  return sendOk(res, {
     message: shouldSendMail ? "Cập nhật source và gửi mail thành công" : "Cập nhật source thành công",
     source: toResponseItem(populated),
   });
@@ -467,14 +411,14 @@ export const sendProgramSourceMailById = async (req, res) => {
     select: "contractCode module salesReceiverEmail ccEmails",
   });
   if (!source || source.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy source" });
+    return sendNotFound(res, "Không tìm thấy source");
   }
 
   const program = source.programId;
   const sourceSettings = await getSourceSettings();
   const sendValidation = validateCanSendSourceMail(source.expiresAt, sourceSettings);
   if (sendValidation) {
-    return res.status(sendValidation.status).json({ message: sendValidation.message });
+    return sendValidationError(res, sendValidation);
   }
 
   try {
@@ -486,7 +430,7 @@ export const sendProgramSourceMailById = async (req, res) => {
       actionLabel: "Gửi lại",
     });
   } catch (error) {
-    return res.status(500).json({ message: error?.message || "Gửi mail thất bại" });
+    return sendError(res, 500, error?.message || "Gửi mail thất bại");
   }
 
   applyMailSuccessState(source, sourceSettings);
@@ -496,7 +440,7 @@ export const sendProgramSourceMailById = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
 
-  return res.json({
+  return sendOk(res, {
     message: "Gửi lại mail thành công",
     source: toResponseItem(populated),
   });
@@ -505,13 +449,13 @@ export const sendProgramSourceMailById = async (req, res) => {
 export const deleteProgramSource = async (req, res) => {
   const source = await ProgramSource.findById(req.params.id);
   if (!source || source.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy source" });
+    return sendNotFound(res, "Không tìm thấy source");
   }
 
   source.isDeleted = true;
   await source.save();
 
-  return res.json({ message: "Đã xóa source" });
+  return sendOk(res, { message: "Đã xóa source" });
 };
 
 export const deleteProgramSources = async (req, res) => {
@@ -522,7 +466,7 @@ export const deleteProgramSources = async (req, res) => {
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await ProgramSource.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các source đã chọn" : "Đã xóa toàn bộ source",
     deletedCount: result.modifiedCount || 0,
   });

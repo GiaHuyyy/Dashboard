@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 
 import SystemCategory from "../models/SystemCategory.js";
+import { formatDateTime } from "../utils/date.js";
+import { normalizeBoolean, normalizeNumber, normalizeString, parsePositiveInteger } from "../utils/normalize.js";
+import { buildSearchOrFilter, escapeRegex } from "../utils/query.js";
+import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const CATEGORY_TYPES = ["module", "status", "priority", "websiteTemplate"];
 const DEFAULT_CATEGORIES = {
@@ -8,35 +12,6 @@ const DEFAULT_CATEGORIES = {
   status: ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"],
   priority: ["Thấp", "Trung bình", "Cao", "Khẩn"],
   websiteTemplate: ["Landing Page", "Website công ty", "Bán hàng", "Spa - Thẩm mỹ", "Nhà hàng - Cafe", "Bất động sản", "Giáo dục", "Tin tức - Blog"],
-};
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const parsePositiveInteger = (value) => {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-};
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
 const normalizePayload = (body = {}) => ({
@@ -57,7 +32,7 @@ const validatePayload = async (payload, excludeId = "") => {
   }
   if (payload.isActive === null) return { status: 400, message: "isActive phải là kiểu boolean" };
 
-  const escapedName = payload.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedName = escapeRegex(payload.name);
   const duplicate = await SystemCategory.findOne({
     name: { $regex: `^${escapedName}$`, $options: "i" },
     type: payload.type,
@@ -109,7 +84,7 @@ export const listSystemCategories = async (req, res) => {
   const limit = parsePositiveInteger(req.query.limit) || 200;
 
   if (type && !CATEGORY_TYPES.includes(type)) {
-    return res.status(400).json({ message: "type không hợp lệ" });
+    return sendBadRequest(res, "type không hợp lệ");
   }
 
   await seedDefaults(type, req.user?.sub);
@@ -117,7 +92,7 @@ export const listSystemCategories = async (req, res) => {
   const filters = { isDeleted: false };
   if (type) filters.type = type;
   if (search) {
-    filters.$or = [{ name: { $regex: search, $options: "i" } }, { note: { $regex: search, $options: "i" } }];
+    Object.assign(filters, buildSearchOrFilter(search, ["name", "note"]));
   }
 
   const skip = (page - 1) * limit;
@@ -126,7 +101,7 @@ export const listSystemCategories = async (req, res) => {
     SystemCategory.countDocuments(filters),
   ]);
 
-  return res.json({
+  return sendOk(res, {
     page,
     limit,
     total,
@@ -137,22 +112,22 @@ export const listSystemCategories = async (req, res) => {
 export const getSystemCategoryById = async (req, res) => {
   const item = await SystemCategory.findById(req.params.id).lean();
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy danh mục" });
+    return sendNotFound(res, "Không tìm thấy danh mục");
   }
-  return res.json({ category: toResponseItem(item) });
+  return sendOk(res, { category: toResponseItem(item) });
 };
 
 export const createSystemCategory = async (req, res) => {
   const payload = normalizePayload(req.body);
   const validationError = await validatePayload(payload);
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   const created = await SystemCategory.create({
     ...payload,
     createdBy: req.user.sub,
   });
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Đã thêm danh mục",
     category: toResponseItem(created),
   });
@@ -160,12 +135,12 @@ export const createSystemCategory = async (req, res) => {
 
 export const updateSystemCategory = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
-    return res.status(400).json({ message: "id không hợp lệ" });
+    return sendBadRequest(res, "id không hợp lệ");
   }
 
   const existing = await SystemCategory.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy danh mục" });
+    return sendNotFound(res, "Không tìm thấy danh mục");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -178,7 +153,7 @@ export const updateSystemCategory = async (req, res) => {
   };
 
   const validationError = await validatePayload(mergedPayload, String(existing._id));
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   existing.name = mergedPayload.name;
   existing.type = mergedPayload.type;
@@ -187,7 +162,7 @@ export const updateSystemCategory = async (req, res) => {
   existing.note = mergedPayload.note;
   await existing.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã cập nhật danh mục",
     category: toResponseItem(existing),
   });
@@ -196,12 +171,12 @@ export const updateSystemCategory = async (req, res) => {
 export const deleteSystemCategory = async (req, res) => {
   const item = await SystemCategory.findById(req.params.id);
   if (!item || item.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy danh mục" });
+    return sendNotFound(res, "Không tìm thấy danh mục");
   }
 
   item.isDeleted = true;
   await item.save();
-  return res.json({ message: "Đã xóa danh mục" });
+  return sendOk(res, { message: "Đã xóa danh mục" });
 };
 
 export const deleteSystemCategories = async (req, res) => {
@@ -212,7 +187,7 @@ export const deleteSystemCategories = async (req, res) => {
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await SystemCategory.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các danh mục đã chọn" : "Đã xóa toàn bộ danh mục",
     deletedCount: result.modifiedCount || 0,
   });
