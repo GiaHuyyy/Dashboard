@@ -1,3 +1,4 @@
+import { getRoleLabel } from "../constants/permissions.js";
 import User, { USER_ROLES, getUserRoles } from "../models/User.js";
 import { normalizeBoolean, normalizeObjectId, normalizeString } from "../utils/normalize.js";
 import {
@@ -9,17 +10,6 @@ import {
   sendValidationError,
 } from "../utils/httpResponse.js";
 
-const ROLE_LABELS = {
-  super_admin: "Super Admin",
-  admin: "Admin",
-  manager: "Quản lý",
-  developer: "Lập trình viên",
-  designer: "Thiết kế",
-  sale: "Kinh doanh",
-  viewer: "Chỉ xem",
-  user: "Người dùng",
-};
-
 const normalizeRoles = (value) => {
   const input = Array.isArray(value) ? value : value ? [value] : [];
   const roles = input
@@ -29,7 +19,6 @@ const normalizeRoles = (value) => {
   return Array.from(new Set(roles));
 };
 
-const getRoleLabel = (role) => ROLE_LABELS[role] || role || "Người dùng";
 
 const toResponseItem = (doc) => {
   const roles = getUserRoles(doc);
@@ -120,7 +109,7 @@ export const listUsers = async (req, res) => {
 
   return sendOk(res, {
     users: users.map(toResponseItem),
-    roleOptions: USER_ROLES.map((item) => ({ value: item, label: ROLE_LABELS[item] || item })),
+    roleOptions: USER_ROLES.map((item) => ({ value: item, label: getRoleLabel(item) })),
   });
 };
 

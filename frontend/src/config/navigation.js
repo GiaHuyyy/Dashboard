@@ -1,5 +1,7 @@
 import { FileText } from "lucide-react";
 
+import { PERMISSIONS } from "@/constants/permissions";
+
 export const navItems = [
   {
     label: "Trang chủ",
@@ -15,10 +17,10 @@ export const navItems = [
       {
         label: "Quản lý source",
         path: "/he-thong/source",
-        permission: "source.view",
+        permission: PERMISSIONS.SOURCE_VIEW,
         activePathPrefixes: ["/he-thong/source/"],
       },
-      { label: "Quản lý server", path: "/he-thong/server", permission: "server.view" },
+      { label: "Quản lý server", path: "/he-thong/server", permission: PERMISSIONS.SERVER_VIEW },
     ],
   },
   {
@@ -29,37 +31,37 @@ export const navItems = [
       {
         label: "Bảng giá host",
         path: "/bang-gia/host",
-        permission: "price.view",
+        permission: PERMISSIONS.PRICE_VIEW,
         activePathPrefixes: ["/bang-gia/host/"],
       },
       {
         label: "Bảng giá ssl",
         path: "/bang-gia/ssl",
-        permission: "price.view",
+        permission: PERMISSIONS.PRICE_VIEW,
         activePathPrefixes: ["/bang-gia/ssl/"],
       },
       {
         label: "Bảng giá tên miền",
         path: "/bang-gia/ten-mien",
-        permission: "price.view",
+        permission: PERMISSIONS.PRICE_VIEW,
         activePathPrefixes: ["/bang-gia/ten-mien/"],
       },
       {
         label: "Bảng giá trọn gói",
         path: "/bang-gia/tron-goi",
-        permission: "price.view",
+        permission: PERMISSIONS.PRICE_VIEW,
         activePathPrefixes: ["/bang-gia/tron-goi/"],
       },
       {
         label: "Bảng giá quản trị",
         path: "/bang-gia/quan-tri",
-        permission: "price.view",
+        permission: PERMISSIONS.PRICE_VIEW,
         activePathPrefixes: ["/bang-gia/quan-tri/"],
       },
       {
         label: "Bảng giá quảng cáo",
         path: "/bang-gia/quang-cao",
-        permission: "price.view",
+        permission: PERMISSIONS.PRICE_VIEW,
         activePathPrefixes: ["/bang-gia/quang-cao/"],
       },
     ],
@@ -72,23 +74,23 @@ export const navItems = [
       {
         label: "Danh sách lập trình",
         path: "/lap-trinh/danh-sach",
-        permission: "program.view",
+        permission: PERMISSIONS.PROGRAM_VIEW,
         activePaths: ["/lap-trinh/them-moi"],
         activePathPrefixes: ["/lap-trinh/chinh-sua/"],
       },
       {
         label: "Danh sách nâng cấp",
         path: "/lap-trinh/nang-cap",
-        permission: "upgrade.view",
+        permission: PERMISSIONS.UPGRADE_VIEW,
         activePathPrefixes: ["/lap-trinh/nang-cap/"],
       },
       {
         label: "Quản lý chỉnh sửa",
         path: "/lap-trinh/chinh-sua",
-        permission: "correction.view",
+        permission: PERMISSIONS.CORRECTION_VIEW,
         activePathPrefixes: ["/lap-trinh/quan-ly-chinh-sua/"],
       },
-      { label: "Quản lý điểm", path: "/lap-trinh/quan-ly-diem", permission: "program.updatePoint" },
+      { label: "Quản lý điểm", path: "/lap-trinh/quan-ly-diem", permission: PERMISSIONS.PROGRAM_UPDATE_POINT },
     ],
   },
   {
@@ -99,10 +101,10 @@ export const navItems = [
       {
         label: "Danh sách design",
         path: "/design/danh-sach",
-        permission: "design.view",
+        permission: PERMISSIONS.DESIGN_VIEW,
         activePathPrefixes: ["/design/them-moi", "/design/chinh-sua/"],
       },
-      { label: "Quản lý điểm", path: "/design/quan-ly-diem", permission: "design.updatePoint" },
+      { label: "Quản lý điểm", path: "/design/quan-ly-diem", permission: PERMISSIONS.DESIGN_UPDATE_POINT },
     ],
   },
   {
@@ -113,7 +115,7 @@ export const navItems = [
       {
         label: "Website mẫu",
         path: "/kho-mau/website-mau",
-        permission: "websiteTemplate.view",
+        permission: PERMISSIONS.WEBSITE_TEMPLATE_VIEW,
         activePathPrefixes: ["/kho-mau/website-mau/"],
       },
     ],
@@ -126,7 +128,7 @@ export const navItems = [
       {
         label: "Danh sách nhân sự",
         path: "/nhan-su/danh-sach",
-        permission: "staff.view",
+        permission: PERMISSIONS.STAFF_VIEW,
         activePathPrefixes: ["/nhan-su/chinh-sua/", "/nhan-su/them-moi"],
       },
     ],
@@ -139,13 +141,13 @@ export const navItems = [
       {
         label: "Tài khoản người dùng",
         path: "/phan-quyen/tai-khoan",
-        permission: "permission.user.view",
+        permission: PERMISSIONS.PERMISSION_USER_VIEW,
         activePathPrefixes: ["/phan-quyen/tai-khoan"],
       },
       {
         label: "Vai trò & quyền",
         path: "/phan-quyen/vai-tro",
-        permission: "permission.role.view",
+        permission: PERMISSIONS.PERMISSION_ROLE_VIEW,
         activePathPrefixes: ["/phan-quyen/vai-tro"],
       },
     ],
@@ -158,7 +160,7 @@ export const navItems = [
       {
         label: "Danh sách hợp đồng",
         path: "/kinh-doanh/danh-sach",
-        permission: "contract.view",
+        permission: PERMISSIONS.CONTRACT_VIEW,
         activePaths: ["/kinh-doanh/them-moi"],
         activePathPrefixes: ["/kinh-doanh/chinh-sua/"],
       },
@@ -172,19 +174,19 @@ export const navItems = [
       {
         label: "Danh mục hệ thống",
         path: "/cau-hinh/danh-muc-he-thong",
-        permission: "config.category.view",
+        permission: PERMISSIONS.CONFIG_CATEGORY_VIEW,
         activePathPrefixes: ["/cau-hinh/danh-muc-he-thong"],
       },
       {
         label: "Cấu hình mail",
         path: "/cau-hinh/mail",
-        permission: "config.mail.view",
+        permission: PERMISSIONS.CONFIG_MAIL_VIEW,
         activePathPrefixes: ["/cau-hinh/mail"],
       },
       {
         label: "Cấu hình SLA/tham số",
         path: "/cau-hinh/tham-so",
-        permission: "config.setting.view",
+        permission: PERMISSIONS.CONFIG_SETTING_VIEW,
         activePathPrefixes: ["/cau-hinh/tham-so"],
       },
     ],
@@ -197,7 +199,7 @@ export const navItems = [
       {
         label: "Thư viện mẫu email",
         path: "/bieu-mau/mau-email",
-        permission: "template.view",
+        permission: PERMISSIONS.TEMPLATE_VIEW,
         activePathPrefixes: ["/bieu-mau/mau-email"],
       },
     ],
