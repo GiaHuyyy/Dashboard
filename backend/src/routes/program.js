@@ -12,36 +12,37 @@ import {
 } from "../controllers/programController.js";
 import authenticate from "../middleware/authenticate.js";
 import requirePermission, { requireAnyPermission } from "../middleware/requirePermission.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 
 const router = Router();
 
-router.get("/", authenticate, requirePermission("program.view"), listPrograms);
+router.get("/", authenticate, requirePermission(PERMISSIONS.PROGRAM_VIEW), listPrograms);
 router.get(
   "/references",
   authenticate,
   requireAnyPermission(
-    "program.view",
-    "program.create",
-    "program.update",
-    "source.create",
-    "source.update",
-    "correction.create",
-    "correction.update",
-    "upgrade.create",
-    "upgrade.update",
+    PERMISSIONS.PROGRAM_VIEW,
+    PERMISSIONS.PROGRAM_CREATE,
+    PERMISSIONS.PROGRAM_UPDATE,
+    PERMISSIONS.SOURCE_CREATE,
+    PERMISSIONS.SOURCE_UPDATE,
+    PERMISSIONS.CORRECTION_CREATE,
+    PERMISSIONS.CORRECTION_UPDATE,
+    PERMISSIONS.UPGRADE_CREATE,
+    PERMISSIONS.UPGRADE_UPDATE,
   ),
   listProgramReferences,
 );
-router.post("/validate", authenticate, requireAnyPermission("program.create", "program.update"), validateProgram);
-router.delete("/", authenticate, requirePermission("program.delete"), deletePrograms);
-router.get("/:id", authenticate, requirePermission("program.view"), getProgramById);
+router.post("/validate", authenticate, requireAnyPermission(PERMISSIONS.PROGRAM_CREATE, PERMISSIONS.PROGRAM_UPDATE), validateProgram);
+router.delete("/", authenticate, requirePermission(PERMISSIONS.PROGRAM_DELETE), deletePrograms);
+router.get("/:id", authenticate, requirePermission(PERMISSIONS.PROGRAM_VIEW), getProgramById);
 router.put(
   "/:id",
   authenticate,
-  requireAnyPermission("program.update", "program.updateStatus", "program.updatePoint"),
+  requireAnyPermission(PERMISSIONS.PROGRAM_UPDATE, PERMISSIONS.PROGRAM_UPDATE_STATUS, PERMISSIONS.PROGRAM_UPDATE_POINT),
   updateProgram,
 );
-router.delete("/:id", authenticate, requirePermission("program.delete"), deleteProgram);
-router.post("/", authenticate, requirePermission("program.create"), createProgram);
+router.delete("/:id", authenticate, requirePermission(PERMISSIONS.PROGRAM_DELETE), deleteProgram);
+router.post("/", authenticate, requirePermission(PERMISSIONS.PROGRAM_CREATE), createProgram);
 
 export default router;

@@ -10,14 +10,15 @@ import {
 } from "../controllers/emailTemplateController.js";
 import authenticate from "../middleware/authenticate.js";
 import requirePermission, { requireAnyPermission } from "../middleware/requirePermission.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 
 const router = Router();
 
-router.get("/", authenticate, requirePermission("template.view"), listEmailTemplates);
-router.delete("/", authenticate, requirePermission("template.delete"), deleteEmailTemplates);
-router.post("/", authenticate, requirePermission("template.create"), createEmailTemplate);
-router.get("/:id", authenticate, requirePermission("template.view"), getEmailTemplateById);
-router.put("/:id", authenticate, requireAnyPermission("template.update", "template.setDefault"), updateEmailTemplate);
-router.delete("/:id", authenticate, requirePermission("template.delete"), deleteEmailTemplate);
+router.get("/", authenticate, requirePermission(PERMISSIONS.TEMPLATE_VIEW), listEmailTemplates);
+router.delete("/", authenticate, requirePermission(PERMISSIONS.TEMPLATE_DELETE), deleteEmailTemplates);
+router.post("/", authenticate, requirePermission(PERMISSIONS.TEMPLATE_CREATE), createEmailTemplate);
+router.get("/:id", authenticate, requirePermission(PERMISSIONS.TEMPLATE_VIEW), getEmailTemplateById);
+router.put("/:id", authenticate, requireAnyPermission(PERMISSIONS.TEMPLATE_UPDATE, PERMISSIONS.TEMPLATE_SET_DEFAULT), updateEmailTemplate);
+router.delete("/:id", authenticate, requirePermission(PERMISSIONS.TEMPLATE_DELETE), deleteEmailTemplate);
 
 export default router;

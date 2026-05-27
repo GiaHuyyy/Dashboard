@@ -10,14 +10,15 @@ import {
 } from "../controllers/websiteTemplateController.js";
 import authenticate from "../middleware/authenticate.js";
 import requirePermission from "../middleware/requirePermission.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 
 const router = Router();
 
-router.get("/", authenticate, requirePermission("websiteTemplate.view"), listWebsiteTemplates);
-router.delete("/", authenticate, requirePermission("websiteTemplate.delete"), deleteWebsiteTemplates);
-router.post("/", authenticate, requirePermission("websiteTemplate.create"), createWebsiteTemplate);
-router.get("/:id", authenticate, requirePermission("websiteTemplate.view"), getWebsiteTemplateById);
-router.put("/:id", authenticate, requirePermission("websiteTemplate.update"), updateWebsiteTemplate);
-router.delete("/:id", authenticate, requirePermission("websiteTemplate.delete"), deleteWebsiteTemplate);
+router.get("/", authenticate, requirePermission(PERMISSIONS.WEBSITE_TEMPLATE_VIEW), listWebsiteTemplates);
+router.delete("/", authenticate, requirePermission(PERMISSIONS.WEBSITE_TEMPLATE_DELETE), deleteWebsiteTemplates);
+router.post("/", authenticate, requirePermission(PERMISSIONS.WEBSITE_TEMPLATE_CREATE), createWebsiteTemplate);
+router.get("/:id", authenticate, requirePermission(PERMISSIONS.WEBSITE_TEMPLATE_VIEW), getWebsiteTemplateById);
+router.put("/:id", authenticate, requirePermission(PERMISSIONS.WEBSITE_TEMPLATE_UPDATE), updateWebsiteTemplate);
+router.delete("/:id", authenticate, requirePermission(PERMISSIONS.WEBSITE_TEMPLATE_DELETE), deleteWebsiteTemplate);
 
 export default router;
