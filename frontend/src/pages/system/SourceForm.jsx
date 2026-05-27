@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { SOURCE_DOWNLOAD_STATUS_OPTIONS, SOURCE_SEND_STATUS_OPTIONS } from "@/constants/program-source";
@@ -330,8 +330,10 @@ function SourceForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
+    <FormPageLayout
+      disabled={isReadOnlyMode}
+      actions={
+        <FormActions
         onSave={() => submitWithMode("save")}
         onSaveMail={() => submitWithMode("save-mail")}
         onSaveStay={() => submitWithMode("save-stay")}
@@ -343,11 +345,9 @@ function SourceForm() {
         readOnlyMode={isReadOnlyMode}
         saveMailDisabled={!canSendMail}
       />
-
-      <fieldset disabled={isReadOnlyMode} className="contents">
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">Nội dung source</div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
+      }
+    >
+      <FormSection title="Nội dung source">
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin source</p>
 
@@ -462,14 +462,9 @@ function SourceForm() {
               }}
             />
           </div>
-        </div>
-      </div>
+      </FormSection>
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Tham chiếu bảng giá
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
+      <FormSection title="Tham chiếu bảng giá">
           <FormField
             label="Bảng giá domain"
             type="select"
@@ -583,10 +578,8 @@ function SourceForm() {
             }}
             error={errors.advertisingPriceId?.message}
           />
-        </div>
-      </div>
-      </fieldset>
-    </form>
+      </FormSection>
+    </FormPageLayout>
   );
 }
 

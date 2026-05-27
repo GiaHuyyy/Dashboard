@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { EmailTemplateEditor } from "@/components/template/EmailTemplateEditor";
 import FormField from "@/components/ui/form-field";
 import { emailTemplateApi } from "@/lib/api-client";
@@ -198,8 +198,10 @@ function EmailTemplateForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
+    <FormPageLayout
+      disabled={!canSave}
+      actions={
+        <FormActions
         onSave={() => submitWithMode("save")}
         onSaveStay={() => submitWithMode("save-stay")}
         onReset={() => reset(initialSnapshot)}
@@ -213,12 +215,12 @@ function EmailTemplateForm() {
         readOnlyMode={!canSave}
         readOnlyTitle={isReadOnly ? "Bạn chỉ có quyền xem mẫu email này" : PERMISSION_DENIED_MESSAGE}
       />
-
-      <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-        <div className="rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-          <h2 className="text-base font-semibold text-gray-500">Thông tin mẫu email</h2>
-        </div>
-        <div className="grid gap-5 border-x border-b border-slate-200 p-5 lg:grid-cols-2">
+      }
+    >
+      <FormSection
+        title="Thông tin mẫu email"
+        headerClassName="rounded-2xl border-t-3 border-t-sky-500 text-base text-gray-500"
+      >
           <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
             <p className="text-md font-semibold text-slate-700">Thông tin chung</p>
             <FormField
@@ -287,9 +289,8 @@ function EmailTemplateForm() {
               disabled={!canSave}
             />
           </div>
-        </div>
-      </div>
-    </form>
+      </FormSection>
+    </FormPageLayout>
   );
 }
 

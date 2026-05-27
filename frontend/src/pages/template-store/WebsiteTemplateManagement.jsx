@@ -226,8 +226,8 @@ function WebsiteTemplateManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 STT
               </TableHead>
-              <TableHead className="w-40 border border-slate-200 p-4 px-10 text-center font-semibold text-slate-500">
-                Ảnh
+              <TableHead className="w-40 border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ảnh preview
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Website mẫu

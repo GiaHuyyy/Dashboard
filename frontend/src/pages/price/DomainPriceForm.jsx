@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useSelector } from "react-redux";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { domainPriceApi } from "@/lib/api-client";
@@ -141,8 +141,10 @@ function DomainPriceForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
+    <FormPageLayout
+      disabled={isReadOnlyMode}
+      actions={
+        <FormActions
         onSave={() => void persist("save")}
         onSaveStay={() => void persist("save-stay")}
         onSaveMail={() => null}
@@ -157,13 +159,9 @@ function DomainPriceForm() {
         readOnlyMode={isReadOnlyMode}
         showSaveMail={false}
       />
-
-      <fieldset disabled={isReadOnlyMode} className="contents">
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-          Thông tin bảng giá tên miền
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2">
+      }
+    >
+      <FormSection title="Thông tin bảng giá tên miền">
           <FormField
             label="Đuôi tên miền"
             type="text"
@@ -248,10 +246,8 @@ function DomainPriceForm() {
               }}
             />
           </div>
-        </div>
-      </div>
-      </fieldset>
-    </form>
+      </FormSection>
+    </FormPageLayout>
   );
 }
 

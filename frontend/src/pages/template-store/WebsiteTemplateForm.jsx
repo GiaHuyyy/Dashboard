@@ -6,7 +6,7 @@ import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { FormActions } from "@/components/forms/FormActions";
+import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import FormField from "@/components/ui/form-field";
 import { hasPermission } from "@/lib/permissions";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
@@ -299,8 +299,10 @@ function WebsiteTemplateForm() {
   }
 
   return (
-    <form className="space-y-4">
-      <FormActions
+    <FormPageLayout
+      disabled={!canSave || isUploadingPreview}
+      actions={
+        <FormActions
         onSave={() => submitWithMode("save")}
         onSaveStay={() => submitWithMode("save-stay")}
         onReset={() => {
@@ -317,13 +319,9 @@ function WebsiteTemplateForm() {
         readOnlyMode={!canSave}
         readOnlyTitle="Bạn không có quyền lưu website mẫu"
       />
-
-      <fieldset disabled={!canSave || isUploadingPreview} className="contents">
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-3 text-lg font-semibold text-slate-700">
-            Thông tin website mẫu
-          </div>
-          <div className="grid gap-5 p-5 lg:grid-cols-2">
+      }
+    >
+      <FormSection title="Thông tin website mẫu">
             <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
               <p className="text-md font-semibold text-slate-700">Thông tin chính</p>
               <FormField
@@ -445,10 +443,8 @@ function WebsiteTemplateForm() {
                 error={errors.tagsText?.message}
               />
             </div>
-          </div>
-        </div>
-      </fieldset>
-    </form>
+      </FormSection>
+    </FormPageLayout>
   );
 }
 
