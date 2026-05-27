@@ -3,6 +3,7 @@ import {
   listRolePermissions,
   updateRolePermissions,
 } from "../services/rolePermissionService.js";
+import { sendError, sendOk } from "../utils/httpResponse.js";
 
 const toResponseItem = (doc) => ({
   id: doc._id,
@@ -16,7 +17,7 @@ const toResponseItem = (doc) => ({
 export const getRolePermissions = async (req, res) => {
   const rows = await listRolePermissions(req.user?.sub);
 
-  return res.json({
+  return sendOk(res, {
     ...getPermissionDefinitions(),
     rolePermissions: rows.map(toResponseItem),
   });
@@ -30,14 +31,12 @@ export const updateRolePermission = async (req, res) => {
       userId: req.user?.sub,
     });
 
-    return res.json({
+    return sendOk(res, {
       message: "Đã lưu quyền vai trò",
       ...getPermissionDefinitions(),
       rolePermissions: rows.map(toResponseItem),
     });
   } catch (error) {
-    return res.status(error?.status || 500).json({
-      message: error?.message || "Không thể lưu quyền vai trò",
-    });
+    return sendError(res, error?.status || 500, error?.message || "Không thể lưu quyền vai trò");
   }
 };

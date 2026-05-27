@@ -4,18 +4,8 @@ import {
   getSystemSettingsObject,
   updateSystemSettingsFromObject,
 } from "../services/systemSettingService.js";
-
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
+import { formatDateTime } from "../utils/date.js";
+import { sendError, sendOk } from "../utils/httpResponse.js";
 
 const toResponseRows = (rows) =>
   rows.map((item) => ({
@@ -43,7 +33,7 @@ export const getSystemSettings = async (req, res) => {
   const rows = await getSystemSettingRows(req.user?.sub);
   const settings = await getSystemSettingsObject();
 
-  return res.json({
+  return sendOk(res, {
     settings,
     rows: toResponseRows(rows),
     definitions: getSystemSettingDefinitions(),
@@ -56,7 +46,7 @@ export const updateSystemSettings = async (req, res) => {
     const rows = await updateSystemSettingsFromObject(req.body?.settings || req.body || {}, req.user?.sub);
     const settings = await getSystemSettingsObject();
 
-    return res.json({
+    return sendOk(res, {
       message: "Đã lưu cấu hình tham số",
       settings,
       rows: toResponseRows(rows),
@@ -64,8 +54,6 @@ export const updateSystemSettings = async (req, res) => {
       updatedAt: getLatestUpdatedAt(rows),
     });
   } catch (error) {
-    return res.status(error?.status || 500).json({
-      message: error?.message || "Không thể lưu cấu hình tham số",
-    });
+    return sendError(res, error?.status || 500, error?.message || "Không thể lưu cấu hình tham số");
   }
 };

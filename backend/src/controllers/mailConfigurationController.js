@@ -1,30 +1,8 @@
 import MailConfiguration from "../models/MailConfiguration.js";
 import { decryptSmtpPassword, encryptSmtpPassword } from "../services/mailConfigurationService.js";
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
+import { formatDateTime } from "../utils/date.js";
+import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
+import { sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const getEnvDefault = () => {
   const port = Number(process.env.MAIL_PORT || 587);
@@ -108,14 +86,14 @@ const validatePayload = (payload) => {
 
 export const getMailConfiguration = async (req, res) => {
   const config = await getOrCreateConfiguration(req.user?.sub);
-  return res.json({ mailConfiguration: toResponseItem(config) });
+  return sendOk(res, { mailConfiguration: toResponseItem(config) });
 };
 
 export const updateMailConfiguration = async (req, res) => {
   const config = await getOrCreateConfiguration(req.user?.sub);
   const payload = normalizePayload(req.body, config);
   const validationError = validatePayload(payload);
-  if (validationError) return res.status(validationError.status).json({ message: validationError.message });
+  if (validationError) return sendValidationError(res, validationError);
 
   config.smtpHost = payload.smtpHost;
   config.smtpPort = payload.smtpPort;
@@ -130,7 +108,7 @@ export const updateMailConfiguration = async (req, res) => {
 
   await config.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã lưu cấu hình mail",
     mailConfiguration: toResponseItem(config),
   });
