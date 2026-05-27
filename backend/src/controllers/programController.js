@@ -1,11 +1,12 @@
-import mongoose from "mongoose";
 
 import BusinessContract from "../models/BusinessContract.js";
 import DesignTask from "../models/DesignTask.js";
 import Program from "../models/Program.js";
-import { sendProgramMail } from "../services/programMailService.js";
 import { getSystemSettingsObject } from "../services/systemSettingService.js";
 import { getActiveCategoryNames } from "../utils/system-category.js";
+import { formatDateTime, toIsoString } from "../utils/date.js";
+import { normalizeBoolean, normalizeDate, normalizeNumber, normalizeObjectId, normalizeString } from "../utils/normalize.js";
+import { sendCreated, sendError, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const DURATION_UNITS = ["h", "ngày"];
 const COMPLETED_STATUS = "Đã hoàn thành";
@@ -17,29 +18,6 @@ const normalizeProcessingStatus = (value, statusOptions) => {
   if (normalized === "Đã nhận") return "Đã phân công";
   if (!Array.isArray(statusOptions) || statusOptions.length === 0) return normalized;
   return statusOptions.includes(normalized) ? normalized : statusOptions[0];
-};
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const EMAIL_LOCAL_MIN_LENGTH = 6;
-const EMAIL_LOCAL_HAS_LETTER_REGEX = /[A-Za-zÀ-ỹ]/u;
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const normalizeDate = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
 };
 const parseCcEmails = (ccEmails) => {
   if (!ccEmails) return [];
@@ -72,34 +50,10 @@ const calculateConvertByDuration = (durationValue, durationUnit, convertSettings
   }
   return "";
 };
-const hasValidEmailLocalPart = (email) => {
-  const localPart = email.split("@")[0] || "";
-  if (localPart.length < EMAIL_LOCAL_MIN_LENGTH) return false;
-  return EMAIL_LOCAL_HAS_LETTER_REGEX.test(localPart);
-};
-const formatDateTime = (value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-};
 const toObjectIdString = (value) => {
   if (!value) return "";
   return typeof value === "string" ? value : String(value);
 };
-const toIsoString = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString();
-};
-
 const normalizeProgramPayload = (body = {}, convertSettings = {}) => {
   const module = normalizeString(body.module);
   const durationValue = normalizeNumber(body.durationValue);
@@ -205,7 +159,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     return { status: 400, message: "design và visible phải là kiểu boolean" };
   }
 
-  if (!mongoose.isValidObjectId(payload.businessContractId)) {
+  if (!normalizeObjectId(payload.businessContractId)) {
     return { status: 400, message: "businessContractId không hợp lệ" };
   }
   const businessContract = await BusinessContract.findOne({
@@ -216,28 +170,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     return { status: 404, message: "Không tìm thấy hợp đồng kinh doanh hợp lệ" };
   }
 
-  if (!EMAIL_REGEX.test(businessContract.salesReceiverEmail || "")) {
-    return { status: 400, message: "Hợp đồng kinh doanh chưa có salesReceiverEmail hợp lệ" };
-  }
-  if (!hasValidEmailLocalPart(businessContract.salesReceiverEmail || "")) {
-    return {
-      status: 400,
-      message: `Phần trước @ của salesReceiverEmail phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
-    };
-  }
-
   const ccEmails = parseCcEmails(businessContract.ccEmails);
-  const invalidCcEmail = ccEmails.find((email) => !EMAIL_REGEX.test(email));
-  if (invalidCcEmail) {
-    return { status: 400, message: `ccEmails chứa email không hợp lệ: ${invalidCcEmail}` };
-  }
-  const invalidCcLocalPart = ccEmails.find((email) => !hasValidEmailLocalPart(email));
-  if (invalidCcLocalPart) {
-    return {
-      status: 400,
-      message: `Phần trước @ của email cc phải tối thiểu ${EMAIL_LOCAL_MIN_LENGTH} ký tự và có ít nhất 1 chữ cái`,
-    };
-  }
 
   payload.contractSnapshot = {
     contractName: businessContract.contractName || "",
@@ -259,7 +192,7 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
     if (!designTaskId) {
       return { status: 400, message: "Vui lòng chọn thiết kế tham chiếu" };
     }
-    if (!mongoose.isValidObjectId(designTaskId)) {
+    if (!normalizeObjectId(designTaskId)) {
       return { status: 400, message: "Thiết kế tham chiếu không hợp lệ" };
     }
     const designTask = await DesignTask.findOne({
@@ -292,22 +225,6 @@ const validateProgramPayload = async (payload, { checkDuplicate = true, excludeP
   return null;
 };
 
-const toMailPayload = (payload) => ({
-  module: payload.module,
-  time: payload.time,
-  convert: payload.convert,
-  design: payload.design,
-  display: payload.visible,
-  contractName: payload.contractSnapshot?.contractName || "",
-  contractCode: payload.contractSnapshot?.contractCode || "",
-  contractImages: payload.contractSnapshot?.contractImages || [],
-  status: payload.contractSnapshot?.status || "",
-  mailStatus: payload.contractSnapshot?.mailStatus || "",
-  selectedSalesStaff: payload.contractSnapshot?.selectedSalesStaff || "",
-  salesReceiverName: payload.contractSnapshot?.salesReceiverName || "",
-  salesReceiverEmail: payload.contractSnapshot?.salesReceiverEmail || "",
-  ccEmails: payload.contractSnapshot?.ccEmails || [],
-});
 
 export const validateProgram = async (req, res) => {
   const convertSettings = await getConvertSettings();
@@ -318,18 +235,17 @@ export const validateProgram = async (req, res) => {
     excludeProgramId: currentProgramId,
   });
   if (validationError) {
-    return res.status(validationError.status).json({ message: validationError.message });
+    return sendValidationError(res, validationError);
   }
-  return res.json({ message: "Dữ liệu hợp lệ" });
+  return sendOk(res, { message: "Dữ liệu hợp lệ" });
 };
 
 export const createProgram = async (req, res) => {
-  const shouldSendMail = normalizeBoolean(req.body.sendMail) === true;
   const convertSettings = await getConvertSettings();
   const payload = normalizeProgramPayload(req.body, convertSettings);
   const validationError = await validateProgramPayload(payload, { checkDuplicate: true });
   if (validationError) {
-    return res.status(validationError.status).json({ message: validationError.message });
+    return sendValidationError(res, validationError);
   }
 
   const createdProgram = await Program.create({
@@ -365,21 +281,8 @@ export const createProgram = async (req, res) => {
     createdBy: req.user.sub,
   });
 
-  if (shouldSendMail) {
-    try {
-      await sendProgramMail({
-        program: toMailPayload(payload),
-        actionLabel: "Lưu gửi mail",
-      });
-    } catch (error) {
-      return res.status(500).json({
-        message: `Đã lưu form nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
-      });
-    }
-  }
-
-  return res.status(201).json({
-    message: shouldSendMail ? "Lưu form và gửi mail thành công" : "Lưu form thành công",
+  return sendCreated(res, {
+    message: "Lưu form thành công",
     program: createdProgram,
   });
 };
@@ -401,7 +304,7 @@ export const listPrograms = async (req, res) => {
     )
     .lean();
 
-  return res.json({
+  return sendOk(res, {
     programs: programs.map((item) => ({
       id: item._id,
       contractCode: item.contractCode || "",
@@ -441,7 +344,7 @@ export const listProgramReferences = async (req, res) => {
     .populate({ path: "businessContractId", select: "customerName" })
     .lean();
 
-  return res.json({
+  return sendOk(res, {
     programs: programs.map((item) => ({
       id: item._id,
       businessContractId: toObjectIdString(item.businessContractId?._id || item.businessContractId),
@@ -464,10 +367,10 @@ export const listProgramReferences = async (req, res) => {
 export const getProgramById = async (req, res) => {
   const program = await Program.findById(req.params.id).lean();
   if (!program || program.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy chương trình" });
+    return sendNotFound(res, "Không tìm thấy chương trình");
   }
 
-  return res.json({
+  return sendOk(res, {
     program: {
       id: program._id,
       module: program.module,
@@ -504,14 +407,13 @@ export const getProgramById = async (req, res) => {
 };
 
 export const updateProgram = async (req, res) => {
-  const shouldSendMail = normalizeBoolean(req.body.sendMail) === true;
   const existingProgram = await Program.findById(req.params.id);
   if (!existingProgram || existingProgram.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy chương trình" });
+    return sendNotFound(res, "Không tìm thấy chương trình");
   }
 
   if (existingProgram.processingStatus === COMPLETED_STATUS && !hasRequestPermission(req, "program.overrideCompleted")) {
-    return res.status(403).json({ message: "Phiếu lập trình đã hoàn thành, chỉ được xem chi tiết" });
+    return sendError(res, 403, "Phiếu lập trình đã hoàn thành, chỉ được xem chi tiết");
   }
 
   const convertSettings = await getConvertSettings();
@@ -521,7 +423,7 @@ export const updateProgram = async (req, res) => {
     excludeProgramId: toObjectIdString(existingProgram._id),
   });
   if (validationError) {
-    return res.status(validationError.status).json({ message: validationError.message });
+    return sendValidationError(res, validationError);
   }
 
   existingProgram.module = payload.module;
@@ -555,21 +457,8 @@ export const updateProgram = async (req, res) => {
 
   await existingProgram.save();
 
-  if (shouldSendMail) {
-    try {
-      await sendProgramMail({
-        program: toMailPayload(payload),
-        actionLabel: "Cập nhật gửi mail",
-      });
-    } catch (error) {
-      return res.status(500).json({
-        message: `Đã cập nhật form nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
-      });
-    }
-  }
-
-  return res.json({
-    message: shouldSendMail ? "Cập nhật form và gửi mail thành công" : "Cập nhật form thành công",
+  return sendOk(res, {
+    message: "Cập nhật form thành công",
     program: existingProgram,
   });
 };
@@ -577,13 +466,13 @@ export const updateProgram = async (req, res) => {
 export const deleteProgram = async (req, res) => {
   const program = await Program.findById(req.params.id);
   if (!program || program.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy chương trình" });
+    return sendNotFound(res, "Không tìm thấy chương trình");
   }
 
   program.isDeleted = true;
   await program.save();
 
-  return res.json({ message: "Đã xóa chương trình" });
+  return sendOk(res, { message: "Đã xóa chương trình" });
 };
 
 export const deletePrograms = async (req, res) => {
@@ -597,7 +486,7 @@ export const deletePrograms = async (req, res) => {
       : { isDeleted: false, $or: [{ type: "program" }, { type: { $exists: false } }] };
   const result = await Program.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các chương trình đã chọn" : "Đã xóa toàn bộ chương trình",
     deletedCount: result.modifiedCount || 0,
   });

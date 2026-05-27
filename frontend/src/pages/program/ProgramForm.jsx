@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -338,12 +339,10 @@ function ProgramForm() {
   }, [isEditMode, navigate, programId, reset, returnPath]);
 
   const persistProgram = async (values, mode) => {
-    const shouldSendMail = mode === "save-mail";
     const payload = {
       ...values,
       convert: calculateConvertByDuration(values.durationValue, values.durationUnit),
       bonusPoint: values.bonusPoint,
-      sendMail: shouldSendMail,
       receivedAt: values.receivedAt || null,
       completedAt: values.processingStatus === COMPLETED_STATUS ? values.completedAt || null : null,
     };
@@ -381,13 +380,6 @@ function ProgramForm() {
       return;
     }
 
-    if (mode === "save-mail") {
-      toast.success(response?.message || (isEditMode ? "Đã cập nhật form và gửi mail" : "Đã lưu form và gửi mail"));
-      if (!isEditMode) {
-        navigate(returnPath);
-      }
-      return;
-    }
 
     toast.success(response?.message || (isEditMode ? "Cập nhật thành công" : "Lưu thành công"));
     navigate(returnPath);
@@ -432,7 +424,6 @@ function ProgramForm() {
         actions={
           <FormActions
             onSave={() => submitWithMode("save")}
-            onSaveMail={() => null}
             onSaveStay={() => submitWithMode("save-stay")}
             onReset={() => reset(initialSnapshot)}
             isSubmitting={isSubmitting}

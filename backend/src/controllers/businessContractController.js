@@ -1,38 +1,31 @@
-import mongoose from "mongoose";
-
 import BusinessContract from "../models/BusinessContract.js";
 import { deleteImageAsset } from "../services/uploadAssetService.js";
 import { sendBusinessContractMail } from "../services/businessContractMailService.js";
+import { formatDateTime, toIsoString } from "../utils/date.js";
+import {
+  normalizeBoolean,
+  normalizeDate,
+  normalizeNumber,
+  normalizeObjectId,
+  normalizeString,
+  parsePositiveInteger,
+} from "../utils/normalize.js";
+import { buildSearchOrFilter, escapeRegex } from "../utils/query.js";
+import {
+  sendBadRequest,
+  sendCreated,
+  sendError,
+  sendNotFound,
+  sendOk,
+  sendValidationError,
+} from "../utils/httpResponse.js";
 
 const HANDOVER_STATUS_OPTIONS = ["Chưa bàn giao", "Đã bàn giao"];
 const STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
 const MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const normalizeFlag = (value) => value === true || String(value).toLowerCase() === "true";
+const normalizeFlag = (value) => normalizeBoolean(value) === true;
 
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const normalizeDate = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
-};
-const parsePositiveInteger = (value) => {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-};
 const parseCcEmails = (ccEmails) => {
   if (!ccEmails) return [];
   if (Array.isArray(ccEmails)) {
@@ -43,7 +36,6 @@ const parseCcEmails = (ccEmails) => {
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 };
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const normalizeContractImage = (item) => {
   if (typeof item === "string") {
@@ -76,23 +68,7 @@ const getRemovedContractImagePublicIds = (oldImages = [], nextImages = []) => {
   return getContractImagePublicIds(oldImages).filter((publicId) => !nextPublicIds.has(publicId));
 };
 
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-const toIsoString = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString();
-};
+const formatContractDateTime = (value) => formatDateTime(value, { includeSeconds: false });
 
 const normalizePayload = (body = {}) => {
   const contractImages = normalizeContractImages(body.contractImages);
@@ -183,14 +159,33 @@ const toResponseItem = (doc) => ({
   ccEmails: Array.isArray(doc.ccEmails) ? doc.ccEmails : [],
   contractImages: normalizeContractImages(doc.contractImages),
   expectedHandoverAt: toIsoString(doc.expectedHandoverAt),
-  expectedHandoverAtLabel: formatDateTime(doc.expectedHandoverAt),
+  expectedHandoverAtLabel: formatContractDateTime(doc.expectedHandoverAt),
   handoverStatus: doc.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
   handoverAt: toIsoString(doc.handoverAt),
-  handoverAtLabel: formatDateTime(doc.handoverAt),
+  handoverAtLabel: formatContractDateTime(doc.handoverAt),
   visible: Boolean(doc.visible),
   note: doc.note || "",
   createdAt: toIsoString(doc.createdAt),
-  createdAtLabel: formatDateTime(doc.createdAt),
+  createdAtLabel: formatContractDateTime(doc.createdAt),
+});
+
+const toReferenceItem = (item) => ({
+  id: item._id,
+  contractCode: item.contractCode || "",
+  contractName: item.contractName || "",
+  contractValue: Number(item.contractValue) || 0,
+  customerName: item.customerName || "",
+  status: item.status || STATUS_OPTIONS[0],
+  mailStatus: item.mailStatus || MAIL_STATUS_OPTIONS[0],
+  selectedSalesStaff: item.selectedSalesStaff || "",
+  salesReceiverName: item.salesReceiverName || "",
+  salesReceiverEmail: item.salesReceiverEmail || "",
+  ccEmails: Array.isArray(item.ccEmails) ? item.ccEmails : [],
+  contractImages: normalizeContractImages(item.contractImages),
+  expectedHandoverAt: toIsoString(item.expectedHandoverAt),
+  expectedHandoverAtLabel: formatContractDateTime(item.expectedHandoverAt),
+  handoverStatus: item.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
+  label: `${item.contractCode || "N/A"} - ${item.contractName || "N/A"} - ${item.customerName || "N/A"}`,
 });
 
 export const createBusinessContract = async (req, res) => {
@@ -207,29 +202,29 @@ export const createBusinessContract = async (req, res) => {
   }
 
   const validation = await validatePayload(payload);
-  if (validation) return res.status(validation.status).json({ message: validation.message });
+  if (validation) return sendValidationError(res, validation);
 
   const created = await BusinessContract.create({
     ...payload,
     createdBy: req.user.sub,
   });
 
+  const contract = toResponseItem(created);
+
   if (shouldSendMail) {
     try {
       await sendBusinessContractMail({
-        contract: toResponseItem(created),
+        contract,
         actionLabel: "Lưu gửi mail",
       });
     } catch (error) {
-      return res.status(500).json({
-        message: `Đã lưu hợp đồng nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
-      });
+      return sendError(res, 500, `Đã lưu hợp đồng nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`);
     }
   }
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: shouldSendMail ? "Đã tạo hợp đồng và gửi mail thành công" : "Đã tạo hợp đồng kinh doanh",
-    contract: toResponseItem(created),
+    contract,
   });
 };
 
@@ -244,27 +239,27 @@ export const listBusinessContracts = async (req, res) => {
     filters.handoverStatus = normalizeString(handoverStatus);
   }
 
-  const keyword = normalizeString(search);
-  if (keyword) {
-    filters.$or = [
-      { contractCode: { $regex: keyword, $options: "i" } },
-      { contractName: { $regex: keyword, $options: "i" } },
-      { customerName: { $regex: keyword, $options: "i" } },
-      { customerPhone: { $regex: keyword, $options: "i" } },
-      { customerEmail: { $regex: keyword, $options: "i" } },
-      { selectedSalesStaff: { $regex: keyword, $options: "i" } },
-      { salesReceiverName: { $regex: keyword, $options: "i" } },
-      { salesReceiverEmail: { $regex: keyword, $options: "i" } },
-      { note: { $regex: keyword, $options: "i" } },
-    ];
-  }
+  Object.assign(
+    filters,
+    buildSearchOrFilter(search, [
+      "contractCode",
+      "contractName",
+      "customerName",
+      "customerPhone",
+      "customerEmail",
+      "selectedSalesStaff",
+      "salesReceiverName",
+      "salesReceiverEmail",
+      "note",
+    ]),
+  );
 
   const [items, total] = await Promise.all([
     BusinessContract.find(filters).sort({ createdAt: 1 }).skip(skip).limit(limitNumber).lean(),
     BusinessContract.countDocuments(filters),
   ]);
 
-  return res.json({
+  return sendOk(res, {
     contracts: items.map(toResponseItem),
     pagination: {
       page: pageNumber,
@@ -282,40 +277,28 @@ export const listBusinessContractReferences = async (req, res) => {
     )
     .lean();
 
-  return res.json({
-    contracts: items.map((item) => ({
-      id: item._id,
-      contractCode: item.contractCode || "",
-      contractName: item.contractName || "",
-      contractValue: Number(item.contractValue) || 0,
-      customerName: item.customerName || "",
-      status: item.status || STATUS_OPTIONS[0],
-      mailStatus: item.mailStatus || MAIL_STATUS_OPTIONS[0],
-      selectedSalesStaff: item.selectedSalesStaff || "",
-      salesReceiverName: item.salesReceiverName || "",
-      salesReceiverEmail: item.salesReceiverEmail || "",
-      ccEmails: Array.isArray(item.ccEmails) ? item.ccEmails : [],
-      contractImages: normalizeContractImages(item.contractImages),
-      expectedHandoverAt: toIsoString(item.expectedHandoverAt),
-      expectedHandoverAtLabel: formatDateTime(item.expectedHandoverAt),
-      handoverStatus: item.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
-      label: `${item.contractCode || "N/A"} - ${item.contractName || "N/A"} - ${item.customerName || "N/A"}`,
-    })),
+  return sendOk(res, {
+    contracts: items.map(toReferenceItem),
   });
 };
 
 export const getBusinessContractById = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
-  const contract = await BusinessContract.findById(req.params.id).lean();
-  if (!contract || contract.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
-  return res.json({ contract: toResponseItem(contract) });
+  const id = normalizeObjectId(req.params.id);
+  if (!id) return sendBadRequest(res, "id không hợp lệ");
+
+  const contract = await BusinessContract.findById(id).lean();
+  if (!contract || contract.isDeleted) return sendNotFound(res, "Không tìm thấy hợp đồng kinh doanh");
+
+  return sendOk(res, { contract: toResponseItem(contract) });
 };
 
 export const updateBusinessContract = async (req, res) => {
   const shouldSendMail = normalizeFlag(req.body.sendMail);
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
-  const existing = await BusinessContract.findById(req.params.id);
-  if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
+  const id = normalizeObjectId(req.params.id);
+  if (!id) return sendBadRequest(res, "id không hợp lệ");
+
+  const existing = await BusinessContract.findById(id);
+  if (!existing || existing.isDeleted) return sendNotFound(res, "Không tìm thấy hợp đồng kinh doanh");
 
   const input = normalizePayload(req.body);
   const mergedPayload = {
@@ -344,7 +327,7 @@ export const updateBusinessContract = async (req, res) => {
   }
 
   const validation = await validatePayload(mergedPayload, { excludeId: String(existing._id) });
-  if (validation) return res.status(validation.status).json({ message: validation.message });
+  if (validation) return sendValidationError(res, validation);
 
   existing.contractCode = mergedPayload.contractCode;
   existing.contractName = mergedPayload.contractName;
@@ -370,44 +353,49 @@ export const updateBusinessContract = async (req, res) => {
 
   await Promise.all(removedImagePublicIds.map((publicId) => deleteImageAsset(publicId)));
 
+  const contract = toResponseItem(existing);
+
   if (shouldSendMail) {
     try {
       await sendBusinessContractMail({
-        contract: toResponseItem(existing),
+        contract,
         actionLabel: "Cập nhật gửi mail",
       });
     } catch (error) {
-      return res.status(500).json({
-        message: `Đã cập nhật hợp đồng nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`,
-      });
+      return sendError(res, 500, `Đã cập nhật hợp đồng nhưng gửi mail thất bại: ${error?.message || "Unknown error"}`);
     }
   }
 
-  return res.json({
+  return sendOk(res, {
     message: shouldSendMail ? "Đã cập nhật hợp đồng và gửi mail thành công" : "Đã cập nhật hợp đồng kinh doanh",
-    contract: toResponseItem(existing),
+    contract,
   });
 };
 
 export const handoverBusinessContract = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
-  const existing = await BusinessContract.findById(req.params.id);
-  if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
+  const id = normalizeObjectId(req.params.id);
+  if (!id) return sendBadRequest(res, "id không hợp lệ");
+
+  const existing = await BusinessContract.findById(id);
+  if (!existing || existing.isDeleted) return sendNotFound(res, "Không tìm thấy hợp đồng kinh doanh");
 
   existing.handoverStatus = "Đã bàn giao";
   existing.handoverAt = existing.handoverAt || new Date();
   await existing.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã bàn giao hợp đồng cho lập trình",
     contract: toResponseItem(existing),
   });
 };
 
 export const deleteBusinessContract = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
-  const existing = await BusinessContract.findById(req.params.id);
-  if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy hợp đồng kinh doanh" });
+  const id = normalizeObjectId(req.params.id);
+  if (!id) return sendBadRequest(res, "id không hợp lệ");
+
+  const existing = await BusinessContract.findById(id);
+  if (!existing || existing.isDeleted) return sendNotFound(res, "Không tìm thấy hợp đồng kinh doanh");
+
   const imagePublicIds = getContractImagePublicIds(existing.contractImages);
   existing.isDeleted = true;
   existing.contractImages = [];
@@ -415,12 +403,12 @@ export const deleteBusinessContract = async (req, res) => {
 
   await Promise.all(imagePublicIds.map((publicId) => deleteImageAsset(publicId)));
 
-  return res.json({ message: "Đã xóa hợp đồng kinh doanh" });
+  return sendOk(res, { message: "Đã xóa hợp đồng kinh doanh" });
 };
 
 export const deleteBusinessContracts = async (req, res) => {
   const ids = Array.isArray(req.body?.ids)
-    ? req.body.ids.map((item) => normalizeString(String(item))).filter((item) => mongoose.isValidObjectId(item))
+    ? req.body.ids.map((item) => normalizeObjectId(item)).filter(Boolean)
     : [];
 
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
@@ -430,7 +418,7 @@ export const deleteBusinessContracts = async (req, res) => {
 
   await Promise.all(imagePublicIds.map((publicId) => deleteImageAsset(publicId)));
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các hợp đồng đã chọn" : "Đã xóa toàn bộ hợp đồng kinh doanh",
     deletedCount: result.modifiedCount || 0,
   });

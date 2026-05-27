@@ -1,3 +1,4 @@
+
 import { AlertTriangle, ArrowRight, Clock3, FileText, RefreshCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -25,9 +26,19 @@ const typeLabels = {
 };
 
 const getCardHint = (card = {}) => {
-  if (card.overdue > 0) return <span className="font-semibold text-rose-600">{card.overdue} quá hạn</span>;
-  if (card.warning > 0) return <span className="font-semibold text-amber-600">{card.warning} sắp đến hạn</span>;
-  return <span className="text-slate-400">Không có cảnh báo</span>;
+  const overdue = Number(card.overdue || 0);
+  const warning = Number(card.warning || 0);
+
+  if (overdue <= 0 && warning <= 0) {
+    return <span className="text-slate-400">Không có cảnh báo</span>;
+  }
+
+  return (
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {overdue > 0 ? <span className="font-semibold text-rose-600">{overdue} quá hạn</span> : null}
+      {warning > 0 ? <span className="font-semibold text-amber-600">{warning} sắp đến hạn</span> : null}
+    </span>
+  );
 };
 
 function Home() {

@@ -5,6 +5,8 @@ import ProgramCorrection from "../models/ProgramCorrection.js";
 import ProgramSource from "../models/ProgramSource.js";
 import ProgramUpgrade from "../models/ProgramUpgrade.js";
 import { getSystemSettingValue } from "../services/systemSettingService.js";
+import { formatDateTime } from "../utils/date.js";
+import { sendOk } from "../utils/httpResponse.js";
 
 const COMPLETED_STATUS = "Đã hoàn thành";
 const HANDED_OVER_STATUS = "Đã bàn giao";
@@ -17,16 +19,6 @@ const toDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const formatDateTime = (value) => {
-  const date = toDate(value);
-  if (!date) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
 
 const getSlaState = (deadline, warningBeforeMs, now = new Date()) => {
   const date = toDate(deadline);
@@ -59,6 +51,10 @@ const getSlaState = (deadline, warningBeforeMs, now = new Date()) => {
   };
 };
 
+const getProcessingAlertDescription = (sla) =>
+  sla?.status === "overdue" ? "Đã quá hạn xử lý" : "Sắp đến hạn xử lý";
+
+
 const makeAlert = ({ type, title, description, deadline, href, warningBeforeMs, now }) => {
   const sla = getSlaState(deadline, warningBeforeMs, now);
   if (!sla || sla.status === "normal") return null;
@@ -66,10 +62,10 @@ const makeAlert = ({ type, title, description, deadline, href, warningBeforeMs, 
   return {
     type,
     title,
-    description,
+    description: typeof description === "function" ? description(sla) : description,
     href,
     deadline: toDate(deadline)?.toISOString() || "",
-    deadlineLabel: formatDateTime(deadline),
+    deadlineLabel: formatDateTime(deadline, { includeSeconds: false }),
     status: sla.status,
     statusLabel: sla.label,
     badgeClass: sla.badgeClass,
@@ -132,7 +128,7 @@ export const getDashboardSummary = async (req, res) => {
       makeAlert({
         type: "program",
         title: item.contractCode || item.module || "Phiếu lập trình",
-        description: "Đã quá hạn xử lý",
+        description: getProcessingAlertDescription,
         deadline: item.dueAt,
         href: `/lap-trinh/chinh-sua/${item._id}`,
         warningBeforeMs,
@@ -160,7 +156,7 @@ export const getDashboardSummary = async (req, res) => {
       makeAlert({
         type: "upgrade",
         title: item.upgradeItem || item.programId?.contractCode || "Phiếu nâng cấp",
-        description: "Đã quá hạn xử lý",
+        description: getProcessingAlertDescription,
         deadline: item.dueAt,
         href: `/lap-trinh/nang-cap/chinh-sua/${item._id}`,
         warningBeforeMs,
@@ -174,7 +170,7 @@ export const getDashboardSummary = async (req, res) => {
       makeAlert({
         type: "design",
         title: item.title || "Công việc design",
-        description: "Đã quá hạn xử lý",
+        description: getProcessingAlertDescription,
         deadline: item.expectedDate || item.deadline,
         href: `/design/chinh-sua/${item._id}`,
         warningBeforeMs,
@@ -225,7 +221,7 @@ export const getDashboardSummary = async (req, res) => {
   const sourceStatus = countByStatus(sourceAlerts);
   const contractStatus = countByStatus(contractAlerts);
 
-  return res.json({
+  return sendOk(res, {
     warningBeforeHours,
     cards: {
       program: {

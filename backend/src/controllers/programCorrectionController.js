@@ -1,8 +1,22 @@
-import mongoose from "mongoose";
-
 import Program from "../models/Program.js";
 import ProgramCorrection from "../models/ProgramCorrection.js";
 import { getSystemSettingsObject } from "../services/systemSettingService.js";
+import { formatDateTime, toIsoString, buildMonthYearDateRange } from "../utils/date.js";
+import {
+  normalizeBoolean,
+  normalizeDate,
+  normalizeNumber,
+  normalizeObjectId,
+  normalizeString,
+  parsePositiveInteger,
+} from "../utils/normalize.js";
+import {
+  sendCreated,
+  sendError,
+  sendNotFound,
+  sendOk,
+  sendValidationError,
+} from "../utils/httpResponse.js";
 import { getActiveCategoryNames } from "../utils/system-category.js";
 
 const COMPLETED_STATUS = "Đã hoàn thành";
@@ -16,47 +30,6 @@ const normalizeStatus = (value, statusOptions) => {
   return statusOptions.includes(normalized) ? normalized : statusOptions[0];
 };
 const DURATION_UNITS = ["h", "ngày"];
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-
-const normalizeDate = (value) => {
-  if (value === null || value === undefined || value === "") return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
-};
-
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-
-const toIsoString = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString();
-};
-
-const parsePositiveInteger = (value) => {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-};
 
 const formatNumber = (value, roundingDigits = 3) => {
   if (!Number.isFinite(value)) return "";
@@ -82,10 +55,6 @@ const calculateConvertByDuration = (durationValue, durationUnit, convertSettings
   return "";
 };
 
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
 
 const normalizePayload = (body = {}) => ({
   programId: normalizeString(body.programId),
@@ -122,7 +91,7 @@ const validatePayload = async (payload) => {
   if (!payload.programId) {
     return { status: 400, message: "programId là bắt buộc" };
   }
-  if (!mongoose.isValidObjectId(payload.programId)) {
+  if (!normalizeObjectId(payload.programId)) {
     return { status: 400, message: "programId không hợp lệ" };
   }
 
@@ -210,7 +179,7 @@ const toResponseItem = (doc) => ({
   completedAt: toIsoString(doc.completedAt),
   visible: doc.visible,
   note: doc.note || "",
-  createdAt: formatDateTime(doc.createdAt),
+  createdAt: formatDateTime(doc.createdAt, { includeSeconds: false }),
 });
 
 export const createProgramCorrection = async (req, res) => {
@@ -219,7 +188,7 @@ export const createProgramCorrection = async (req, res) => {
 
   const validationResult = await validatePayload(normalizedPayload);
   if (validationResult.status) {
-    return res.status(validationResult.status).json({ message: validationResult.message });
+    return sendValidationError(res, validationResult);
   }
 
   const createdCorrection = await ProgramCorrection.create({
@@ -233,7 +202,7 @@ export const createProgramCorrection = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Tạo yêu cầu chỉnh sửa thành công",
     correction: toResponseItem(populated),
   });
@@ -250,12 +219,9 @@ export const listProgramCorrections = async (req, res) => {
     filters.assignee = normalizeString(assignee);
   }
 
-  const monthNum = month !== "all" ? parsePositiveInteger(month) : null;
-  const yearNum = year !== "all" ? parsePositiveInteger(year) : null;
-  if (monthNum || yearNum) {
-    const rangeStart = new Date(yearNum || 1970, monthNum ? monthNum - 1 : 0, 1, 0, 0, 0, 0);
-    const rangeEnd = new Date(yearNum || 3000, monthNum ? monthNum : 12, 1, 0, 0, 0, 0);
-    filters.assignedAt = { $gte: rangeStart, $lt: rangeEnd };
+  const { startDate, endDate } = buildMonthYearDateRange({ month, year });
+  if (startDate && endDate) {
+    filters.assignedAt = { $gte: startDate, $lt: endDate };
   }
 
   const keyword = normalizeString(search);
@@ -288,7 +254,7 @@ export const listProgramCorrections = async (req, res) => {
     ProgramCorrection.countDocuments(filters),
   ]);
 
-  return res.json({
+  return sendOk(res, {
     corrections: items.map(toResponseItem),
     pagination: {
       page: pageNumber,
@@ -303,10 +269,10 @@ export const getProgramCorrectionById = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
   if (!correction || correction.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy yêu cầu chỉnh sửa" });
+    return sendNotFound(res, "Không tìm thấy yêu cầu chỉnh sửa");
   }
 
-  return res.json({
+  return sendOk(res, {
     correction: toResponseItem(correction),
   });
 };
@@ -314,11 +280,11 @@ export const getProgramCorrectionById = async (req, res) => {
 export const updateProgramCorrection = async (req, res) => {
   const existing = await ProgramCorrection.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy yêu cầu chỉnh sửa" });
+    return sendNotFound(res, "Không tìm thấy yêu cầu chỉnh sửa");
   }
 
   if (existing.status === COMPLETED_STATUS && !hasRequestPermission(req, "correction.overrideCompleted")) {
-    return res.status(403).json({ message: "Yêu cầu chỉnh sửa đã hoàn thành, chỉ được xem chi tiết" });
+    return sendError(res, 403, "Yêu cầu chỉnh sửa đã hoàn thành, chỉ được xem chi tiết");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -345,7 +311,7 @@ export const updateProgramCorrection = async (req, res) => {
 
   const validationResult = await validatePayload(mergedPayload);
   if (validationResult.status) {
-    return res.status(validationResult.status).json({ message: validationResult.message });
+    return sendValidationError(res, validationResult);
   }
 
   existing.programId = mergedPayload.programId;
@@ -371,7 +337,7 @@ export const updateProgramCorrection = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
 
-  return res.json({
+  return sendOk(res, {
     message: "Cập nhật yêu cầu chỉnh sửa thành công",
     correction: toResponseItem(populated),
   });
@@ -380,24 +346,24 @@ export const updateProgramCorrection = async (req, res) => {
 export const deleteProgramCorrection = async (req, res) => {
   const correction = await ProgramCorrection.findById(req.params.id);
   if (!correction || correction.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy yêu cầu chỉnh sửa" });
+    return sendNotFound(res, "Không tìm thấy yêu cầu chỉnh sửa");
   }
 
   correction.isDeleted = true;
   await correction.save();
 
-  return res.json({ message: "Đã xóa yêu cầu chỉnh sửa" });
+  return sendOk(res, { message: "Đã xóa yêu cầu chỉnh sửa" });
 };
 
 export const deleteProgramCorrections = async (req, res) => {
   const ids = Array.isArray(req.body?.ids)
-    ? req.body.ids.map((item) => normalizeString(String(item))).filter((item) => mongoose.isValidObjectId(item))
+    ? req.body.ids.map((item) => normalizeObjectId(item)).filter(Boolean)
     : [];
 
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await ProgramCorrection.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các yêu cầu chỉnh sửa đã chọn" : "Đã xóa toàn bộ yêu cầu chỉnh sửa",
     deletedCount: result.modifiedCount || 0,
   });

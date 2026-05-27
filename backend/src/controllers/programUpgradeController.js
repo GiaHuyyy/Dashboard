@@ -1,8 +1,22 @@
-import mongoose from "mongoose";
-
 import Program from "../models/Program.js";
 import ProgramUpgrade from "../models/ProgramUpgrade.js";
 import { getSystemSettingsObject } from "../services/systemSettingService.js";
+import { formatDateTime, toIsoString, buildMonthYearDateRange } from "../utils/date.js";
+import {
+  normalizeBoolean,
+  normalizeDate,
+  normalizeNumber,
+  normalizeObjectId,
+  normalizeString,
+  parsePositiveInteger,
+} from "../utils/normalize.js";
+import {
+  sendCreated,
+  sendError,
+  sendNotFound,
+  sendOk,
+  sendValidationError,
+} from "../utils/httpResponse.js";
 import { getActiveCategoryNames } from "../utils/system-category.js";
 
 const COMPLETED_STATUS = "Đã hoàn thành";
@@ -17,31 +31,6 @@ const normalizeStatus = (value, statusOptions) => {
   return statusOptions.includes(normalized) ? normalized : statusOptions[0];
 };
 const DURATION_UNITS = ["h", "ngày"];
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
-};
-
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-const normalizeDate = (value) => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const parsePositiveInteger = (value) => {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-};
 
 const formatNumber = (value, roundingDigits = 3) => {
   if (!Number.isFinite(value)) return "";
@@ -65,25 +54,6 @@ const calculateConvertByDuration = (durationValue, durationUnit, convertSettings
     return formatNumber(durationValue / workingHoursPerDay, roundingDigits);
   }
   return "";
-};
-
-const toIsoString = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString();
-};
-
-const formatDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
 const normalizePayload = (body = {}) => ({
@@ -121,7 +91,7 @@ const validatePayload = async (payload) => {
   if (!payload.programId) {
     return { status: 400, message: "programId là bắt buộc" };
   }
-  if (!mongoose.isValidObjectId(payload.programId)) {
+  if (!normalizeObjectId(payload.programId)) {
     return { status: 400, message: "programId không hợp lệ" };
   }
 
@@ -214,7 +184,7 @@ export const createProgramUpgrade = async (req, res) => {
 
   const validationResult = await validatePayload(normalizedPayload);
   if (validationResult.status) {
-    return res.status(validationResult.status).json({ message: validationResult.message });
+    return sendValidationError(res, validationResult);
   }
   const createdUpgrade = await ProgramUpgrade.create({
     ...normalizedPayload,
@@ -227,7 +197,7 @@ export const createProgramUpgrade = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Tạo yêu cầu nâng cấp thành công",
     upgrade: toResponseItem(populated),
   });
@@ -244,12 +214,9 @@ export const listProgramUpgrades = async (req, res) => {
     filters.assignee = normalizeString(assignee);
   }
 
-  const monthNum = month !== "all" ? parsePositiveInteger(month) : null;
-  const yearNum = year !== "all" ? parsePositiveInteger(year) : null;
-  if (monthNum || yearNum) {
-    const rangeStart = new Date(yearNum || 1970, monthNum ? monthNum - 1 : 0, 1, 0, 0, 0, 0);
-    const rangeEnd = new Date(yearNum || 3000, monthNum ? monthNum : 12, 1, 0, 0, 0, 0);
-    filters.createdAt = { $gte: rangeStart, $lt: rangeEnd };
+  const { startDate, endDate } = buildMonthYearDateRange({ month, year });
+  if (startDate && endDate) {
+    filters.createdAt = { $gte: startDate, $lt: endDate };
   }
 
   const keyword = normalizeString(search);
@@ -281,7 +248,7 @@ export const listProgramUpgrades = async (req, res) => {
     ProgramUpgrade.countDocuments(filters),
   ]);
 
-  return res.json({
+  return sendOk(res, {
     upgrades: items.map(toResponseItem),
     pagination: {
       page: pageNumber,
@@ -296,10 +263,10 @@ export const getProgramUpgradeById = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
   if (!upgrade || upgrade.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy yêu cầu nâng cấp" });
+    return sendNotFound(res, "Không tìm thấy yêu cầu nâng cấp");
   }
 
-  return res.json({
+  return sendOk(res, {
     upgrade: toResponseItem(upgrade),
   });
 };
@@ -307,11 +274,11 @@ export const getProgramUpgradeById = async (req, res) => {
 export const updateProgramUpgrade = async (req, res) => {
   const existing = await ProgramUpgrade.findById(req.params.id);
   if (!existing || existing.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy yêu cầu nâng cấp" });
+    return sendNotFound(res, "Không tìm thấy yêu cầu nâng cấp");
   }
 
   if (existing.status === COMPLETED_STATUS && !hasRequestPermission(req, "upgrade.overrideCompleted")) {
-    return res.status(403).json({ message: "Yêu cầu nâng cấp đã hoàn thành, chỉ được xem chi tiết" });
+    return sendError(res, 403, "Yêu cầu nâng cấp đã hoàn thành, chỉ được xem chi tiết");
   }
 
   const normalizedInput = normalizePayload(req.body);
@@ -337,7 +304,7 @@ export const updateProgramUpgrade = async (req, res) => {
   }
   const validationResult = await validatePayload(mergedPayload);
   if (validationResult.status) {
-    return res.status(validationResult.status).json({ message: validationResult.message });
+    return sendValidationError(res, validationResult);
   }
 
   existing.programId = mergedPayload.programId;
@@ -363,7 +330,7 @@ export const updateProgramUpgrade = async (req, res) => {
     .populate({ path: "programId", select: "contractCode module" })
     .lean();
 
-  return res.json({
+  return sendOk(res, {
     message: "Cập nhật yêu cầu nâng cấp thành công",
     upgrade: toResponseItem(populated),
   });
@@ -372,24 +339,24 @@ export const updateProgramUpgrade = async (req, res) => {
 export const deleteProgramUpgrade = async (req, res) => {
   const upgrade = await ProgramUpgrade.findById(req.params.id);
   if (!upgrade || upgrade.isDeleted) {
-    return res.status(404).json({ message: "Không tìm thấy yêu cầu nâng cấp" });
+    return sendNotFound(res, "Không tìm thấy yêu cầu nâng cấp");
   }
 
   upgrade.isDeleted = true;
   await upgrade.save();
 
-  return res.json({ message: "Đã xóa yêu cầu nâng cấp" });
+  return sendOk(res, { message: "Đã xóa yêu cầu nâng cấp" });
 };
 
 export const deleteProgramUpgrades = async (req, res) => {
   const ids = Array.isArray(req.body?.ids)
-    ? req.body.ids.map((item) => normalizeString(String(item))).filter((item) => mongoose.isValidObjectId(item))
+    ? req.body.ids.map((item) => normalizeObjectId(item)).filter(Boolean)
     : [];
 
   const filters = ids.length > 0 ? { _id: { $in: ids }, isDeleted: false } : { isDeleted: false };
   const result = await ProgramUpgrade.updateMany(filters, { isDeleted: true });
 
-  return res.json({
+  return sendOk(res, {
     message: ids.length > 0 ? "Đã xóa các yêu cầu nâng cấp đã chọn" : "Đã xóa toàn bộ yêu cầu nâng cấp",
     deletedCount: result.modifiedCount || 0,
   });
