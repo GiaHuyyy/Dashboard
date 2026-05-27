@@ -1,11 +1,7 @@
 import Program from "../models/Program.js";
 import ProgramCorrection from "../models/ProgramCorrection.js";
-import { getSystemSettingsObject } from "../services/systemSettingService.js";
-import { formatDateTime, toIsoString, buildMonthYearDateRange } from "../utils/date.js";
+import { buildMonthYearDateRange } from "../utils/date.js";
 import {
-  normalizeBoolean,
-  normalizeDate,
-  normalizeNumber,
   normalizeObjectId,
   normalizeString,
   parsePositiveInteger,
@@ -17,182 +13,28 @@ import {
   sendOk,
   sendValidationError,
 } from "../utils/httpResponse.js";
-import { getActiveCategoryNames } from "../utils/system-category.js";
+import {
+  PROGRAM_CORRECTION_COMPLETED_STATUS,
+  applyProgramCorrectionPayload,
+  mergeProgramCorrectionPayload,
+  normalizeProgramCorrectionCreatePayload,
+  normalizeProgramCorrectionPayload,
+  toProgramCorrectionResponseItem,
+  validateProgramCorrectionPayload,
+} from "../services/programCorrectionService.js";
 
-const COMPLETED_STATUS = "Đã hoàn thành";
 const hasRequestPermission = (req, permission) =>
   Array.isArray(req.userPermissions) && req.userPermissions.includes(permission);
-const normalizeStatus = (value, statusOptions) => {
-  const normalized = normalizeString(value);
-  if (normalized === "Hoàn thành") return COMPLETED_STATUS;
-  if (normalized === "Đã nhận") return "Đã phân công";
-  if (!Array.isArray(statusOptions) || statusOptions.length === 0) return normalized;
-  return statusOptions.includes(normalized) ? normalized : statusOptions[0];
-};
-const DURATION_UNITS = ["h", "ngày"];
-
-const formatNumber = (value, roundingDigits = 3) => {
-  if (!Number.isFinite(value)) return "";
-  const safeDigits = Number.isFinite(Number(roundingDigits)) ? Math.min(Math.max(Math.trunc(Number(roundingDigits)), 0), 6) : 3;
-  return Number(value.toFixed(safeDigits)).toString();
-};
-
-const getConvertSettings = async () => {
-  const settings = await getSystemSettingsObject();
-  return settings?.time || {};
-};
-
-const calculateConvertByDuration = (durationValue, durationUnit, convertSettings = {}) => {
-  const workingHoursPerDay = Number(convertSettings.workingHoursPerDay || 8);
-  const roundingDigits = Number(convertSettings.roundingDigits ?? 3);
-
-  if (!Number.isFinite(durationValue) || durationValue <= 0) return "";
-  if (durationUnit === "ngày") return formatNumber(durationValue, roundingDigits);
-  if (durationUnit === "h") {
-    if (!Number.isFinite(workingHoursPerDay) || workingHoursPerDay <= 0) return "";
-    return formatNumber(durationValue / workingHoursPerDay, roundingDigits);
-  }
-  return "";
-};
-
-
-const normalizePayload = (body = {}) => ({
-  programId: normalizeString(body.programId),
-  issueContent: normalizeString(body.issueContent),
-  priority: normalizeString(body.priority),
-  durationValue: normalizeNumber(body.durationValue),
-  durationUnit: normalizeString(body.durationUnit),
-  bonusPoint: normalizeNumber(body.bonusPoint),
-  assigner: normalizeString(body.assigner),
-  assignee: normalizeString(body.assignee),
-  assignedAt: normalizeDate(body.assignedAt),
-  receivedAt: normalizeDate(body.receivedAt),
-  dueAt: normalizeDate(body.dueAt),
-  completedAt: normalizeDate(body.completedAt),
-  status: normalizeString(body.status),
-  visible: normalizeBoolean(body.visible),
-  note: normalizeString(body.note),
-});
-
-const validatePayload = async (payload) => {
-  const [priorityOptions, statusOptions] = await Promise.all([
-    getActiveCategoryNames("priority"),
-    getActiveCategoryNames("status"),
-  ]);
-
-  if (priorityOptions.length === 0) {
-    return { status: 400, message: "Danh mục ưu tiên chưa được cấu hình" };
-  }
-  if (statusOptions.length === 0) {
-    return { status: 400, message: "Danh mục trạng thái chưa được cấu hình" };
-  }
-
-  payload.status = normalizeStatus(payload.status, statusOptions);
-  if (!payload.programId) {
-    return { status: 400, message: "programId là bắt buộc" };
-  }
-  if (!normalizeObjectId(payload.programId)) {
-    return { status: 400, message: "programId không hợp lệ" };
-  }
-
-  const targetProgram = await Program.findOne({
-    _id: payload.programId,
-    isDeleted: false,
-    $or: [{ type: "program" }, { type: { $exists: false } }],
-  })
-    .select("contractCode module")
-    .lean();
-  if (!targetProgram) {
-    return { status: 404, message: "Không tìm thấy phiếu gốc hợp lệ" };
-  }
-
-  if (!payload.issueContent) {
-    return { status: 400, message: "issueContent là bắt buộc" };
-  }
-  if (payload.durationValue === null || payload.durationValue <= 0) {
-    return { status: 400, message: "durationValue phải lớn hơn 0" };
-  }
-  if (!DURATION_UNITS.includes(payload.durationUnit)) {
-    return { status: 400, message: `durationUnit không hợp lệ. Giá trị cho phép: ${DURATION_UNITS.join(", ")}` };
-  }
-  if (payload.bonusPoint === null || payload.bonusPoint < 0) {
-    return { status: 400, message: "bonusPoint không hợp lệ" };
-  }
-  if (!payload.assigner) {
-    return { status: 400, message: "assigner là bắt buộc" };
-  }
-  if (!payload.assignee) {
-    return { status: 400, message: "assignee là bắt buộc" };
-  }
-  if (!payload.assignedAt) {
-    return { status: 400, message: "assignedAt là bắt buộc" };
-  }
-  if (!payload.dueAt) {
-    return { status: 400, message: "dueAt là bắt buộc" };
-  }
-  if (!priorityOptions.includes(payload.priority)) {
-    return { status: 400, message: `priority không hợp lệ. Giá trị cho phép: ${priorityOptions.join(", ")}` };
-  }
-  if (!statusOptions.includes(payload.status)) {
-    return { status: 400, message: `status không hợp lệ. Giá trị cho phép: ${statusOptions.join(", ")}` };
-  }
-  if (payload.visible === null) {
-    return { status: 400, message: "visible phải là kiểu boolean" };
-  }
-  if (payload.receivedAt && payload.receivedAt < payload.assignedAt) {
-    return { status: 400, message: "Ngày nhận không được nhỏ hơn ngày giao" };
-  }
-  if (payload.completedAt && payload.completedAt < payload.assignedAt) {
-    return { status: 400, message: "Ngày hoàn thành không được nhỏ hơn ngày giao" };
-  }
-  if (payload.dueAt < payload.assignedAt) {
-    return { status: 400, message: "Ngày dự kiến không được nhỏ hơn ngày giao" };
-  }
-
-  const convertSettings = await getConvertSettings();
-
-  return {
-    targetProgram,
-    time: `${formatNumber(payload.durationValue, convertSettings.roundingDigits)} ${payload.durationUnit}`,
-    convert: calculateConvertByDuration(payload.durationValue, payload.durationUnit, convertSettings),
-  };
-};
-
-const toResponseItem = (doc) => ({
-  id: doc._id,
-  programId: doc.programId?._id || doc.programId,
-  contractCode: doc.programId?.contractCode || "",
-  module: doc.programId?.module || "",
-  issueContent: doc.issueContent,
-  priority: doc.priority,
-  durationValue: doc.durationValue,
-  durationUnit: doc.durationUnit,
-  time: doc.time || "",
-  convert: doc.convert || "",
-  bonusPoint: doc.bonusPoint || 0,
-  status: normalizeStatus(doc.status),
-  assigner: doc.assigner,
-  assignee: doc.assignee,
-  assignedAt: toIsoString(doc.assignedAt),
-  receivedAt: toIsoString(doc.receivedAt),
-  dueAt: toIsoString(doc.dueAt),
-  completedAt: toIsoString(doc.completedAt),
-  visible: doc.visible,
-  note: doc.note || "",
-  createdAt: formatDateTime(doc.createdAt, { includeSeconds: false }),
-});
 
 export const createProgramCorrection = async (req, res) => {
-  const payload = normalizePayload(req.body);
-  const normalizedPayload = payload.status === COMPLETED_STATUS ? payload : { ...payload, completedAt: null };
-
-  const validationResult = await validatePayload(normalizedPayload);
+  const payload = normalizeProgramCorrectionCreatePayload(req.body);
+  const validationResult = await validateProgramCorrectionPayload(payload);
   if (validationResult.status) {
     return sendValidationError(res, validationResult);
   }
 
   const createdCorrection = await ProgramCorrection.create({
-    ...normalizedPayload,
+    ...payload,
     time: validationResult.time,
     convert: validationResult.convert,
     createdBy: req.user.sub,
@@ -204,7 +46,7 @@ export const createProgramCorrection = async (req, res) => {
 
   return sendCreated(res, {
     message: "Tạo yêu cầu chỉnh sửa thành công",
-    correction: toResponseItem(populated),
+    correction: toProgramCorrectionResponseItem(populated),
   });
 };
 
@@ -225,7 +67,6 @@ export const listProgramCorrections = async (req, res) => {
   }
 
   const keyword = normalizeString(search);
-  let searchedProgramIds = [];
   if (keyword) {
     const matchingPrograms = await Program.find({
       isDeleted: false,
@@ -236,7 +77,7 @@ export const listProgramCorrections = async (req, res) => {
     })
       .select("_id")
       .lean();
-    searchedProgramIds = matchingPrograms.map((item) => item._id);
+    const searchedProgramIds = matchingPrograms.map((item) => item._id);
     filters.$or = [
       { issueContent: { $regex: keyword, $options: "i" } },
       { note: { $regex: keyword, $options: "i" } },
@@ -255,7 +96,7 @@ export const listProgramCorrections = async (req, res) => {
   ]);
 
   return sendOk(res, {
-    corrections: items.map(toResponseItem),
+    corrections: items.map(toProgramCorrectionResponseItem),
     pagination: {
       page: pageNumber,
       limit: limitNumber,
@@ -273,7 +114,7 @@ export const getProgramCorrectionById = async (req, res) => {
   }
 
   return sendOk(res, {
-    correction: toResponseItem(correction),
+    correction: toProgramCorrectionResponseItem(correction),
   });
 };
 
@@ -283,54 +124,22 @@ export const updateProgramCorrection = async (req, res) => {
     return sendNotFound(res, "Không tìm thấy yêu cầu chỉnh sửa");
   }
 
-  if (existing.status === COMPLETED_STATUS && !hasRequestPermission(req, "correction.overrideCompleted")) {
+  if (
+    existing.status === PROGRAM_CORRECTION_COMPLETED_STATUS &&
+    !hasRequestPermission(req, "correction.overrideCompleted")
+  ) {
     return sendError(res, 403, "Yêu cầu chỉnh sửa đã hoàn thành, chỉ được xem chi tiết");
   }
 
-  const normalizedInput = normalizePayload(req.body);
-  const mergedPayload = {
-    programId: normalizedInput.programId || String(existing.programId),
-    issueContent: normalizedInput.issueContent || existing.issueContent,
-    priority: normalizedInput.priority || existing.priority,
-    durationValue: normalizedInput.durationValue === null ? existing.durationValue : normalizedInput.durationValue,
-    durationUnit: normalizedInput.durationUnit || existing.durationUnit,
-    bonusPoint: normalizedInput.bonusPoint === null ? existing.bonusPoint : normalizedInput.bonusPoint,
-    assigner: normalizedInput.assigner || existing.assigner,
-    assignee: normalizedInput.assignee || existing.assignee,
-    assignedAt: normalizedInput.assignedAt || existing.assignedAt,
-    receivedAt: normalizedInput.receivedAt !== null ? normalizedInput.receivedAt : existing.receivedAt,
-    dueAt: normalizedInput.dueAt || existing.dueAt,
-    completedAt: normalizedInput.completedAt !== null ? normalizedInput.completedAt : existing.completedAt,
-    status: normalizedInput.status || existing.status,
-    visible: normalizedInput.visible === null ? existing.visible : normalizedInput.visible,
-    note: typeof req.body.note === "string" ? normalizedInput.note : existing.note,
-  };
-  if (mergedPayload.status !== COMPLETED_STATUS) {
-    mergedPayload.completedAt = null;
-  }
+  const normalizedInput = normalizeProgramCorrectionPayload(req.body);
+  const mergedPayload = mergeProgramCorrectionPayload(normalizedInput, existing, req.body);
 
-  const validationResult = await validatePayload(mergedPayload);
+  const validationResult = await validateProgramCorrectionPayload(mergedPayload);
   if (validationResult.status) {
     return sendValidationError(res, validationResult);
   }
 
-  existing.programId = mergedPayload.programId;
-  existing.issueContent = mergedPayload.issueContent;
-  existing.priority = mergedPayload.priority;
-  existing.durationValue = mergedPayload.durationValue;
-  existing.durationUnit = mergedPayload.durationUnit;
-  existing.time = validationResult.time;
-  existing.convert = validationResult.convert;
-  existing.bonusPoint = mergedPayload.bonusPoint;
-  existing.assigner = mergedPayload.assigner;
-  existing.assignee = mergedPayload.assignee;
-  existing.assignedAt = mergedPayload.assignedAt;
-  existing.receivedAt = mergedPayload.receivedAt;
-  existing.dueAt = mergedPayload.dueAt;
-  existing.completedAt = mergedPayload.completedAt;
-  existing.status = mergedPayload.status;
-  existing.visible = mergedPayload.visible;
-  existing.note = mergedPayload.note;
+  applyProgramCorrectionPayload(existing, mergedPayload, validationResult);
   await existing.save();
 
   const populated = await ProgramCorrection.findById(existing._id)
@@ -339,7 +148,7 @@ export const updateProgramCorrection = async (req, res) => {
 
   return sendOk(res, {
     message: "Cập nhật yêu cầu chỉnh sửa thành công",
-    correction: toResponseItem(populated),
+    correction: toProgramCorrectionResponseItem(populated),
   });
 };
 
