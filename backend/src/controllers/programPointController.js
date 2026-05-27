@@ -55,11 +55,11 @@ export const listProgramPoints = async (req, res) => {
       .lean(),
     ProgramUpgrade.find({ isDeleted: false })
       .populate({ path: "programId", select: "contractCode module" })
-      .select("programId upgradeItem status assignee bonusPoint createdAt")
+      .select("programId upgradeItem time convert status assignee bonusPoint createdAt")
       .lean(),
     ProgramCorrection.find({ isDeleted: false })
       .populate({ path: "programId", select: "contractCode module" })
-      .select("programId issueContent status assignee bonusPoint assignedAt createdAt")
+      .select("programId issueContent time convert status assignee bonusPoint assignedAt createdAt")
       .lean(),
   ]);
 
@@ -103,11 +103,15 @@ export const listProgramPoints = async (req, res) => {
 
     const contractCode = item.programId?.contractCode || "";
     const module = item.programId?.module || "";
-    const description = item.upgradeItem || "";
+    const convertPoint = normalizePoint(item.convert);
+    const bonusPoint = normalizePoint(item.bonusPoint);
+    const descriptionParts = [item.upgradeItem || ""];
+    if (item.time) descriptionParts.push(item.time);
+    if (item.convert !== undefined && item.convert !== null && item.convert !== "") descriptionParts.push(`Quy đổi ${item.convert}`);
+    const description = descriptionParts.filter(Boolean).join(" - ");
     const searchable = buildSearchText(contractCode, module, description);
     if (keyword && !searchable.includes(keyword)) return;
 
-    const bonusPoint = normalizePoint(item.bonusPoint);
     pushPointDetail({
       details,
       assigneeSet,
@@ -118,7 +122,8 @@ export const listProgramPoints = async (req, res) => {
       description,
       status: item.status,
       assignee: ownerName,
-      point: bonusPoint,
+      point: convertPoint + bonusPoint,
+      convertPoint,
       bonusPoint,
       createdAt,
     });
@@ -132,11 +137,15 @@ export const listProgramPoints = async (req, res) => {
 
     const contractCode = item.programId?.contractCode || "";
     const module = item.programId?.module || "";
-    const description = item.issueContent || "";
+    const convertPoint = normalizePoint(item.convert);
+    const bonusPoint = normalizePoint(item.bonusPoint);
+    const descriptionParts = [item.issueContent || ""];
+    if (item.time) descriptionParts.push(item.time);
+    if (item.convert !== undefined && item.convert !== null && item.convert !== "") descriptionParts.push(`Quy đổi ${item.convert}`);
+    const description = descriptionParts.filter(Boolean).join(" - ");
     const searchable = buildSearchText(contractCode, module, description);
     if (keyword && !searchable.includes(keyword)) return;
 
-    const bonusPoint = normalizePoint(item.bonusPoint);
     pushPointDetail({
       details,
       assigneeSet,
@@ -147,7 +156,8 @@ export const listProgramPoints = async (req, res) => {
       description,
       status: item.status,
       assignee: ownerName,
-      point: bonusPoint,
+      point: convertPoint + bonusPoint,
+      convertPoint,
       bonusPoint,
       createdAt,
     });
