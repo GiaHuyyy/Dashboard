@@ -1,6 +1,12 @@
-import mongoose from "mongoose";
-
 import Staff from "../models/Staff.js";
+import { normalizeBoolean, normalizeObjectId, normalizeString } from "../utils/normalize.js";
+import {
+  sendBadRequest,
+  sendCreated,
+  sendNotFound,
+  sendOk,
+  sendValidationError,
+} from "../utils/httpResponse.js";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ROLE_DEPARTMENT_MAP = {
@@ -8,16 +14,6 @@ const ROLE_DEPARTMENT_MAP = {
   "Nhân viên kinh doanh": "Kinh doanh",
   "Quản lý": "Quản lý",
   "Thiết kế": "Design",
-};
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
 };
 
 const normalizePayload = (body = {}) => ({
@@ -53,17 +49,24 @@ const toResponseItem = (doc) => ({
   createdAt: doc.createdAt,
 });
 
+const resolveDepartment = ({ role, fallbackDepartment = "" } = {}) =>
+  ROLE_DEPARTMENT_MAP[role] || fallbackDepartment || "Khác";
+
 export const createStaff = async (req, res) => {
   const payload = normalizePayload(req.body);
-  payload.department = ROLE_DEPARTMENT_MAP[payload.role] || normalizeString(req.body.department) || "Khác";
+  payload.department = resolveDepartment({
+    role: payload.role,
+    fallbackDepartment: normalizeString(req.body.department),
+  });
+
   const validation = await validatePayload(payload);
-  if (validation) return res.status(validation.status).json({ message: validation.message });
+  if (validation) return sendValidationError(res, validation);
 
   const created = await Staff.create({
     ...payload,
     createdBy: req.user.sub,
   });
-  return res.status(201).json({ message: "Tạo nhân sự thành công", staff: toResponseItem(created) });
+  return sendCreated(res, { message: "Tạo nhân sự thành công", staff: toResponseItem(created) });
 };
 
 export const listStaffs = async (req, res) => {
@@ -82,7 +85,7 @@ export const listStaffs = async (req, res) => {
   }
 
   const staffs = await Staff.find(filters).sort({ createdAt: 1 }).lean();
-  return res.json({ staffs: staffs.map(toResponseItem) });
+  return sendOk(res, { staffs: staffs.map(toResponseItem) });
 };
 
 export const listStaffReferences = async (req, res) => {
@@ -90,7 +93,8 @@ export const listStaffReferences = async (req, res) => {
     .sort({ fullName: 1 })
     .select("fullName role department")
     .lean();
-  return res.json({
+
+  return sendOk(res, {
     staffs: staffs.map((item) => ({
       id: item._id,
       fullName: item.fullName,
@@ -101,16 +105,21 @@ export const listStaffReferences = async (req, res) => {
 };
 
 export const getStaffById = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
-  const staff = await Staff.findById(req.params.id).lean();
-  if (!staff || staff.isDeleted) return res.status(404).json({ message: "Không tìm thấy nhân sự" });
-  return res.json({ staff: toResponseItem(staff) });
+  const staffId = normalizeObjectId(req.params.id);
+  if (!staffId) return sendBadRequest(res, "id không hợp lệ");
+
+  const staff = await Staff.findById(staffId).lean();
+  if (!staff || staff.isDeleted) return sendNotFound(res, "Không tìm thấy nhân sự");
+
+  return sendOk(res, { staff: toResponseItem(staff) });
 };
 
 export const updateStaff = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
-  const existing = await Staff.findById(req.params.id);
-  if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy nhân sự" });
+  const staffId = normalizeObjectId(req.params.id);
+  if (!staffId) return sendBadRequest(res, "id không hợp lệ");
+
+  const existing = await Staff.findById(staffId);
+  if (!existing || existing.isDeleted) return sendNotFound(res, "Không tìm thấy nhân sự");
 
   const input = normalizePayload(req.body);
   const merged = {
@@ -118,11 +127,15 @@ export const updateStaff = async (req, res) => {
     email: input.email || existing.email,
     phone: typeof req.body.phone === "string" ? input.phone : existing.phone,
     role: input.role || existing.role,
-    department: ROLE_DEPARTMENT_MAP[input.role || existing.role] || input.department || existing.department,
+    department: resolveDepartment({
+      role: input.role || existing.role,
+      fallbackDepartment: input.department || existing.department,
+    }),
     isActive: input.isActive === null ? existing.isActive : input.isActive,
   };
+
   const validation = await validatePayload(merged, { excludeId: String(existing._id) });
-  if (validation) return res.status(validation.status).json({ message: validation.message });
+  if (validation) return sendValidationError(res, validation);
 
   existing.fullName = merged.fullName;
   existing.email = merged.email;
@@ -132,14 +145,18 @@ export const updateStaff = async (req, res) => {
   existing.isActive = merged.isActive;
   await existing.save();
 
-  return res.json({ message: "Cập nhật nhân sự thành công", staff: toResponseItem(existing) });
+  return sendOk(res, { message: "Cập nhật nhân sự thành công", staff: toResponseItem(existing) });
 };
 
 export const deleteStaff = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
-  const existing = await Staff.findById(req.params.id);
-  if (!existing || existing.isDeleted) return res.status(404).json({ message: "Không tìm thấy nhân sự" });
+  const staffId = normalizeObjectId(req.params.id);
+  if (!staffId) return sendBadRequest(res, "id không hợp lệ");
+
+  const existing = await Staff.findById(staffId);
+  if (!existing || existing.isDeleted) return sendNotFound(res, "Không tìm thấy nhân sự");
+
   existing.isDeleted = true;
   await existing.save();
-  return res.json({ message: "Đã xóa nhân sự" });
+
+  return sendOk(res, { message: "Đã xóa nhân sự" });
 };

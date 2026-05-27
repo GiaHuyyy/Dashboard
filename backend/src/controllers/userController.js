@@ -1,6 +1,13 @@
-import mongoose from "mongoose";
-
 import User, { USER_ROLES, getUserRoles } from "../models/User.js";
+import { normalizeBoolean, normalizeObjectId, normalizeString } from "../utils/normalize.js";
+import {
+  sendBadRequest,
+  sendCreated,
+  sendError,
+  sendNotFound,
+  sendOk,
+  sendValidationError,
+} from "../utils/httpResponse.js";
 
 const ROLE_LABELS = {
   super_admin: "Super Admin",
@@ -11,16 +18,6 @@ const ROLE_LABELS = {
   sale: "Kinh doanh",
   viewer: "Chỉ xem",
   user: "Người dùng",
-};
-
-const normalizeString = (value) => (typeof value === "string" ? value.trim() : "");
-const normalizeBoolean = (value) => {
-  if (value === true || value === false) return value;
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true;
-    if (value.toLowerCase() === "false") return false;
-  }
-  return null;
 };
 
 const normalizeRoles = (value) => {
@@ -92,6 +89,10 @@ const canManageUser = (currentUserRoles = [], targetRoles = []) => {
   return false;
 };
 
+const getCurrentUserRoles = (user = {}) => (
+  Array.isArray(user.roles) ? user.roles : [user.role].filter(Boolean)
+);
+
 export const listUsers = async (req, res) => {
   const search = normalizeString(req.query.search);
   const role = normalizeString(req.query.role);
@@ -117,29 +118,30 @@ export const listUsers = async (req, res) => {
 
   const users = await User.find(filters).sort({ createdAt: 1 }).select("-password").lean();
 
-  return res.json({
+  return sendOk(res, {
     users: users.map(toResponseItem),
     roleOptions: USER_ROLES.map((item) => ({ value: item, label: ROLE_LABELS[item] || item })),
   });
 };
 
 export const getUserById = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
+  const userId = normalizeObjectId(req.params.id);
+  if (!userId) return sendBadRequest(res, "id không hợp lệ");
 
-  const user = await User.findById(req.params.id).select("-password").lean();
-  if (!user) return res.status(404).json({ message: "Không tìm thấy tài khoản" });
+  const user = await User.findById(userId).select("-password").lean();
+  if (!user) return sendNotFound(res, "Không tìm thấy tài khoản");
 
-  return res.json({ user: toResponseItem(user) });
+  return sendOk(res, { user: toResponseItem(user) });
 };
 
 export const createUser = async (req, res) => {
   const payload = normalizePayload(req.body);
   const validation = await validatePayload(payload);
-  if (validation) return res.status(validation.status).json({ message: validation.message });
+  if (validation) return sendValidationError(res, validation);
 
-  const currentRoles = Array.isArray(req.user?.roles) ? req.user.roles : [req.user?.role].filter(Boolean);
+  const currentRoles = getCurrentUserRoles(req.user);
   if (!canManageUser(currentRoles, payload.roles)) {
-    return res.status(403).json({ message: "Bạn không có quyền tạo tài khoản với vai trò này" });
+    return sendError(res, 403, "Bạn không có quyền tạo tài khoản với vai trò này");
   }
 
   const created = await User.create({
@@ -147,23 +149,24 @@ export const createUser = async (req, res) => {
     role: payload.roles[0],
   });
 
-  return res.status(201).json({
+  return sendCreated(res, {
     message: "Đã tạo tài khoản",
     user: toResponseItem(created),
   });
 };
 
 export const updateUser = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
+  const userId = normalizeObjectId(req.params.id);
+  if (!userId) return sendBadRequest(res, "id không hợp lệ");
 
-  const existing = await User.findById(req.params.id);
-  if (!existing) return res.status(404).json({ message: "Không tìm thấy tài khoản" });
+  const existing = await User.findById(userId);
+  if (!existing) return sendNotFound(res, "Không tìm thấy tài khoản");
 
-  const currentRoles = Array.isArray(req.user?.roles) ? req.user.roles : [req.user?.role].filter(Boolean);
+  const currentRoles = getCurrentUserRoles(req.user);
   const existingRoles = getUserRoles(existing);
 
   if (!canManageUser(currentRoles, existingRoles)) {
-    return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa tài khoản này" });
+    return sendError(res, 403, "Bạn không có quyền chỉnh sửa tài khoản này");
   }
 
   const payload = normalizePayload(req.body);
@@ -177,20 +180,20 @@ export const updateUser = async (req, res) => {
   };
 
   if (!canManageUser(currentRoles, merged.roles)) {
-    return res.status(403).json({ message: "Bạn không có quyền gán vai trò này" });
+    return sendError(res, 403, "Bạn không có quyền gán vai trò này");
   }
 
   if (hasRole(existingRoles, "super_admin") && existing._id.toString() === req.user?.sub) {
     if (merged.isActive === false) {
-      return res.status(400).json({ message: "Không thể khóa chính tài khoản Super Admin đang đăng nhập" });
+      return sendBadRequest(res, "Không thể khóa chính tài khoản Super Admin đang đăng nhập");
     }
     if (!hasRole(merged.roles, "super_admin")) {
-      return res.status(400).json({ message: "Không thể tự gỡ vai trò Super Admin khỏi tài khoản đang đăng nhập" });
+      return sendBadRequest(res, "Không thể tự gỡ vai trò Super Admin khỏi tài khoản đang đăng nhập");
     }
   }
 
   const validation = await validatePayload(merged, { isEditMode: true, excludeId: String(existing._id) });
-  if (validation) return res.status(validation.status).json({ message: validation.message });
+  if (validation) return sendValidationError(res, validation);
 
   existing.name = merged.name;
   existing.userName = merged.userName;
@@ -201,30 +204,31 @@ export const updateUser = async (req, res) => {
   if (payload.password) existing.password = payload.password;
   await existing.save();
 
-  return res.json({
+  return sendOk(res, {
     message: "Đã cập nhật tài khoản",
     user: toResponseItem(existing),
   });
 };
 
 export const deleteUser = async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "id không hợp lệ" });
+  const userId = normalizeObjectId(req.params.id);
+  if (!userId) return sendBadRequest(res, "id không hợp lệ");
 
-  const existing = await User.findById(req.params.id);
-  if (!existing) return res.status(404).json({ message: "Không tìm thấy tài khoản" });
+  const existing = await User.findById(userId);
+  if (!existing) return sendNotFound(res, "Không tìm thấy tài khoản");
 
   if (String(existing._id) === req.user?.sub) {
-    return res.status(400).json({ message: "Không thể xóa chính tài khoản đang đăng nhập" });
+    return sendBadRequest(res, "Không thể xóa chính tài khoản đang đăng nhập");
   }
 
-  const currentRoles = Array.isArray(req.user?.roles) ? req.user.roles : [req.user?.role].filter(Boolean);
+  const currentRoles = getCurrentUserRoles(req.user);
   const existingRoles = getUserRoles(existing);
 
   if (!canManageUser(currentRoles, existingRoles)) {
-    return res.status(403).json({ message: "Bạn không có quyền xóa tài khoản này" });
+    return sendError(res, 403, "Bạn không có quyền xóa tài khoản này");
   }
 
   await existing.deleteOne();
 
-  return res.json({ message: "Đã xóa tài khoản" });
+  return sendOk(res, { message: "Đã xóa tài khoản" });
 };
