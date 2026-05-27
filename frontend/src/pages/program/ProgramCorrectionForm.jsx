@@ -15,6 +15,7 @@ import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const isValidDateValue = (value) => {
   if (!value) return false;
@@ -119,8 +120,8 @@ function ProgramCorrectionForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "correction.update" : "correction.create");
-  const canOverrideCompleted = hasPermission(currentUser, "correction.overrideCompleted");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.CORRECTION_UPDATE : PERMISSIONS.CORRECTION_CREATE);
+  const canOverrideCompleted = hasPermission(currentUser, PERMISSIONS.CORRECTION_OVERRIDE_COMPLETED);
   const [programReferences, setProgramReferences] = useState([]);
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);

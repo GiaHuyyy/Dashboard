@@ -12,14 +12,15 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 function SourceManagement() {
   const navigate = useNavigate();
   const { can } = usePermission();
-  const canCreate = can("source.create");
-  const canUpdate = can("source.update");
-  const canDelete = can("source.delete");
-  const canSendMail = can("source.sendMail");
+  const canCreate = can(PERMISSIONS.SOURCE_CREATE);
+  const canUpdate = can(PERMISSIONS.SOURCE_UPDATE);
+  const canDelete = can(PERMISSIONS.SOURCE_DELETE);
+  const canSendMail = can(PERMISSIONS.SOURCE_SEND_MAIL);
 
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [sendingRowId, setSendingRowId] = useState(null);

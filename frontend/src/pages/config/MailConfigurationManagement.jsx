@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button-v2";
 import FormField from "@/components/ui/form-field";
 import { mailConfigurationApi } from "@/lib/api-client";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const formSchema = z
   .object({
@@ -51,7 +52,7 @@ const defaultValues = {
 function MailConfigurationManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const { can } = usePermission();
-  const canUpdate = can("config.mail.update");
+  const canUpdate = can(PERMISSIONS.CONFIG_MAIL_UPDATE);
 
   const [hasSmtpPassword, setHasSmtpPassword] = useState(false);
   const [updatedAt, setUpdatedAt] = useState("");

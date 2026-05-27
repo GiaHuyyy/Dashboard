@@ -15,14 +15,15 @@ import { useRowSelection } from "@/hooks/useRowSelection";
 import { programApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 function ListProgram() {
   const navigate = useNavigate();
   const { can } = usePermission();
-  const canCreate = can("program.create");
-  const canUpdate = can("program.update");
-  const canDelete = can("program.delete");
-  const canUpdateStatus = can("program.updateStatus");
+  const canCreate = can(PERMISSIONS.PROGRAM_CREATE);
+  const canUpdate = can(PERMISSIONS.PROGRAM_UPDATE);
+  const canDelete = can(PERMISSIONS.PROGRAM_DELETE);
+  const canUpdateStatus = can(PERMISSIONS.PROGRAM_UPDATE_STATUS);
 
   const [selectedModule, setSelectedModule] = useState("all");
   const [searchText, setSearchText] = useState("");

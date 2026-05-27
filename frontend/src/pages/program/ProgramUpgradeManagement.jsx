@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
@@ -33,10 +34,10 @@ const formatDateTime = (value) => {
 function ProgramUpgradeManagement() {
   const navigate = useNavigate();
   const { can } = usePermission();
-  const canCreate = can("upgrade.create");
-  const canUpdate = can("upgrade.update");
-  const canDelete = can("upgrade.delete");
-  const canUpdateStatus = can("upgrade.updateStatus");
+  const canCreate = can(PERMISSIONS.UPGRADE_CREATE);
+  const canUpdate = can(PERMISSIONS.UPGRADE_UPDATE);
+  const canDelete = can(PERMISSIONS.UPGRADE_DELETE);
+  const canUpdateStatus = can(PERMISSIONS.UPGRADE_UPDATE_STATUS);
 
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

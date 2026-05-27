@@ -15,6 +15,7 @@ import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const isValidDateValue = (value) => {
   if (!value) return false;
@@ -124,8 +125,8 @@ function ProgramUpgradeForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "upgrade.update" : "upgrade.create");
-  const canOverrideCompleted = hasPermission(currentUser, "upgrade.overrideCompleted");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.UPGRADE_UPDATE : PERMISSIONS.UPGRADE_CREATE);
+  const canOverrideCompleted = hasPermission(currentUser, PERMISSIONS.UPGRADE_OVERRIDE_COMPLETED);
   const [programReferences, setProgramReferences] = useState([]);
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [staffReferences, setStaffReferences] = useState([]);

@@ -12,6 +12,7 @@ import Modal from "@/components/ui/modal";
 import { designApi, staffApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const COMPLETED_STATUS = "Đã hoàn thành";
@@ -104,8 +105,8 @@ function DesignForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "design.update" : "design.create");
-  const canOverrideCompleted = hasPermission(currentUser, "design.overrideCompleted");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.DESIGN_UPDATE : PERMISSIONS.DESIGN_CREATE);
+  const canOverrideCompleted = hasPermission(currentUser, PERMISSIONS.DESIGN_OVERRIDE_COMPLETED);
   const [staffReferences, setStaffReferences] = useState([]);
   const [isLoadingReference, setIsLoadingReference] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);

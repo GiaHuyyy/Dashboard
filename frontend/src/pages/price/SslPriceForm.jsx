@@ -8,6 +8,7 @@ import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { sslPriceApi } from "@/lib/api-client";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const SSL_TYPES = ["DV", "OV", "EV", "Wildcard"];
 const VALIDITY_OPTIONS = ["3", "6", "12", "24", "36"];
@@ -35,7 +36,7 @@ function SslPriceForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "price.update" : "price.create");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.PRICE_UPDATE : PERMISSIONS.PRICE_CREATE);
   const isReadOnlyMode = !canSave;
   const [formData, setFormData] = useState(defaultValues);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);

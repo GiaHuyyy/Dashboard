@@ -11,6 +11,7 @@ import { staffApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { STAFF_ROLE_OPTIONS, getDepartmentByRole } from "@/lib/staff-roles";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const schema = z.object({
   fullName: z.string().trim().min(2, "Vui lòng nhập họ tên"),
@@ -35,7 +36,7 @@ function StaffForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "staff.update" : "staff.create");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.STAFF_UPDATE : PERMISSIONS.STAFF_CREATE);
 
   const {
     register,

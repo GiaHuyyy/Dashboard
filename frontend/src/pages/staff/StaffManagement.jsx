@@ -11,13 +11,14 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 function StaffManagement() {
   const navigate = useNavigate();
   const { can } = usePermission();
-  const canCreate = can("staff.create");
-  const canUpdate = can("staff.update");
-  const canDelete = can("staff.delete");
+  const canCreate = can(PERMISSIONS.STAFF_CREATE);
+  const canUpdate = can(PERMISSIONS.STAFF_UPDATE);
+  const canDelete = can(PERMISSIONS.STAFF_DELETE);
 
   const {
     rows,

@@ -18,6 +18,7 @@ import { businessContractApi, staffApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { uploadApi } from "@/lib/upload";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const schema = z.object({
   contractCode: z.string().trim().min(1, "Vui lòng nhập số hợp đồng"),
@@ -112,9 +113,9 @@ function BusinessForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "contract.update" : "contract.create");
-  const canOverrideHandover = hasPermission(currentUser, "contract.overrideHandover");
-  const canSendMail = hasPermission(currentUser, "contract.sendMail");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.CONTRACT_UPDATE : PERMISSIONS.CONTRACT_CREATE);
+  const canOverrideHandover = hasPermission(currentUser, PERMISSIONS.CONTRACT_OVERRIDE_HANDOVER);
+  const canSendMail = hasPermission(currentUser, PERMISSIONS.CONTRACT_SEND_MAIL);
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [contractImages, setContractImages] = useState([]);

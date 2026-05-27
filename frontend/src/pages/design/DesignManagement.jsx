@@ -14,6 +14,7 @@ import { useRowSelection } from "@/hooks/useRowSelection";
 import { designApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const DESIGN_TYPES = ["all", "Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const COMPLETED_STATUS = "Đã hoàn thành";
@@ -21,10 +22,10 @@ const COMPLETED_STATUS = "Đã hoàn thành";
 function DesignManagement() {
   const navigate = useNavigate();
   const { can } = usePermission();
-  const canCreate = can("design.create");
-  const canUpdate = can("design.update");
-  const canDelete = can("design.delete");
-  const canUpdateStatus = can("design.updateStatus");
+  const canCreate = can(PERMISSIONS.DESIGN_CREATE);
+  const canUpdate = can(PERMISSIONS.DESIGN_UPDATE);
+  const canDelete = can(PERMISSIONS.DESIGN_DELETE);
+  const canUpdateStatus = can(PERMISSIONS.DESIGN_UPDATE_STATUS);
 
   const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState("");

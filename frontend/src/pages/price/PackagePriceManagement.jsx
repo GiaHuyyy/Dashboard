@@ -10,6 +10,7 @@ import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { packagePriceApi } from "@/lib/api-client";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(Number(value) || 0) + "đ";
@@ -17,9 +18,9 @@ const formatMoney = (value) =>
 function PackagePriceManagement() {
   const navigate = useNavigate();
   const { can, disabledProps } = usePermission();
-  const canCreate = can("price.create");
-  const canUpdate = can("price.update");
-  const canDelete = can("price.delete");
+  const canCreate = can(PERMISSIONS.PRICE_CREATE);
+  const canUpdate = can(PERMISSIONS.PRICE_UPDATE);
+  const canDelete = can(PERMISSIONS.PRICE_DELETE);
   const {
     rows,
     searchText,
@@ -69,9 +70,9 @@ function PackagePriceManagement() {
           setDeleteOpen(true);
         }}
         addDisabled={!canCreate}
-        addTitle={disabledProps("price.create").title}
+        addTitle={disabledProps(PERMISSIONS.PRICE_CREATE).title}
         deleteDisabled={!canDelete || rows.length === 0}
-        deleteTitle={!canDelete ? disabledProps("price.delete").title : undefined}
+        deleteTitle={!canDelete ? disabledProps(PERMISSIONS.PRICE_DELETE).title : undefined}
         deleteLabel={deleteManyLabel}
       />
 
@@ -84,7 +85,7 @@ function PackagePriceManagement() {
                   type="checkbox"
                   checked={isAllFilteredSelected}
                   disabled={!canDelete}
-                  title={!canDelete ? disabledProps("price.delete").title : undefined}
+                  title={!canDelete ? disabledProps(PERMISSIONS.PRICE_DELETE).title : undefined}
                   onChange={(event) => handleToggleAll(event.target.checked)}
                   onClick={(event) => event.stopPropagation()}
                 />
@@ -146,7 +147,7 @@ function PackagePriceManagement() {
                       type="checkbox"
                       checked={selectedIds.includes(row.id)}
                       disabled={!canDelete}
-                      title={!canDelete ? disabledProps("price.delete").title : undefined}
+                      title={!canDelete ? disabledProps(PERMISSIONS.PRICE_DELETE).title : undefined}
                       onChange={(event) => handleToggleRow(row.id, event.target.checked)}
                       onClick={(event) => event.stopPropagation()}
                     />
@@ -189,7 +190,7 @@ function PackagePriceManagement() {
                         iconOnly
                         variant="danger-outline"
                         disabled={!canDelete}
-                        title={!canDelete ? disabledProps("price.delete").title : undefined}
+                        title={!canDelete ? disabledProps(PERMISSIONS.PRICE_DELETE).title : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           setDeleteRow(row);

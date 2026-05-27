@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button-v2";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const initialServers = [
   {
@@ -56,7 +57,7 @@ const formatValue = (used, limit) => `${used.toFixed(2)} GB/${limit ? `${limit} 
 
 function ServerManagement() {
   const { can } = usePermission();
-  const canUpdate = can("server.update");
+  const canUpdate = can(PERMISSIONS.SERVER_UPDATE);
 
   const [rows] = useState(initialServers);
   const [searchText, setSearchText] = useState("");

@@ -10,6 +10,7 @@ import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { SOURCE_DOWNLOAD_STATUS_OPTIONS, SOURCE_SEND_STATUS_OPTIONS } from "@/constants/program-source";
+import { PERMISSIONS } from "@/constants/permissions";
 import {
   administrationPriceApi,
   advertisingPriceApi,
@@ -120,8 +121,8 @@ function SourceForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "source.update" : "source.create");
-  const canSendMail = hasPermission(currentUser, "source.sendMail");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.SOURCE_UPDATE : PERMISSIONS.SOURCE_CREATE);
+  const canSendMail = hasPermission(currentUser, PERMISSIONS.SOURCE_SEND_MAIL);
   const returnPath = location.state?.sourcePath || "/he-thong/source";
   const [programReferences, setProgramReferences] = useState([]);
   const [domainPriceReferences, setDomainPriceReferences] = useState([]);

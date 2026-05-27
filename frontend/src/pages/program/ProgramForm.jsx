@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -16,6 +15,7 @@ import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const formatNumber = (value) => {
   const parsed = Number(value);
@@ -111,8 +111,8 @@ function ProgramForm() {
   const returnPath = location.state?.sourcePath || "/lap-trinh/danh-sach";
   const isEditMode = Boolean(programId);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "program.update" : "program.create");
-  const canOverrideCompleted = hasPermission(currentUser, "program.overrideCompleted");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.PROGRAM_UPDATE : PERMISSIONS.PROGRAM_CREATE);
+  const canOverrideCompleted = hasPermission(currentUser, PERMISSIONS.PROGRAM_OVERRIDE_COMPLETED);
   const businessContractFromState = location.state?.businessContract || null;
 
   const [isLoadingProgram, setIsLoadingProgram] = useState(false);

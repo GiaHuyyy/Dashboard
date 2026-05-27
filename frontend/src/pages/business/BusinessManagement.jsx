@@ -11,13 +11,14 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 function BusinessManagement() {
   const navigate = useNavigate();
   const { can } = usePermission();
-  const canCreate = can("contract.create");
-  const canUpdate = can("contract.update");
-  const canDelete = can("contract.delete");
+  const canCreate = can(PERMISSIONS.CONTRACT_CREATE);
+  const canUpdate = can(PERMISSIONS.CONTRACT_UPDATE);
+  const canDelete = can(PERMISSIONS.CONTRACT_DELETE);
 
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button-v2";
 import FormField from "@/components/ui/form-field";
 import { systemSettingApi } from "@/lib/api-client";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const formSchema = z.object({
   source: z.object({
@@ -96,7 +97,7 @@ const formatConvertPreview = (hours, workingHoursPerDay, roundingDigits) => {
 function SystemSettingManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const { can } = usePermission();
-  const canUpdate = can("config.setting.update");
+  const canUpdate = can(PERMISSIONS.CONFIG_SETTING_UPDATE);
 
   const [showSourceHint, setShowSourceHint] = useState(false);
   const [showConvertHint, setShowConvertHint] = useState(false);

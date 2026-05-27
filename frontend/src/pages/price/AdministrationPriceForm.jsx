@@ -8,6 +8,7 @@ import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import { administrationPriceApi } from "@/lib/api-client";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const SCOPE_OPTIONS = ["Website", "Hệ thống", "Server"];
 const FREQUENCY_OPTIONS = ["Tháng", "Quý", "Năm", "Theo yêu cầu"];
@@ -36,7 +37,7 @@ function AdministrationPriceForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "price.update" : "price.create");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.PRICE_UPDATE : PERMISSIONS.PRICE_CREATE);
   const isReadOnlyMode = !canSave;
   const [formData, setFormData] = useState(defaultValues);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);

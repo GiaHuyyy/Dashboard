@@ -13,6 +13,7 @@ import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { UPLOAD_FOLDERS } from "@/constants/upload-folders";
 import { uploadApi } from "@/lib/upload";
 import { websiteTemplateApi } from "@/lib/api-client";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const PLATFORM_OPTIONS = ["React", "HTML/CSS", "WordPress", "Laravel", "Khác"];
 const PREVIEW_IMAGE_MODES = {
@@ -111,7 +112,7 @@ function WebsiteTemplateForm() {
   const isEditMode = Boolean(id);
   const returnPath = location.state?.sourcePath || "/kho-mau/website-mau";
   const currentUser = useSelector((state) => state.auth.user);
-  const canSave = hasPermission(currentUser, isEditMode ? "websiteTemplate.update" : "websiteTemplate.create");
+  const canSave = hasPermission(currentUser, isEditMode ? PERMISSIONS.WEBSITE_TEMPLATE_UPDATE : PERMISSIONS.WEBSITE_TEMPLATE_CREATE);
   const { options: categoryOptions, isLoading: isLoadingCategories } = useSystemCategoryOptions("websiteTemplate");
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);

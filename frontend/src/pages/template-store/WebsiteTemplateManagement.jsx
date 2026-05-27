@@ -12,6 +12,7 @@ import { useManagementList } from "@/hooks/useManagementList";
 import { websiteTemplateApi } from "@/lib/api-client";
 import { usePermission } from "@/lib/permissions";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const PLATFORM_OPTIONS = [
   { label: "Tất cả nền tảng", value: "all" },
@@ -86,9 +87,9 @@ function PreviewImage({ src, alt }) {
 function WebsiteTemplateManagement() {
   const navigate = useNavigate();
   const { can } = usePermission();
-  const canCreate = can("websiteTemplate.create");
-  const canUpdate = can("websiteTemplate.update");
-  const canDelete = can("websiteTemplate.delete");
+  const canCreate = can(PERMISSIONS.WEBSITE_TEMPLATE_CREATE);
+  const canUpdate = can(PERMISSIONS.WEBSITE_TEMPLATE_UPDATE);
+  const canDelete = can(PERMISSIONS.WEBSITE_TEMPLATE_DELETE);
   const { options: categoryOptions } = useSystemCategoryOptions("websiteTemplate", {
     includeAll: true,
     allLabel: "Tất cả danh mục",

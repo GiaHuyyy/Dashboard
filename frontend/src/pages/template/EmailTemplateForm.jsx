@@ -10,6 +10,7 @@ import { EmailTemplateEditor } from "@/components/template/EmailTemplateEditor";
 import FormField from "@/components/ui/form-field";
 import { emailTemplateApi } from "@/lib/api-client";
 import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const TEMPLATE_TYPES = [
   { value: "source", label: "Source" },
@@ -89,8 +90,8 @@ function EmailTemplateForm() {
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
   const { can } = usePermission();
 
-  const canView = can("template.view");
-  const canSave = can(isEditMode ? "template.update" : "template.create");
+  const canView = can(PERMISSIONS.TEMPLATE_VIEW);
+  const canSave = can(isEditMode ? PERMISSIONS.TEMPLATE_UPDATE : PERMISSIONS.TEMPLATE_CREATE);
   const isReadOnly = isEditMode && canView && !canSave;
 
   const {

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useManagementList } from "@/hooks/useManagementList";
 import { systemCategoryApi } from "@/lib/api-client";
 import { usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const CATEGORY_TYPES = [
   { value: "module", label: "Module", description: "Danh mục module" },
@@ -37,7 +38,7 @@ const defaultValues = {
 function SystemCategoryManagement() {
   const [activeType, setActiveType] = useState("module");
   const { can } = usePermission();
-  const canUpdate = can("config.category.update");
+  const canUpdate = can(PERMISSIONS.CONFIG_CATEGORY_UPDATE);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingRow, setEditingRow] = useState(null);

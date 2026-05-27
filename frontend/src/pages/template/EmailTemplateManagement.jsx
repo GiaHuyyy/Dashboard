@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useManagementList } from "@/hooks/useManagementList";
 import { emailTemplateApi } from "@/lib/api-client";
 import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const TEMPLATE_TYPES = [
   { value: "source", label: "Source" },
@@ -35,10 +36,10 @@ function EmailTemplateManagement() {
   const [updatingStatusId, setUpdatingStatusId] = useState("");
   const { can } = usePermission();
 
-  const canView = can("template.view");
-  const canCreate = can("template.create");
-  const canUpdate = can("template.update");
-  const canDelete = can("template.delete");
+  const canView = can(PERMISSIONS.TEMPLATE_VIEW);
+  const canCreate = can(PERMISSIONS.TEMPLATE_CREATE);
+  const canUpdate = can(PERMISSIONS.TEMPLATE_UPDATE);
+  const canDelete = can(PERMISSIONS.TEMPLATE_DELETE);
   const getEmailTemplateListParams = useCallback(
     (value) => ({
       templateType: activeType,
