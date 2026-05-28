@@ -1,5 +1,6 @@
 import BusinessContract from "../models/BusinessContract.js";
 import { sendBusinessContractMail } from "../services/businessContractMailService.js";
+import { buildBusinessContractProfile } from "../services/businessContractProfileService.js";
 import {
   getContractImagePublicIds,
   getRemovedContractImagePublicIds,
@@ -129,6 +130,19 @@ export const getBusinessContractById = async (req, res) => {
   if (!contract || contract.isDeleted) return sendNotFound(res, "Không tìm thấy hợp đồng kinh doanh");
 
   return sendOk(res, { contract: toBusinessContractResponseItem(contract) });
+};
+
+
+export const getBusinessContractProfile = async (req, res) => {
+  const id = normalizeObjectId(req.params.id);
+  if (!id) return sendBadRequest(res, "id không hợp lệ");
+
+  const contract = await BusinessContract.findById(id).lean();
+  if (!contract || contract.isDeleted) return sendNotFound(res, "Không tìm thấy hợp đồng kinh doanh");
+
+  return sendOk(res, {
+    profile: await buildBusinessContractProfile(contract),
+  });
 };
 
 export const updateBusinessContract = async (req, res) => {

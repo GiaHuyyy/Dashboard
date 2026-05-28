@@ -16,6 +16,7 @@ export const businessContractApi = {
       body: JSON.stringify(payload),
     }),
   detail: (id) => request(`/business-contracts/${id}`),
+  profile: (id) => request(`/business-contracts/${id}/profile`),
   update: (id, payload) =>
     request(`/business-contracts/${id}`, {
       method: "PUT",
@@ -35,4 +36,3 @@ export const businessContractApi = {
       body: JSON.stringify({ ids }),
     }),
 };
-

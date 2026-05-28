@@ -8,6 +8,7 @@ import {
   deleteBusinessContract,
   deleteBusinessContracts,
   getBusinessContractById,
+  getBusinessContractProfile,
   handoverBusinessContract,
   listBusinessContractReferences,
   listBusinessContracts,
@@ -38,6 +39,7 @@ router.get(
 );
 router.delete("/", requirePermission(PERMISSIONS.CONTRACT_DELETE), deleteBusinessContracts);
 router.post("/", requirePermission(PERMISSIONS.CONTRACT_CREATE), createBusinessContract);
+router.get("/:id/profile", requirePermission(PERMISSIONS.CONTRACT_VIEW), getBusinessContractProfile);
 router.get("/:id", requirePermission(PERMISSIONS.CONTRACT_VIEW), getBusinessContractById);
 router.put("/:id", requirePermission(PERMISSIONS.CONTRACT_UPDATE), updateBusinessContract);
 router.delete("/:id", requirePermission(PERMISSIONS.CONTRACT_DELETE), deleteBusinessContract);

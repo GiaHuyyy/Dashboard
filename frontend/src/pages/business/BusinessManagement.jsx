@@ -1,4 +1,4 @@
-import { SquarePen, Trash2 } from "lucide-react";
+import { FileText, SquarePen, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -174,6 +174,16 @@ function BusinessManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
+                      <Button
+                        icon={FileText}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/kinh-doanh/hop-dong/${row.id}/ho-so`);
+                        }}
+                        variant="primary-outline"
+                        iconOnly
+                        title="Xem hồ sơ hợp đồng"
+                      />
                       <Button
                         icon={SquarePen}
                         onClick={(event) => {

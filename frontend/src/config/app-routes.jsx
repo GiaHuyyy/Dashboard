@@ -32,6 +32,7 @@ import DesignManagement from "@/pages/design/DesignManagement";
 import DesignPointManagement from "@/pages/design/DesignPointManagement";
 import BusinessManagement from "@/pages/business/BusinessManagement";
 import BusinessForm from "@/pages/business/BusinessForm";
+import BusinessContractProfile from "@/pages/business/BusinessContractProfile";
 import SystemCategoryManagement from "@/pages/config/SystemCategoryManagement";
 import MailConfigurationManagement from "@/pages/config/MailConfigurationManagement";
 import SystemSettingManagement from "@/pages/config/SystemSettingManagement";
@@ -103,6 +104,7 @@ export const appRoutes = [
   { path: "kinh-doanh/danh-sach", element: <BusinessManagement /> },
   { path: "kinh-doanh/them-moi", element: <BusinessForm /> },
   { path: "kinh-doanh/chinh-sua/:id", element: <BusinessForm /> },
+  { path: "kinh-doanh/hop-dong/:id/ho-so", element: <BusinessContractProfile /> },
 
   { path: "cau-hinh", element: <Navigate to="/cau-hinh/danh-muc-he-thong" replace /> },
   { path: "cau-hinh/danh-muc-he-thong", element: <SystemCategoryManagement /> },
