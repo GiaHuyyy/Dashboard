@@ -1,14 +1,25 @@
 import { Download, Lock, LockOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
-import { pointApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { pointApi } from "@/lib/api-client";
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
+
+const normalizeSearchValue = (value) => String(value ?? "").toLowerCase();
+
+const getPointDetailUrl = (row) => {
+  if (row.source === "Nâng cấp") return `/lap-trinh/nang-cap/chinh-sua/${row.id}`;
+  if (row.source === "Chỉnh sửa") return `/lap-trinh/quan-ly-chinh-sua/chinh-sua/${row.id}`;
+  return `/lap-trinh/chinh-sua/${row.id}`;
+};
 
 const toCsvRow = (values) =>
   values
@@ -22,6 +33,7 @@ const toCsvRow = (values) =>
     .join(",");
 
 function ProgramPointManagement() {
+  const navigate = useNavigate();
   const [summary, setSummary] = useState({
     totalProgramPoint: 0,
     totalUpgradePoint: 0,
@@ -36,6 +48,9 @@ function ProgramPointManagement() {
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [selectedYear, setSelectedYear] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebouncedValue(searchText, 300);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const fetchPoints = useCallback(async () => {
     setIsLoading(true);
@@ -44,7 +59,6 @@ function ProgramPointManagement() {
         assignee: selectedAssignee === "Tất cả" ? "all" : selectedAssignee,
         month: selectedMonth === "Tất cả" ? "all" : Number(selectedMonth.split(" ")[1]),
         year: selectedYear === "Tất cả" ? "all" : Number(selectedYear),
-        search: searchText.trim(),
       });
       setSummary(response?.summary || {});
       setOwnerRows(Array.isArray(response?.owners) ? response.owners : []);
@@ -55,17 +69,61 @@ function ProgramPointManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchText, selectedAssignee, selectedMonth, selectedYear]);
+  }, [selectedAssignee, selectedMonth, selectedYear]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchPoints();
   }, [fetchPoints]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchText, selectedAssignee, selectedMonth, selectedYear]);
+
   const fullAssigneeOptions = useMemo(() => ["Tất cả", ...assigneeOptions], [assigneeOptions]);
 
+  const filteredDetailRows = useMemo(() => {
+    const keyword = debouncedSearchText.trim().toLowerCase();
+    if (!keyword) return detailRows;
+
+    return detailRows.filter((item) => {
+      const searchable = [
+        item.source,
+        item.contractCode,
+        item.module,
+        item.description,
+        item.status,
+        item.assignee,
+        item.convertPoint,
+        item.bonusPoint,
+        item.point,
+        item.createdAtLabel,
+      ]
+        .map(normalizeSearchValue)
+        .join(" ");
+      return searchable.includes(keyword);
+    });
+  }, [debouncedSearchText, detailRows]);
+
+  const paginatedDetailRows = useMemo(() => {
+    const startIndex = (page - 1) * limit;
+    return filteredDetailRows.slice(startIndex, startIndex + limit);
+  }, [filteredDetailRows, limit, page]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredDetailRows.length / limit));
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [filteredDetailRows.length, limit, page]);
+
+  const handleLimitChange = (nextLimit) => {
+    setLimit(nextLimit);
+    setPage(1);
+  };
+
   const exportCsv = () => {
-    if (detailRows.length === 0) {
+    if (filteredDetailRows.length === 0) {
       toast.error("Không có dữ liệu để xuất");
       return;
     }
@@ -81,7 +139,7 @@ function ProgramPointManagement() {
       "Tổng điểm",
       "Ngày",
     ];
-    const rows = detailRows.map((item) => [
+    const rows = filteredDetailRows.map((item) => [
       item.source,
       item.contractCode,
       item.module,
@@ -274,17 +332,22 @@ function ProgramPointManagement() {
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
-            ) : detailRows.length === 0 ? (
+            ) : filteredDetailRows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={11} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
             ) : (
-              detailRows.map((row, index) => (
-                <TableRow key={`${row.source}-${row.id}`} className="text-slate-700">
+              paginatedDetailRows.map((row, index) => (
+                <TableRow
+                  key={`${row.source}-${row.id}`}
+                  className="cursor-pointer text-slate-700 hover:bg-sky-50"
+                  title="Bấm để mở phiếu tương ứng"
+                  onClick={() => navigate(getPointDetailUrl(row))}
+                >
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{(page - 1) * limit + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.source}</TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
@@ -303,6 +366,14 @@ function ProgramPointManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={filteredDetailRows.length}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
     </>
   );

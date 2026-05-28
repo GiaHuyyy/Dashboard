@@ -4,12 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
 import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { designApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
@@ -28,7 +30,11 @@ function DesignManagement() {
   const canUpdateStatus = can(PERMISSIONS.DESIGN_UPDATE_STATUS);
 
   const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebouncedValue(searchText, 2000);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
@@ -62,26 +68,40 @@ function DesignManagement() {
     setIsLoading(true);
     try {
       const response = await designApi.list({
-        search: searchText.trim(),
+        search: debouncedSearchText.trim(),
         designType: selectedType,
         status: selectedStatus,
         assignee: selectedAssignee,
+        page,
+        limit,
       });
       const nextRows = Array.isArray(response?.designTasks) ? response.designTasks : [];
       setRows(nextRows);
+      setTotal(Number(response?.total ?? nextRows.length) || 0);
       setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
     } catch (error) {
       toast.error(error?.message || "Không thể tải danh sách design");
     } finally {
       setIsLoading(false);
     }
-  }, [searchText, selectedType, selectedStatus, selectedAssignee, setSelectedIds]);
+  }, [debouncedSearchText, selectedType, selectedStatus, selectedAssignee, page, limit, setSelectedIds]);
 
   useEffect(() => {
     void fetchRows();
   }, [fetchRows]);
 
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
+  const rowNumberOffset = (Math.max(Number(page) || 1, 1) - 1) * (Number(limit) || 10);
+
+  const handleSearchTextChange = (value) => {
+    setSearchText(value);
+    setPage(1);
+  };
+
+  const handleLimitChange = (nextLimit) => {
+    setLimit(nextLimit);
+    setPage(1);
+  };
   const assigneeOptions = useMemo(
     () => ["all", ...Array.from(new Set(rows.map((item) => item.assignee).filter(Boolean)))],
     [rows],
@@ -105,6 +125,7 @@ function DesignManagement() {
         setRows([]);
         toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) công việc design`);
       }
+      await fetchRows();
     } catch (error) {
       toast.error(error?.message || "Xóa dữ liệu không thành công");
     } finally {
@@ -186,7 +207,10 @@ function DesignManagement() {
         <select
           className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedType}
-          onChange={(event) => setSelectedType(event.target.value)}
+          onChange={(event) => {
+            setSelectedType(event.target.value);
+            setPage(1);
+          }}
         >
           {DESIGN_TYPES.map((option) => (
             <option key={option} value={option}>
@@ -198,7 +222,10 @@ function DesignManagement() {
         <select
           className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedStatus}
-          onChange={(event) => setSelectedStatus(event.target.value)}
+          onChange={(event) => {
+            setSelectedStatus(event.target.value);
+            setPage(1);
+          }}
         >
           {statusFilterOptions.map((option) => (
             <option key={option} value={option}>
@@ -210,7 +237,10 @@ function DesignManagement() {
         <select
           className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedAssignee}
-          onChange={(event) => setSelectedAssignee(event.target.value)}
+          onChange={(event) => {
+            setSelectedAssignee(event.target.value);
+            setPage(1);
+          }}
         >
           {assigneeOptions.map((option) => (
             <option key={option} value={option}>
@@ -222,7 +252,7 @@ function DesignManagement() {
 
       <ManagementTableCard
         searchText={searchText}
-        onSearchChange={setSearchText}
+        onSearchChange={handleSearchTextChange}
         searchPlaceholder="Tìm công việc design"
       >
         <Table className="min-w-full text-center text-sm">
@@ -319,7 +349,7 @@ function DesignManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
                     {row.title}
@@ -397,6 +427,14 @@ function DesignManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

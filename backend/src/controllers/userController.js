@@ -1,6 +1,6 @@
 import { getRoleLabel } from "../constants/permissions.js";
 import User, { USER_ROLES, getUserRoles } from "../models/User.js";
-import { normalizeBoolean, normalizeObjectId, normalizeString } from "../utils/normalize.js";
+import { normalizeBoolean, normalizeObjectId, normalizeString, parsePositiveInteger } from "../utils/normalize.js";
 import {
   sendBadRequest,
   sendCreated,
@@ -86,6 +86,8 @@ export const listUsers = async (req, res) => {
   const search = normalizeString(req.query.search);
   const role = normalizeString(req.query.role);
   const active = normalizeString(req.query.active);
+  const page = parsePositiveInteger(req.query.page) || 1;
+  const limit = parsePositiveInteger(req.query.limit) || 10;
 
   const filters = {};
   if (role && role !== "all") {
@@ -105,9 +107,16 @@ export const listUsers = async (req, res) => {
     });
   }
 
-  const users = await User.find(filters).sort({ createdAt: 1 }).select("-password").lean();
+  const skip = (page - 1) * limit;
+  const [users, total] = await Promise.all([
+    User.find(filters).sort({ createdAt: 1 }).skip(skip).limit(limit).select("-password").lean(),
+    User.countDocuments(filters),
+  ]);
 
   return sendOk(res, {
+    page,
+    limit,
+    total,
     users: users.map(toResponseItem),
     roleOptions: USER_ROLES.map((item) => ({ value: item, label: getRoleLabel(item) })),
   });

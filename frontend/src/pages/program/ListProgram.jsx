@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
 import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { COMPLETED_STATUS } from "@/constants/program";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { programApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
@@ -27,7 +29,11 @@ function ListProgram() {
 
   const [selectedModule, setSelectedModule] = useState("all");
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebouncedValue(searchText, 2000);
   const [programs, setPrograms] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeRow, setActiveRow] = useState(null);
@@ -50,31 +56,37 @@ function ListProgram() {
   const fetchPrograms = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await programApi.list(selectedModule);
+      const response = await programApi.list({
+        module: selectedModule,
+        search: debouncedSearchText.trim(),
+        page,
+        limit,
+      });
       const nextPrograms = response?.programs || [];
       setPrograms(nextPrograms);
+      setTotal(Number(response?.total ?? nextPrograms.length) || 0);
     } catch (error) {
       toast.error(error?.message || "Không thể tải danh sách lập trình");
     } finally {
       setIsLoading(false);
     }
-  }, [selectedModule]);
+  }, [selectedModule, debouncedSearchText, page, limit]);
 
   useEffect(() => {
     void fetchPrograms();
   }, [fetchPrograms]);
 
-  const filteredPrograms = useMemo(() => {
-    const keyword = searchText.trim().toLowerCase();
-    if (!keyword) return programs;
-    return programs.filter((item) => {
-      const source = [item.contractCode, item.contractName, item.module, item.assigner, item.assignee]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return source.includes(keyword);
-    });
-  }, [programs, searchText]);
+  const rowNumberOffset = (Math.max(Number(page) || 1, 1) - 1) * (Number(limit) || 10);
+
+  const handleSearchTextChange = (value) => {
+    setSearchText(value);
+    setPage(1);
+  };
+
+  const handleLimitChange = (nextLimit) => {
+    setLimit(nextLimit);
+    setPage(1);
+  };
 
   const openDelete = (row) => {
     setDeleteMode("single");
@@ -93,7 +105,7 @@ function ListProgram() {
     setActiveRow(null);
   };
 
-  const filteredIds = useMemo(() => filteredPrograms.map((item) => item.id), [filteredPrograms]);
+  const displayedIds = useMemo(() => programs.map((item) => item.id), [programs]);
   const {
     selectedIds,
     isAllSelected: isAllFilteredSelected,
@@ -101,7 +113,7 @@ function ListProgram() {
     toggleRow: handleRowCheckboxChange,
     clearSelection,
     syncWithData,
-  } = useRowSelection(filteredIds);
+  } = useRowSelection(displayedIds);
 
   useEffect(() => {
     syncWithData(programs.map((item) => item.id));
@@ -208,7 +220,10 @@ function ListProgram() {
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedModule}
-          onChange={(event) => setSelectedModule(event.target.value)}
+          onChange={(event) => {
+            setSelectedModule(event.target.value);
+            setPage(1);
+          }}
         >
           {moduleCategories.options.map((option) => (
             <option key={option.value} value={option.value}>
@@ -220,7 +235,7 @@ function ListProgram() {
 
       <ManagementTableCard
         searchText={searchText}
-        onSearchChange={setSearchText}
+        onSearchChange={handleSearchTextChange}
         searchPlaceholder="Tìm số HĐ, module, người giao/nhận"
       >
         <Table className="min-w-full text-center text-sm">
@@ -295,14 +310,14 @@ function ListProgram() {
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
-            ) : filteredPrograms.length === 0 ? (
+            ) : programs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
             ) : (
-              filteredPrograms.map((row, index) => (
+              programs.map((row, index) => (
                 <TableRow
                   key={row.id}
                   className="cursor-pointer text-slate-700 hover:bg-slate-50"
@@ -317,7 +332,7 @@ function ListProgram() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
                     {row.contractCode || "-"}
@@ -400,6 +415,14 @@ function ListProgram() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

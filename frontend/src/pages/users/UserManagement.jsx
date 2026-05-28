@@ -1,10 +1,11 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -25,16 +26,24 @@ function UserManagement() {
   const canUpdate = canAny([PERMISSIONS.PERMISSION_USER_UPDATE, PERMISSIONS.LEGACY_USER_UPDATE]);
   const canDelete = canAny([PERMISSIONS.PERMISSION_USER_DELETE, PERMISSIONS.LEGACY_USER_DELETE]);
   const getUserListParams = useCallback(
-    (value) => ({
-      search: value.trim(),
+    ({ searchText, page, limit }) => ({
+      search: searchText.trim(),
       role: selectedRole,
       active: selectedActive,
+      page,
+      limit,
     }),
     [selectedActive, selectedRole],
   );
 
   const {
     rows,
+    total,
+    page,
+    limit,
+    setPage,
+    setLimit,
+    rowNumberOffset,
     searchText,
     setSearchText,
     isLoading,
@@ -49,13 +58,14 @@ function UserManagement() {
     removeManyApi: userApi.removeMany,
     responseKey: "users",
     getListParams: getUserListParams,
+    enablePagination: true,
     loadErrorMessage: "Không thể tải danh sách tài khoản",
     noDeletePermissionMessage: PERMISSION_DENIED_MESSAGE,
     deleteOneSuccessMessage: "Đã xóa tài khoản",
     deleteErrorMessage: "Xóa tài khoản không thành công",
   });
 
-  const activeCount = useMemo(() => rows.filter((item) => item.isActive).length, [rows]);
+  const totalLabel = `Tổng: ${total}`;
 
   const openDetail = (row) => {
     if (!canView) {
@@ -74,13 +84,13 @@ function UserManagement() {
         addDisabled={!canCreate}
         addTitle={!canCreate ? PERMISSION_DENIED_MESSAGE : undefined}
         deleteDisabled
-        deleteLabel={`Đang hoạt động: ${activeCount}`}
+        deleteLabel={totalLabel}
       />
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <select
           value={selectedRole}
-          onChange={(event) => setSelectedRole(event.target.value)}
+          onChange={(event) => { setSelectedRole(event.target.value); setPage(1); }}
           className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
         >
           <option value="all">Tất cả vai trò</option>
@@ -93,7 +103,7 @@ function UserManagement() {
 
         <select
           value={selectedActive}
-          onChange={(event) => setSelectedActive(event.target.value)}
+          onChange={(event) => { setSelectedActive(event.target.value); setPage(1); }}
           className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
         >
           <option value="all">Tất cả trạng thái</option>
@@ -155,7 +165,7 @@ function UserManagement() {
                   onClick={() => openDetail(row)}
                 >
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
                     {row.name}
@@ -207,6 +217,14 @@ function UserManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

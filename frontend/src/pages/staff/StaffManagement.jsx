@@ -1,10 +1,10 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { useManagementList } from "@/hooks/useManagementList";
 import { staffApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
@@ -22,6 +22,12 @@ function StaffManagement() {
 
   const {
     rows,
+    total,
+    page,
+    limit,
+    setPage,
+    setLimit,
+    rowNumberOffset,
     searchText,
     setSearchText,
     isLoading,
@@ -35,13 +41,14 @@ function StaffManagement() {
     removeApi: staffApi.remove,
     removeManyApi: staffApi.removeMany,
     responseKey: "staffs",
+    enablePagination: true,
     loadErrorMessage: "Không thể tải danh sách nhân sự",
     noDeletePermissionMessage: "Bạn không có quyền xóa nhân sự",
     deleteOneSuccessMessage: "Đã xóa nhân sự",
     deleteErrorMessage: "Xóa dữ liệu không thành công",
   });
 
-  const activeCount = useMemo(() => rows.filter((item) => item.isActive).length, [rows]);
+  const totalLabel = `Tổng: ${total}`;
 
   return (
     <>
@@ -51,7 +58,7 @@ function StaffManagement() {
         addDisabled={!canCreate}
         addTitle={!canCreate ? "Bạn không có quyền thêm nhân sự" : undefined}
         deleteDisabled
-        deleteLabel={`Đang hoạt động: ${activeCount}`}
+        deleteLabel={totalLabel}
       />
 
       <ManagementTableCard
@@ -109,7 +116,7 @@ function StaffManagement() {
                   onClick={() => navigate(`/nhan-su/chinh-sua/${row.id}`)}
                 >
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
                     {row.fullName}
@@ -159,6 +166,14 @@ function StaffManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

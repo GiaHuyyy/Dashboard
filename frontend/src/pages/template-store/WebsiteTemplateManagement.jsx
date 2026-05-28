@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -100,12 +101,13 @@ function WebsiteTemplateManagement() {
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [selectedActive, setSelectedActive] = useState("all");
   const getWebsiteTemplateListParams = useCallback(
-    (value) => ({
-      search: value.trim(),
+    ({ searchText, page, limit }) => ({
+      search: searchText.trim(),
       category: selectedCategory,
       platform: selectedPlatform,
       active: selectedActive,
-      limit: 200,
+      page,
+      limit,
     }),
     [selectedActive, selectedCategory, selectedPlatform],
   );
@@ -113,6 +115,12 @@ function WebsiteTemplateManagement() {
   const {
     rows,
     setRows,
+    total,
+    page,
+    limit,
+    setPage,
+    setLimit,
+    rowNumberOffset,
     searchText,
     setSearchText,
     isLoading,
@@ -133,6 +141,7 @@ function WebsiteTemplateManagement() {
     removeManyApi: websiteTemplateApi.removeMany,
     responseKey: "websiteTemplates",
     getListParams: getWebsiteTemplateListParams,
+    enablePagination: true,
     loadErrorMessage: "Không thể tải danh sách website mẫu",
     noDeletePermissionMessage: "Bạn không có quyền xóa website mẫu",
     deleteOneSuccessMessage: "Đã xóa website mẫu",
@@ -176,7 +185,7 @@ function WebsiteTemplateManagement() {
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedCategory}
-          onChange={(event) => setSelectedCategory(event.target.value)}
+          onChange={(event) => { setSelectedCategory(event.target.value); setPage(1); }}
         >
           {categoryOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -187,7 +196,7 @@ function WebsiteTemplateManagement() {
         <select
           className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedPlatform}
-          onChange={(event) => setSelectedPlatform(event.target.value)}
+          onChange={(event) => { setSelectedPlatform(event.target.value); setPage(1); }}
         >
           {PLATFORM_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -198,7 +207,7 @@ function WebsiteTemplateManagement() {
         <select
           className="w-44 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedActive}
-          onChange={(event) => setSelectedActive(event.target.value)}
+          onChange={(event) => { setSelectedActive(event.target.value); setPage(1); }}
         >
           <option value="all">Tất cả trạng thái</option>
           <option value="true">Đang bật</option>
@@ -286,7 +295,7 @@ function WebsiteTemplateManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200" onClick={(event) => event.stopPropagation()}>
                     <PreviewImage src={row.previewImage} alt={row.name} />
@@ -366,6 +375,14 @@ function WebsiteTemplateManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

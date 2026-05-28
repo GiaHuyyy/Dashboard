@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
 import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
 import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { staffApi, upgradeApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
@@ -40,11 +42,15 @@ function ProgramUpgradeManagement() {
   const canUpdateStatus = can(PERMISSIONS.UPGRADE_UPDATE_STATUS);
 
   const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAssignee, setSelectedAssignee] = useState("Tất cả");
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [selectedYear, setSelectedYear] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebouncedValue(searchText, 2000);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
   const [staffReferences, setStaffReferences] = useState([]);
@@ -63,17 +69,19 @@ function ProgramUpgradeManagement() {
         assignee: selectedAssignee === "Tất cả" ? "all" : selectedAssignee,
         month: selectedMonth === "Tất cả" ? "all" : Number(selectedMonth.split(" ")[1]),
         year: selectedYear === "Tất cả" ? "all" : Number(selectedYear),
-        search: searchText.trim(),
-        limit: 200,
+        search: debouncedSearchText.trim(),
+        page,
+        limit,
       });
       const nextRows = Array.isArray(response?.upgrades) ? response.upgrades : [];
       setRows(nextRows);
+      setTotal(Number(response?.total ?? nextRows.length) || 0);
     } catch (error) {
       toast.error(error?.message || "Không thể tải danh sách nâng cấp");
     } finally {
       setIsLoading(false);
     }
-  }, [searchText, selectedAssignee, selectedMonth, selectedYear]);
+  }, [debouncedSearchText, selectedAssignee, selectedMonth, selectedYear, page, limit]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -106,6 +114,17 @@ function ProgramUpgradeManagement() {
     setSelectedIds,
   } = useRowSelection(displayedIds);
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
+  const rowNumberOffset = (Math.max(Number(page) || 1, 1) - 1) * (Number(limit) || 10);
+
+  const handleSearchTextChange = (value) => {
+    setSearchText(value);
+    setPage(1);
+  };
+
+  const handleLimitChange = (nextLimit) => {
+    setLimit(nextLimit);
+    setPage(1);
+  };
 
   const handleInlineUpdate = async (rowId, patch, successMessage) => {
     const target = rows.find((item) => item.id === rowId);
@@ -168,6 +187,7 @@ function ProgramUpgradeManagement() {
     try {
       await upgradeApi.remove(rowId);
       setRows((prev) => prev.filter((item) => item.id !== rowId));
+      setTotal((prev) => Math.max(0, prev - 1));
       setSelectedIds((prev) => prev.filter((item) => item !== rowId));
       toast.success("Đã xóa yêu cầu nâng cấp");
     } catch (error) {
@@ -180,11 +200,14 @@ function ProgramUpgradeManagement() {
       if (selectedIds.length > 0) {
         const response = await upgradeApi.removeMany(selectedIds);
         setRows((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
+        setTotal((prev) => Math.max(0, prev - (Number(response?.deletedCount || selectedIds.length) || 0)));
         clearSelection();
         toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} yêu cầu nâng cấp`);
       } else {
         const response = await upgradeApi.removeMany([]);
         setRows([]);
+        setTotal(0);
+        setPage(1);
         toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) yêu cầu nâng cấp`);
       }
     } catch (error) {
@@ -214,7 +237,10 @@ function ProgramUpgradeManagement() {
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedAssignee}
-          onChange={(event) => setSelectedAssignee(event.target.value)}
+          onChange={(event) => {
+            setSelectedAssignee(event.target.value);
+            setPage(1);
+          }}
         >
           {["Tất cả", ...assigneeOptions.map((item) => item.value)].map((option) => (
             <option key={option} value={option}>
@@ -226,7 +252,10 @@ function ProgramUpgradeManagement() {
         <select
           className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedMonth}
-          onChange={(event) => setSelectedMonth(event.target.value)}
+          onChange={(event) => {
+            setSelectedMonth(event.target.value);
+            setPage(1);
+          }}
         >
           {MONTH_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -238,7 +267,10 @@ function ProgramUpgradeManagement() {
         <select
           className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedYear}
-          onChange={(event) => setSelectedYear(event.target.value)}
+          onChange={(event) => {
+            setSelectedYear(event.target.value);
+            setPage(1);
+          }}
         >
           {YEAR_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -250,7 +282,7 @@ function ProgramUpgradeManagement() {
 
       <ManagementTableCard
         searchText={searchText}
-        onSearchChange={setSearchText}
+        onSearchChange={handleSearchTextChange}
         searchPlaceholder="Tìm số HĐ, module, hạng mục"
       >
         <Table className="min-w-full text-center text-sm">
@@ -347,7 +379,7 @@ function ProgramUpgradeManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
                     {row.contractCode}
@@ -438,6 +470,14 @@ function ProgramUpgradeManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

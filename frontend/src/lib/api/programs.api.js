@@ -1,11 +1,14 @@
 import { request } from "./request.js";
 
 export const programApi = {
-  list: (module) => {
+  list: ({ module = "all", search = "", page = 1, limit = 10 } = {}) => {
     const searchParams = new URLSearchParams();
     if (module && module !== "all") {
       searchParams.set("module", module);
     }
+    searchParams.set("search", search);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
     const query = searchParams.toString();
     return request(`/programs${query ? `?${query}` : ""}`);
   },
@@ -116,4 +119,3 @@ export const pointApi = {
     return request(`/program-points?${searchParams.toString()}`);
   },
 };
-

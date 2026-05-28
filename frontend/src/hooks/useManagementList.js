@@ -62,15 +62,17 @@ export function useManagementList({
   const fetchRows = useCallback(async () => {
     setIsLoading(true);
     try {
-      const listParams =
-        getListParams === defaultGetListParams
-          ? getListParams({ searchText: debouncedSearchText, page, limit, enablePagination })
-          : getListParams(debouncedSearchText);
+      const listParams = getListParams({
+        searchText: debouncedSearchText,
+        page,
+        limit,
+        enablePagination,
+      });
       const response = await listApi(listParams);
       const rawRows = Array.isArray(response?.[responseKey]) ? response[responseKey] : [];
       const transformedRows = transformRows(rawRows);
       const nextRows = Array.isArray(transformedRows) ? transformedRows : [];
-      const nextTotal = Number(response?.total ?? nextRows.length) || 0;
+      const nextTotal = Number(response?.total ?? response?.pagination?.total ?? nextRows.length) || 0;
       setRows(nextRows);
       setTotal(nextTotal);
       setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => getRowId(item) === id)));

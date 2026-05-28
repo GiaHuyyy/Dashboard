@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -41,11 +42,12 @@ function EmailTemplateManagement() {
   const canUpdate = can(PERMISSIONS.TEMPLATE_UPDATE);
   const canDelete = can(PERMISSIONS.TEMPLATE_DELETE);
   const getEmailTemplateListParams = useCallback(
-    (value) => ({
+    ({ searchText, page, limit }) => ({
       templateType: activeType,
       status: statusFilter,
-      search: value.trim(),
-      limit: 200,
+      search: searchText.trim(),
+      page,
+      limit,
     }),
     [activeType, statusFilter],
   );
@@ -57,6 +59,12 @@ function EmailTemplateManagement() {
   const {
     rows,
     setRows,
+    total,
+    page,
+    limit,
+    setPage,
+    setLimit,
+    rowNumberOffset,
     searchText,
     setSearchText,
     isLoading,
@@ -77,6 +85,7 @@ function EmailTemplateManagement() {
     removeManyApi: emailTemplateApi.removeMany,
     responseKey: "templates",
     getListParams: getEmailTemplateListParams,
+    enablePagination: true,
     transformRows: filterAllowedTemplates,
     loadErrorMessage: "Không thể tải thư viện mẫu email",
     noDeletePermissionMessage: PERMISSION_DENIED_MESSAGE,
@@ -139,7 +148,7 @@ function EmailTemplateManagement() {
       <div className="mt-4 flex flex-wrap items-center gap-3">
           <select
             value={activeType}
-            onChange={(event) => setActiveType(event.target.value)}
+            onChange={(event) => { setActiveType(event.target.value); setPage(1); }}
             className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           >
             <option value="all">Tất cả</option>
@@ -152,7 +161,7 @@ function EmailTemplateManagement() {
 
           <select
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}
             className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           >
             <option value="all">Tất cả trạng thái</option>
@@ -240,7 +249,7 @@ function EmailTemplateManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{getTypeLabel(row.templateType)}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
@@ -312,6 +321,14 @@ function EmailTemplateManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

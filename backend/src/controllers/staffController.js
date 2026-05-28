@@ -1,5 +1,5 @@
 import Staff from "../models/Staff.js";
-import { normalizeBoolean, normalizeObjectId, normalizeString } from "../utils/normalize.js";
+import { normalizeBoolean, normalizeObjectId, normalizeString, parsePositiveInteger } from "../utils/normalize.js";
 import {
   sendBadRequest,
   sendCreated,
@@ -71,6 +71,8 @@ export const createStaff = async (req, res) => {
 
 export const listStaffs = async (req, res) => {
   const keyword = normalizeString(req.query.search).toLowerCase();
+  const page = parsePositiveInteger(req.query.page) || 1;
+  const limit = parsePositiveInteger(req.query.limit) || 10;
   const filters = { isDeleted: false };
   const active = normalizeString(req.query.active);
   if (active === "true") filters.isActive = true;
@@ -84,8 +86,18 @@ export const listStaffs = async (req, res) => {
     ];
   }
 
-  const staffs = await Staff.find(filters).sort({ createdAt: 1 }).lean();
-  return sendOk(res, { staffs: staffs.map(toResponseItem) });
+  const skip = (page - 1) * limit;
+  const [staffs, total] = await Promise.all([
+    Staff.find(filters).sort({ createdAt: 1 }).skip(skip).limit(limit).lean(),
+    Staff.countDocuments(filters),
+  ]);
+
+  return sendOk(res, {
+    page,
+    limit,
+    total,
+    staffs: staffs.map(toResponseItem),
+  });
 };
 
 export const listStaffReferences = async (req, res) => {

@@ -1,15 +1,20 @@
 import { Download, Lock, LockOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { Button } from "@/components/ui/button-v2";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { designPointApi } from "@/lib/api-client";
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
 const STATUS_OPTIONS = ["Tất cả", "Đã nhận", "Đang xử lý", "Hoàn thành"];
+
+const normalizeSearchValue = (value) => String(value ?? "").toLowerCase();
 
 const toCsvRow = (values) =>
   values
@@ -23,6 +28,7 @@ const toCsvRow = (values) =>
     .join(",");
 
 function DesignPointManagement() {
+  const navigate = useNavigate();
   const [summary, setSummary] = useState({
     totalConvertPoint: 0,
     totalBonusPoint: 0,
@@ -37,6 +43,9 @@ function DesignPointManagement() {
   const [selectedYear, setSelectedYear] = useState("Tất cả");
   const [selectedStatus, setSelectedStatus] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebouncedValue(searchText, 300);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const fetchPoints = useCallback(async () => {
     setIsLoading(true);
@@ -45,7 +54,6 @@ function DesignPointManagement() {
         assignee: selectedAssignee === "Tất cả" ? "all" : selectedAssignee,
         month: selectedMonth === "Tất cả" ? "all" : Number(selectedMonth.split(" ")[1]),
         year: selectedYear === "Tất cả" ? "all" : Number(selectedYear),
-        search: searchText.trim(),
         status: selectedStatus === "Tất cả" ? "all" : selectedStatus,
       });
       setSummary(response?.summary || {});
@@ -57,17 +65,61 @@ function DesignPointManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchText, selectedAssignee, selectedMonth, selectedYear, selectedStatus]);
+  }, [selectedAssignee, selectedMonth, selectedYear, selectedStatus]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchPoints();
   }, [fetchPoints]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchText, selectedAssignee, selectedMonth, selectedYear, selectedStatus]);
+
   const fullAssigneeOptions = useMemo(() => ["Tất cả", ...assigneeOptions], [assigneeOptions]);
 
+  const filteredDetailRows = useMemo(() => {
+    const keyword = debouncedSearchText.trim().toLowerCase();
+    if (!keyword) return detailRows;
+
+    return detailRows.filter((item) => {
+      const searchable = [
+        item.title,
+        item.designType,
+        item.priority,
+        item.status,
+        item.assigner,
+        item.assignee,
+        item.convertPoint,
+        item.bonusPoint,
+        item.totalPoint,
+        item.createdAtLabel,
+      ]
+        .map(normalizeSearchValue)
+        .join(" ");
+      return searchable.includes(keyword);
+    });
+  }, [debouncedSearchText, detailRows]);
+
+  const paginatedDetailRows = useMemo(() => {
+    const startIndex = (page - 1) * limit;
+    return filteredDetailRows.slice(startIndex, startIndex + limit);
+  }, [filteredDetailRows, limit, page]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredDetailRows.length / limit));
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [filteredDetailRows.length, limit, page]);
+
+  const handleLimitChange = (nextLimit) => {
+    setLimit(nextLimit);
+    setPage(1);
+  };
+
   const exportCsv = () => {
-    if (detailRows.length === 0) {
+    if (filteredDetailRows.length === 0) {
       toast.error("Không có dữ liệu để xuất");
       return;
     }
@@ -83,7 +135,7 @@ function DesignPointManagement() {
       "Tổng điểm",
       "Ngày",
     ];
-    const rows = detailRows.map((item) => [
+    const rows = filteredDetailRows.map((item) => [
       item.title,
       item.designType,
       item.priority,
@@ -285,17 +337,22 @@ function DesignPointManagement() {
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
-            ) : detailRows.length === 0 ? (
+            ) : filteredDetailRows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={11} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
             ) : (
-              detailRows.map((row, index) => (
-                <TableRow key={row.id} className="text-slate-700">
+              paginatedDetailRows.map((row, index) => (
+                <TableRow
+                  key={row.id}
+                  className="cursor-pointer text-slate-700 hover:bg-sky-50"
+                  title="Bấm để mở phiếu design"
+                  onClick={() => navigate(`/design/chinh-sua/${row.id}`)}
+                >
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{(page - 1) * limit + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
                     {row.title}
@@ -316,6 +373,14 @@ function DesignPointManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={filteredDetailRows.length}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
     </>
   );

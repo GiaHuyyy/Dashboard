@@ -1,11 +1,13 @@
 import { request } from "./request.js";
 
 export const userApi = {
-  list: ({ search = "", role = "all", active = "all" } = {}) => {
+  list: ({ search = "", role = "all", active = "all", page = 1, limit = 10 } = {}) => {
     const searchParams = new URLSearchParams();
     if (search) searchParams.set("search", search);
     if (role !== "all") searchParams.set("role", role);
     if (active !== "all") searchParams.set("active", active);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
     const query = searchParams.toString();
     return request(`/users${query ? `?${query}` : ""}`);
   },
@@ -25,4 +27,3 @@ export const userApi = {
       method: "DELETE",
     }),
 };
-

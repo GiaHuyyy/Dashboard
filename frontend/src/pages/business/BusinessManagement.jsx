@@ -1,11 +1,12 @@
 import { SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
+import { useManagementList } from "@/hooks/useManagementList";
 import { businessContractApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
@@ -20,80 +21,53 @@ function BusinessManagement() {
   const canUpdate = can(PERMISSIONS.CONTRACT_UPDATE);
   const canDelete = can(PERMISSIONS.CONTRACT_DELETE);
 
-  const [rows, setRows] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [searchText, setSearchText] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteRow, setDeleteRow] = useState(null);
 
-  const fetchRows = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await businessContractApi.list({
-        handoverStatus: selectedStatus,
-        search: searchText.trim(),
-        limit: 200,
-      });
-      const nextRows = Array.isArray(response?.contracts) ? response.contracts : [];
-      setRows(nextRows);
-      setSelectedIds((prev) => prev.filter((id) => nextRows.some((item) => item.id === id)));
-    } catch (error) {
-      toast.error(error?.message || "Không thể tải danh sách kinh doanh");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchText, selectedStatus]);
+  const getBusinessListParams = useCallback(
+    ({ searchText, page, limit }) => ({
+      handoverStatus: selectedStatus,
+      search: searchText.trim(),
+      page,
+      limit,
+    }),
+    [selectedStatus],
+  );
 
-  useEffect(() => {
-    void fetchRows();
-  }, [fetchRows]);
-
-  const displayedRows = useMemo(() => rows, [rows]);
-  const displayedIds = displayedRows.map((item) => item.id);
-  const isAllFilteredSelected = displayedIds.length > 0 && displayedIds.every((id) => selectedIds.includes(id));
-  const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
-
-  const handleToggleAll = (checked) => {
-    if (checked) {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...displayedIds])));
-      return;
-    }
-    setSelectedIds((prev) => prev.filter((id) => !displayedIds.includes(id)));
-  };
-
-  const handleToggleRow = (id, checked) => {
-    setSelectedIds((prev) => {
-      if (checked) {
-        if (prev.includes(id)) return prev;
-        return [...prev, id];
-      }
-      return prev.filter((item) => item !== id);
-    });
-  };
-
-  const handleDelete = async () => {
-    try {
-      if (deleteRow?.id) {
-        await businessContractApi.remove(deleteRow.id);
-        toast.success("Đã xóa hợp đồng");
-      } else if (selectedIds.length > 0) {
-        const response = await businessContractApi.removeMany(selectedIds);
-        toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} hợp đồng`);
-      } else {
-        const response = await businessContractApi.removeMany([]);
-        toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) hợp đồng`);
-      }
-      setDeleteOpen(false);
-      setDeleteRow(null);
-      setSelectedIds([]);
-      await fetchRows();
-    } catch (error) {
-      toast.error(error?.message || "Xóa dữ liệu không thành công");
-    }
-  };
-
+  const {
+    rows,
+    total,
+    page,
+    limit,
+    setPage,
+    setLimit,
+    rowNumberOffset,
+    searchText,
+    setSearchText,
+    isLoading,
+    selectedIds,
+    deleteOpen,
+    setDeleteOpen,
+    deleteRow,
+    setDeleteRow,
+    displayedRows,
+    isAllFilteredSelected,
+    deleteManyLabel,
+    handleToggleAll,
+    handleToggleRow,
+    handleDelete,
+  } = useManagementList({
+    listApi: businessContractApi.list,
+    removeApi: businessContractApi.remove,
+    removeManyApi: businessContractApi.removeMany,
+    responseKey: "contracts",
+    getListParams: getBusinessListParams,
+    enablePagination: true,
+    loadErrorMessage: "Không thể tải danh sách kinh doanh",
+    noDeletePermissionMessage: "Bạn không có quyền xóa hợp đồng",
+    deleteOneSuccessMessage: "Đã xóa hợp đồng",
+    deleteManySuccessMessage: ({ deletedCount, selectedCount }) => `Đã xóa ${deletedCount || selectedCount} hợp đồng`,
+    deleteAllSuccessMessage: ({ deletedCount }) => `Đã xóa toàn bộ (${deletedCount || 0}) hợp đồng`,
+  });
 
   return (
     <>
@@ -114,7 +88,10 @@ function BusinessManagement() {
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedStatus}
-          onChange={(event) => setSelectedStatus(event.target.value)}
+          onChange={(event) => {
+            setSelectedStatus(event.target.value);
+            setPage(1);
+          }}
         >
           <option value="all">Trạng thái bàn giao</option>
           {HANDOVER_STATUS_OPTIONS.map((option) => (
@@ -179,7 +156,7 @@ function BusinessManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.contractName}</TableCell>
@@ -226,6 +203,14 @@ function BusinessManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal
@@ -248,7 +233,7 @@ function BusinessManagement() {
             >
               Hủy
             </button>
-            <button type="button" onClick={() => void handleDelete()} className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white">
+            <button type="button" onClick={() => void handleDelete({ canDelete })} className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white">
               Xóa
             </button>
           </div>

@@ -12,7 +12,8 @@ import {
   toProgramReferenceItem,
   validateProgramPayload,
 } from "../services/programTaskService.js";
-import { normalizeString } from "../utils/normalize.js";
+import { normalizeString, parsePositiveInteger } from "../utils/normalize.js";
+import { buildSearchOrFilter } from "../utils/query.js";
 import { sendCreated, sendError, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 export const validateProgram = async (req, res) => {
@@ -50,23 +51,38 @@ export const createProgram = async (req, res) => {
 
 export const listPrograms = async (req, res) => {
   const selectedModule = normalizeString(req.query.module);
+  const search = normalizeString(req.query.search);
+  const page = parsePositiveInteger(req.query.page) || 1;
+  const limit = parsePositiveInteger(req.query.limit) || 10;
   const filters = {
     isDeleted: false,
-    $or: [{ type: "program" }, { type: { $exists: false } }],
+    $and: [
+      { $or: [{ type: "program" }, { type: { $exists: false } }] },
+      buildSearchOrFilter(search, ["contractCode", "contractName", "module", "assigner", "assignee"]),
+    ],
   };
 
   if (selectedModule && selectedModule !== "all") {
     filters.module = selectedModule;
   }
 
-  const programs = await Program.find(filters)
-    .sort({ programCreatedAt: 1, createdAt: 1 })
-    .select(
-      "contractCode contractName module priority time convert bonusPoint assigner assignee designTaskTitle processingStatus assignedAt receivedAt dueAt completedAt design visible",
-    )
-    .lean();
+  const skip = (page - 1) * limit;
+  const [programs, total] = await Promise.all([
+    Program.find(filters)
+      .sort({ programCreatedAt: 1, createdAt: 1 })
+      .skip(skip)
+      .limit(limit)
+      .select(
+        "contractCode contractName module priority time convert bonusPoint assigner assignee designTaskTitle processingStatus assignedAt receivedAt dueAt completedAt design visible",
+      )
+      .lean(),
+    Program.countDocuments(filters),
+  ]);
 
   return sendOk(res, {
+    page,
+    limit,
+    total,
     programs: programs.map(toProgramListItem),
   });
 };

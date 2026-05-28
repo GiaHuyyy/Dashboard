@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { SOURCE_SEND_STATUS_OPTIONS } from "@/constants/program-source";
 import { useManagementList } from "@/hooks/useManagementList";
 import { sourceApi } from "@/lib/api-client";
@@ -25,10 +26,11 @@ function SourceManagement() {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [sendingRowId, setSendingRowId] = useState(null);
   const getSourceListParams = useCallback(
-    (value) => ({
+    ({ searchText, page, limit }) => ({
       status: selectedStatus,
-      search: value.trim(),
-      limit: 200,
+      search: searchText.trim(),
+      page,
+      limit,
     }),
     [selectedStatus],
   );
@@ -36,6 +38,12 @@ function SourceManagement() {
   const {
     rows,
     setRows,
+    total,
+    page,
+    limit,
+    setPage,
+    setLimit,
+    rowNumberOffset,
     searchText,
     setSearchText,
     isLoading,
@@ -56,6 +64,7 @@ function SourceManagement() {
     removeManyApi: sourceApi.removeMany,
     responseKey: "sources",
     getListParams: getSourceListParams,
+    enablePagination: true,
     loadErrorMessage: "Không thể tải danh sách source",
     noDeletePermissionMessage: "Bạn không có quyền xóa source",
     deleteOneSuccessMessage: "Đã xóa source",
@@ -104,7 +113,7 @@ function SourceManagement() {
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedStatus}
-          onChange={(event) => setSelectedStatus(event.target.value)}
+          onChange={(event) => { setSelectedStatus(event.target.value); setPage(1); }}
         >
           <option value="all">Trạng thái gửi</option>
           {SOURCE_SEND_STATUS_OPTIONS.map((option) => (
@@ -205,7 +214,7 @@ function SourceManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-bold text-sky-700">
                     {row.contractCode}
@@ -303,6 +312,14 @@ function SourceManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

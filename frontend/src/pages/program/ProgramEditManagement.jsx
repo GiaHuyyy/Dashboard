@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
 import { InlinePrioritySelect } from "@/components/table/InlinePrioritySelect";
 import { InlineStatusSelect } from "@/components/table/InlineStatusSelect";
 import { CORRECTION_COMPLETED_STATUS } from "@/constants/program-correction";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { correctionApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
@@ -41,11 +43,15 @@ function ProgramEditManagement() {
   const canUpdateStatus = can(PERMISSIONS.CORRECTION_UPDATE_STATUS);
 
   const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProgrammer, setSelectedProgrammer] = useState("Tất cả");
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [selectedYear, setSelectedYear] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebouncedValue(searchText, 2000);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState(null);
   const [staffReferences, setStaffReferences] = useState([]);
@@ -64,17 +70,19 @@ function ProgramEditManagement() {
         assignee: selectedProgrammer === "Tất cả" ? "all" : selectedProgrammer,
         month: selectedMonth === "Tất cả" ? "all" : Number(selectedMonth.split(" ")[1]),
         year: selectedYear === "Tất cả" ? "all" : Number(selectedYear),
-        search: searchText.trim(),
-        limit: 200,
+        search: debouncedSearchText.trim(),
+        page,
+        limit,
       });
       const nextRows = Array.isArray(response?.corrections) ? response.corrections : [];
       setRows(nextRows);
+      setTotal(Number(response?.total ?? nextRows.length) || 0);
     } catch (error) {
       toast.error(error?.message || "Không thể tải danh sách chỉnh sửa");
     } finally {
       setIsLoading(false);
     }
-  }, [searchText, selectedMonth, selectedProgrammer, selectedYear]);
+  }, [debouncedSearchText, selectedMonth, selectedProgrammer, selectedYear, page, limit]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -107,6 +115,17 @@ function ProgramEditManagement() {
     setSelectedIds,
   } = useRowSelection(displayedIds);
   const deleteManyLabel = selectedIds.length > 0 ? `Xóa tất cả [ ${selectedIds.length} ]` : "Xóa tất cả";
+  const rowNumberOffset = (Math.max(Number(page) || 1, 1) - 1) * (Number(limit) || 10);
+
+  const handleSearchTextChange = (value) => {
+    setSearchText(value);
+    setPage(1);
+  };
+
+  const handleLimitChange = (nextLimit) => {
+    setLimit(nextLimit);
+    setPage(1);
+  };
 
   const openCreateForm = () => {
     navigate("/lap-trinh/quan-ly-chinh-sua/them-moi");
@@ -178,6 +197,7 @@ function ProgramEditManagement() {
     try {
       await correctionApi.remove(rowId);
       setRows((prev) => prev.filter((item) => item.id !== rowId));
+      setTotal((prev) => Math.max(0, prev - 1));
       setSelectedIds((prev) => prev.filter((item) => item !== rowId));
       toast.success("Đã xóa yêu cầu chỉnh sửa");
     } catch (error) {
@@ -190,11 +210,14 @@ function ProgramEditManagement() {
       if (selectedIds.length > 0) {
         const response = await correctionApi.removeMany(selectedIds);
         setRows((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
+        setTotal((prev) => Math.max(0, prev - (Number(response?.deletedCount || selectedIds.length) || 0)));
         clearSelection();
         toast.success(`Đã xóa ${response?.deletedCount || selectedIds.length} yêu cầu chỉnh sửa`);
       } else {
         const response = await correctionApi.removeMany([]);
         setRows([]);
+        setTotal(0);
+        setPage(1);
         toast.success(`Đã xóa toàn bộ (${response?.deletedCount || 0}) yêu cầu chỉnh sửa`);
       }
     } catch (error) {
@@ -226,7 +249,10 @@ function ProgramEditManagement() {
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedProgrammer}
-          onChange={(event) => setSelectedProgrammer(event.target.value)}
+          onChange={(event) => {
+            setSelectedProgrammer(event.target.value);
+            setPage(1);
+          }}
         >
           {["Tất cả", ...assigneeOptions.map((item) => item.value)].map((option) => (
             <option key={option} value={option}>
@@ -238,7 +264,10 @@ function ProgramEditManagement() {
         <select
           className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedMonth}
-          onChange={(event) => setSelectedMonth(event.target.value)}
+          onChange={(event) => {
+            setSelectedMonth(event.target.value);
+            setPage(1);
+          }}
         >
           {MONTH_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -250,7 +279,10 @@ function ProgramEditManagement() {
         <select
           className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedYear}
-          onChange={(event) => setSelectedYear(event.target.value)}
+          onChange={(event) => {
+            setSelectedYear(event.target.value);
+            setPage(1);
+          }}
         >
           {YEAR_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -262,7 +294,7 @@ function ProgramEditManagement() {
 
       <ManagementTableCard
         searchText={searchText}
-        onSearchChange={setSearchText}
+        onSearchChange={handleSearchTextChange}
         searchPlaceholder="Tìm số HĐ, module, mô tả"
       >
         <Table className="min-w-full text-center text-sm">
@@ -359,7 +391,7 @@ function ProgramEditManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
                     {row.contractCode}
@@ -450,6 +482,14 @@ function ProgramEditManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal
