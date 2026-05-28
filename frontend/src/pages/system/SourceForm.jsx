@@ -243,10 +243,7 @@ function SourceForm() {
           return;
         }
         const mapped = mapSourceToForm(source);
-        setLockedProgramLabel(
-          getProgramOptionLabel(programReferences.find((item) => item.id === mapped.programId)) ||
-            [source.contractCode, source.module].filter(Boolean).join(" - "),
-        );
+        setLockedProgramLabel([source.contractCode, source.module].filter(Boolean).join(" - ") || "Không có dữ liệu");
         reset(mapped);
         setInitialSnapshot(mapped);
       } catch (error) {
@@ -257,7 +254,7 @@ function SourceForm() {
       }
     };
     void fetchDetail();
-  }, [id, isEditMode, navigate, programReferences, reset, returnPath]);
+  }, [id, isEditMode, navigate, reset, returnPath]);
 
   const persistSource = async (values, mode) => {
     const payload = {

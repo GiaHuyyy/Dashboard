@@ -7,7 +7,6 @@ import { z } from "zod";
 import { useSelector } from "react-redux";
 
 import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
-import { ProgramInfo } from "@/components/program/ProgramInfo";
 import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
@@ -48,6 +47,122 @@ const toDateTimeLocal = (value) => {
   const localDate = new Date(date.getTime() - offset * 60000);
   return localDate.toISOString().slice(0, 16);
 };
+
+function ProgramInfo({
+  register,
+  errors,
+  contractOptions = [],
+  designTaskOptions = [],
+  moduleOptions = [],
+  priorityOptions = [],
+  designEnabled = false,
+  lockContractSelection = false,
+  lockedContractLabel = "",
+}) {
+  return (
+    <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
+      <p className="text-md font-semibold text-slate-700">Thông tin lập trình</p>
+
+      {lockContractSelection ? (
+        <>
+          <input type="hidden" {...register("businessContractId")} />
+          <FormField
+            label="Phiếu gốc / Số HĐ"
+            type="text"
+            inputProps={{
+              value: lockedContractLabel || "Không có dữ liệu",
+              readOnly: true,
+              placeholder: "Phiếu gốc / Số HĐ đang chỉnh sửa",
+            }}
+            error={errors.businessContractId?.message}
+          />
+        </>
+      ) : (
+        <FormField
+          label="Phiếu gốc / Số HĐ"
+          type="select"
+          options={contractOptions.length > 0 ? contractOptions : [{ label: "Chưa có hợp đồng", value: "" }]}
+          selectProps={{ ...register("businessContractId"), disabled: contractOptions.length === 0 }}
+          error={errors.businessContractId?.message}
+        />
+      )}
+
+      <FormField
+        label="Module"
+        type="select"
+        options={moduleOptions.length > 0 ? moduleOptions : [{ label: "Chưa có danh mục", value: "" }]}
+        selectProps={{ ...register("module"), disabled: moduleOptions.length === 0 }}
+        error={errors.module?.message}
+      />
+
+      <FormField
+        label="Mức độ ưu tiên"
+        type="select"
+        options={priorityOptions.length > 0 ? priorityOptions : [{ label: "Chưa có danh mục", value: "" }]}
+        selectProps={{ ...register("priority"), disabled: priorityOptions.length === 0 }}
+        error={errors.priority?.message}
+      />
+
+      <div className="grid grid-cols-2 gap-3">
+        <FormField
+          label="Thời gian"
+          type="number"
+          inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", placeholder: "Nhập số" }}
+          error={errors.durationValue?.message}
+        />
+        <FormField
+          label="Đơn vị"
+          type="select"
+          options={DURATION_UNIT_OPTIONS.map((item) => ({ label: item, value: item }))}
+          selectProps={register("durationUnit")}
+          error={errors.durationUnit?.message}
+        />
+      </div>
+
+      <FormField
+        label="Quy đổi"
+        type="text"
+        inputProps={{ ...register("convert"), readOnly: true, placeholder: "Tự động" }}
+        error={errors.convert?.message}
+      />
+
+      <FormField
+        label="Điểm cộng thêm"
+        type="number"
+        inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125", placeholder: "Nhập điểm cộng thêm" }}
+        error={errors.bonusPoint?.message}
+      />
+
+      <div className="grid grid-cols-2 gap-4">
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+          <input type="checkbox" {...register("design")} />
+          Design
+        </label>
+      </div>
+
+      {designEnabled ? (
+        <FormField
+          label="Thiết kế tham chiếu"
+          type="select"
+          options={designTaskOptions.length > 0 ? designTaskOptions : [{ label: "Chưa có dữ liệu design", value: "" }]}
+          selectProps={{ ...register("designTaskId"), disabled: designTaskOptions.length === 0 }}
+          error={errors.designTaskId?.message}
+        />
+      ) : null}
+
+      <FormField
+        label="Ghi chú"
+        type="textarea"
+        inputProps={{
+          ...register("note"),
+          placeholder: "Nhập ghi chú nếu có",
+          rows: 3,
+        }}
+        error={errors.note?.message}
+      />
+    </div>
+  );
+}
 
 const programSchema = z
   .object({
@@ -120,7 +235,7 @@ function ProgramForm() {
   const canOverrideCompleted = hasPermission(currentUser, PERMISSIONS.PROGRAM_OVERRIDE_COMPLETED);
   const businessContractFromState = location.state?.businessContract || null;
 
-  const [isLoadingProgram, setIsLoadingProgram] = useState(false);
+  const [isLoadingProgram, setIsLoadingProgram] = useState(isEditMode);
   const [staffReferences, setStaffReferences] = useState([]);
   const [designReferences, setDesignReferences] = useState([]);
   const [programReferences, setProgramReferences] = useState([]);
@@ -168,26 +283,19 @@ function ProgramForm() {
     [processingStatusValues],
   );
 
-  const selectedBusinessContract = useMemo(() => {
-    if (!selectedBusinessContractId) return null;
-    return (
-      businessContractReferences.find((item) => String(item.id) === String(selectedBusinessContractId)) ||
-      businessContractReferences.find((item) => String(item._id) === String(selectedBusinessContractId)) ||
-      businessContractReferences.find((item) => String(item.contractCode) === String(selectedBusinessContractId)) ||
-      businessContractReferences.find((item) => item.label === selectedBusinessContractId) ||
-      null
-    );
-  }, [businessContractReferences, selectedBusinessContractId]);
-
   useEffect(() => {
+    let isActive = true;
+
     const fetchReferences = async () => {
       try {
         const [staffResponse, designResponse, businessResponse, programResponse] = await Promise.all([
           staffApi.references(),
           designApi.references(),
-          businessContractApi.references(),
-          programApi.references(),
+          isEditMode ? Promise.resolve({ contracts: [] }) : businessContractApi.references(),
+          isEditMode ? Promise.resolve({ programs: [] }) : programApi.references(),
         ]);
+        if (!isActive) return;
+
         const nextStaffReferences = Array.isArray(staffResponse?.staffs) ? staffResponse.staffs : [];
         const nextDesignReferences = Array.isArray(designResponse?.designTasks) ? designResponse.designTasks : [];
         const nextBusinessReferences = Array.isArray(businessResponse?.contracts) ? businessResponse.contracts : [];
@@ -207,10 +315,16 @@ function ProgramForm() {
           setValue("assignee", programmerOptions[0], { shouldValidate: true });
         }
       } catch (error) {
-        toast.error(error?.message || "Không thể tải dữ liệu tham chiếu");
+        if (isActive) {
+          toast.error(error?.message || "Không thể tải dữ liệu tham chiếu");
+        }
       }
     };
     void fetchReferences();
+
+    return () => {
+      isActive = false;
+    };
   }, [isEditMode, setValue]);
 
   const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
@@ -296,12 +410,16 @@ function ProgramForm() {
   }, [businessContractReferences.length, contractOptions, isEditMode, selectedBusinessContractId, setValue]);
 
   useEffect(() => {
-    if (!isEditMode) return;
+    if (!isEditMode) return undefined;
+
+    let isActive = true;
 
     const fetchProgramDetail = async () => {
       setIsLoadingProgram(true);
       try {
         const response = await programApi.detail(programId);
+        if (!isActive) return;
+
         const program = response?.program;
         if (!program) {
           toast.error("Không tìm thấy dữ liệu cần chỉnh sửa");
@@ -312,9 +430,9 @@ function ProgramForm() {
         const parsedDuration = Number(program.durationValue);
         const safeDuration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 1;
         setLockedContractLabel(
-          getContractOptionLabel(
-            businessContractReferences.find((item) => String(item.id) === String(program.businessContractId)),
-          ) || [program.contractCode, program.contractName].filter(Boolean).join(" - "),
+          [program.contractCode, program.contractName].filter(Boolean).join(" - ") ||
+            program.businessContractId ||
+            "Không có dữ liệu",
         );
 
         const formValues = {
@@ -341,15 +459,23 @@ function ProgramForm() {
         reset(formValues);
         setInitialSnapshot(formValues);
       } catch (error) {
-        toast.error(error?.message || "Không thể tải dữ liệu chỉnh sửa");
-        navigate(returnPath);
+        if (isActive) {
+          toast.error(error?.message || "Không thể tải dữ liệu chỉnh sửa");
+          navigate(returnPath);
+        }
       } finally {
-        setIsLoadingProgram(false);
+        if (isActive) {
+          setIsLoadingProgram(false);
+        }
       }
     };
 
     void fetchProgramDetail();
-  }, [businessContractReferences, isEditMode, navigate, programId, reset, returnPath]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [isEditMode, navigate, programId, reset, returnPath]);
 
   const persistProgram = async (values, mode) => {
     const payload = {
@@ -393,7 +519,6 @@ function ProgramForm() {
       reset(values);
       return;
     }
-
 
     toast.success(response?.message || (isEditMode ? "Cập nhật thành công" : "Lưu thành công"));
     navigate(returnPath);
@@ -454,81 +579,80 @@ function ProgramForm() {
             register={register}
             errors={errors}
             contractOptions={contractOptions}
-            selectedContract={selectedBusinessContract}
             designTaskOptions={designTaskOptions}
             lockContractSelection={isEditMode}
-            lockedContractLabel={lockedContractLabel || getContractOptionLabel(selectedBusinessContract)}
+            lockedContractLabel={lockedContractLabel}
             moduleOptions={moduleCategories.options}
             priorityOptions={priorityCategories.options}
             designEnabled={Boolean(selectedDesign)}
           />
 
           <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
-                <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
+            <p className="text-md font-semibold text-slate-700">Theo dõi xử lý</p>
 
-                <FormField
-                  label="Người giao (Quản lý)"
-                  type="select"
-                  options={assignerOptions}
-                  selectProps={register("assigner")}
-                  error={errors.assigner?.message}
-                />
+            <FormField
+              label="Người giao (Quản lý)"
+              type="select"
+              options={assignerOptions}
+              selectProps={register("assigner")}
+              error={errors.assigner?.message}
+            />
 
-                <FormField
-                  label="Người nhận (lập trình)"
-                  type="select"
-                  options={assigneeOptions}
-                  selectProps={register("assignee")}
-                  error={errors.assignee?.message}
-                />
+            <FormField
+              label="Người nhận (lập trình)"
+              type="select"
+              options={assigneeOptions}
+              selectProps={register("assignee")}
+              error={errors.assignee?.message}
+            />
 
-                <FormField
-                  label="Trạng thái"
-                  type="select"
-                  options={
-                    processingStatusOptions.length > 0
-                      ? processingStatusOptions
-                      : [{ label: "Chưa có danh mục", value: "" }]
-                  }
-                  selectProps={register("processingStatus")}
-                  error={errors.processingStatus?.message}
-                />
+            <FormField
+              label="Trạng thái"
+              type="select"
+              options={
+                processingStatusOptions.length > 0
+                  ? processingStatusOptions
+                  : [{ label: "Chưa có danh mục", value: "" }]
+              }
+              selectProps={register("processingStatus")}
+              error={errors.processingStatus?.message}
+            />
 
-                <FormField
-                  label="Ngày giao"
-                  type="datetime-local"
-                  inputProps={register("assignedAt")}
-                  error={errors.assignedAt?.message}
-                />
+            <FormField
+              label="Ngày giao"
+              type="datetime-local"
+              inputProps={register("assignedAt")}
+              error={errors.assignedAt?.message}
+            />
 
-                <FormField
-                  label="Ngày nhận"
-                  type="datetime-local"
-                  inputProps={register("receivedAt")}
-                  error={errors.receivedAt?.message}
-                />
+            <FormField
+              label="Ngày nhận"
+              type="datetime-local"
+              inputProps={register("receivedAt")}
+              error={errors.receivedAt?.message}
+            />
 
-                <FormField
-                  label="Ngày dự kiến"
-                  type="datetime-local"
-                  inputProps={register("dueAt")}
-                  error={errors.dueAt?.message}
-                />
+            <FormField
+              label="Ngày dự kiến"
+              type="datetime-local"
+              inputProps={register("dueAt")}
+              error={errors.dueAt?.message}
+            />
 
-                <FormField
-                  label="Ngày hoàn thành"
-                  type="datetime-local"
-                  inputProps={{
-                    ...register("completedAt"),
-                    disabled: selectedProcessingStatus !== COMPLETED_STATUS,
-                  }}
-                  error={errors.completedAt?.message}
-                />
+            <FormField
+              label="Ngày hoàn thành"
+              type="datetime-local"
+              inputProps={{
+                ...register("completedAt"),
+                disabled: selectedProcessingStatus !== COMPLETED_STATUS,
+              }}
+              error={errors.completedAt?.message}
+            />
 
-                <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                  <input type="checkbox" {...register("visible")} />
-                  Hiển thị
-                </label>
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <input type="checkbox" {...register("visible")} />
+              Hiển thị
+            </label>
           </div>
         </FormSection>
       </FormPageLayout>
