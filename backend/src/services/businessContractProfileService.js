@@ -469,10 +469,50 @@ export const buildBusinessContractProfile = async (contract) => {
   });
 
   const contractItem = toBusinessContractResponseItem(contract);
-  const designs = designsRaw.map(toDesignTaskResponseItem);
-  const programs = programsRaw.map(toProgramDetailItem);
-  const corrections = correctionsRaw.map(toProgramCorrectionResponseItem);
-  const upgrades = upgradesRaw.map(toProgramUpgradeResponseItem);
+  const designs = designsRaw.map((item) => {
+    const responseItem = toDesignTaskResponseItem(item);
+    return {
+      ...responseItem,
+      createdAt: toIsoString(item.createdAt),
+      createdAtLabel: formatDateTime(item.createdAt, { includeSeconds: false }),
+    };
+  });
+  const programs = programsRaw.map((item) => {
+    const responseItem = toProgramDetailItem(item);
+    return {
+      ...responseItem,
+      createdAt: toIsoString(item.createdAt),
+      createdAtLabel: formatDateTime(item.createdAt, { includeSeconds: false }),
+      assignedAtLabel: formatDateTime(item.assignedAt, { includeSeconds: false }),
+      receivedAtLabel: formatDateTime(item.receivedAt, { includeSeconds: false }),
+      dueAtLabel: formatDateTime(item.dueAt, { includeSeconds: false }),
+      completedAtLabel: formatDateTime(item.completedAt, { includeSeconds: false }),
+    };
+  });
+  const corrections = correctionsRaw.map((item) => {
+    const responseItem = toProgramCorrectionResponseItem(item);
+    return {
+      ...responseItem,
+      assignedAtLabel: formatDateTime(item.assignedAt, { includeSeconds: false }),
+      receivedAtLabel: formatDateTime(item.receivedAt, { includeSeconds: false }),
+      dueAtLabel: formatDateTime(item.dueAt, { includeSeconds: false }),
+      completedAtLabel: formatDateTime(item.completedAt, { includeSeconds: false }),
+      createdAt: toIsoString(item.createdAt),
+      createdAtLabel: formatDateTime(item.createdAt, { includeSeconds: false }),
+    };
+  });
+  const upgrades = upgradesRaw.map((item) => {
+    const responseItem = toProgramUpgradeResponseItem(item);
+    return {
+      ...responseItem,
+      assignedAtLabel: formatDateTime(item.assignedAt, { includeSeconds: false }),
+      receivedAtLabel: formatDateTime(item.receivedAt, { includeSeconds: false }),
+      dueAtLabel: formatDateTime(item.dueAt, { includeSeconds: false }),
+      completedAtLabel: formatDateTime(item.completedAt, { includeSeconds: false }),
+      createdAt: toIsoString(item.createdAt),
+      createdAtLabel: formatDateTime(item.createdAt, { includeSeconds: false }),
+    };
+  });
   const sources = sourcesRaw.map(formatProfileSourceItem);
 
   const summary = {
