@@ -109,6 +109,11 @@ const programSchema = new mongoose.Schema(
       required: true,
       default: true,
     },
+    note: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     contractName: {
       type: String,
       required: true,

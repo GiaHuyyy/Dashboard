@@ -100,6 +100,7 @@ export const normalizeProgramPayload = (body = {}, convertSettings = {}) => {
     processingStatus: normalizeString(body.processingStatus),
     design: normalizeBoolean(body.design),
     visible: normalizeBoolean(body.visible),
+    note: normalizeString(body.note),
     designTaskId: normalizeString(body.designTaskId) || null,
     designTaskTitle: "",
     contractSnapshot: null,
@@ -272,6 +273,7 @@ export const toProgramCreateData = (payload, userId) => ({
   processingStatus: payload.processingStatus,
   design: payload.design,
   visible: payload.visible,
+  note: payload.note,
   contractName: payload.contractSnapshot.contractName,
   contractCode: payload.contractSnapshot.contractCode,
   contractImages: payload.contractSnapshot.contractImages,
@@ -304,6 +306,7 @@ export const applyProgramPayload = (program, payload) => {
   program.processingStatus = payload.processingStatus;
   program.design = payload.design;
   program.visible = payload.visible;
+  program.note = payload.note;
   program.contractName = payload.contractSnapshot.contractName;
   program.contractCode = payload.contractSnapshot.contractCode;
   program.contractImages = payload.contractSnapshot.contractImages;
@@ -338,6 +341,7 @@ export const toProgramListItem = (item) => ({
   completedAtLabel: formatDateTime(item.completedAt),
   design: item.design,
   visible: item.visible,
+  note: item.note || "",
 });
 
 export const toProgramReferenceItem = (item) => ({
@@ -378,6 +382,7 @@ export const toProgramDetailItem = (program) => ({
   processingStatus: normalizeProgramProcessingStatus(program.processingStatus),
   design: program.design,
   visible: program.visible,
+  note: program.note || "",
   contractName: program.contractName,
   contractCode: program.contractCode,
   contractImages: Array.isArray(program.contractImages) ? program.contractImages : [],

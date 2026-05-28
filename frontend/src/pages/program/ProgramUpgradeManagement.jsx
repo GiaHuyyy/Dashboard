@@ -296,7 +296,7 @@ function ProgramUpgradeManagement() {
                 Người giao (Quản lý)
               </TableHead>
               <TableHead className="border border-slate-200 p-4 px-10 text-center font-semibold text-slate-500">
-                Người nhận
+                Chuyển lập trình
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Ngày giao
@@ -321,13 +321,13 @@ function ProgramUpgradeManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>

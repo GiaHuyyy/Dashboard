@@ -65,6 +65,7 @@ const programSchema = z
     receivedAt: z.string().trim().min(1, "Vui lòng chọn ngày nhận"),
     dueAt: z.string().trim().min(1, "Vui lòng chọn ngày dự kiến"),
     completedAt: z.string().optional(),
+    note: z.string().optional(),
   })
   .superRefine((values, ctx) => {
     if (values.design && !values.designTaskId?.trim()) {
@@ -102,6 +103,7 @@ const defaultValues = {
   receivedAt: "",
   dueAt: "",
   completedAt: "",
+  note: "",
 };
 
 function ProgramForm() {
@@ -324,6 +326,7 @@ function ProgramForm() {
           receivedAt: toDateTimeLocal(program.receivedAt),
           dueAt: toDateTimeLocal(program.dueAt),
           completedAt: toDateTimeLocal(program.completedAt),
+          note: program.note || "",
         };
         reset(formValues);
         setInitialSnapshot(formValues);
@@ -345,6 +348,7 @@ function ProgramForm() {
       bonusPoint: values.bonusPoint,
       receivedAt: values.receivedAt || null,
       completedAt: values.processingStatus === COMPLETED_STATUS ? values.completedAt || null : null,
+      note: values.note || "",
     };
 
     try {

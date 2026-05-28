@@ -261,6 +261,9 @@ function ListProgram() {
                 Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Điểm cộng thêm
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Người giao
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -292,13 +295,13 @@ function ListProgram() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={17} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : filteredPrograms.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={17} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -348,6 +351,7 @@ function ListProgram() {
                       onChange={(nextValue) => handleInlineStatusUpdate(row, nextValue)}
                     />
                   </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint ?? 0}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assigner || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">

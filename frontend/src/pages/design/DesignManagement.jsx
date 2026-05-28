@@ -257,16 +257,16 @@ function DesignManagement() {
                 Quy đổi
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm thêm
+                Trạng thái
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Điểm cộng thêm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Người giao (Quản lý)
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Người nhận
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Ngày giao
@@ -336,9 +336,6 @@ function DesignManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.durationLabel}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <InlineStatusSelect
                       value={row.status}
@@ -349,6 +346,9 @@ function DesignManagement() {
                       onChange={(nextValue) => handleStatusChange(row, nextValue)}
                     />
                   </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.handoverDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.receiveDateLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.expectedDateLabel || "-"}</TableCell>

@@ -18,7 +18,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usePermission } from "@/lib/permissions";
 import { PERMISSIONS } from "@/constants/permissions";
 
-
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
 const formatDateTime = (value) => {
@@ -118,8 +117,8 @@ function ProgramEditManagement() {
   };
 
   const handleInlineUpdate = async (rowId, patch, successMessage) => {
-  const target = rows.find((item) => item.id === rowId);
-  if (!target) return;
+    const target = rows.find((item) => item.id === rowId);
+    if (!target) return;
 
     const payload = {
       programId: target.programId,
@@ -142,38 +141,38 @@ function ProgramEditManagement() {
     };
 
     try {
-    const response = await correctionApi.update(rowId, payload);
-    const updated = response?.correction;
-    if (!updated) return;
+      const response = await correctionApi.update(rowId, payload);
+      const updated = response?.correction;
+      if (!updated) return;
 
-    setRows((prev) => prev.map((item) => (item.id === rowId ? updated : item)));
-    toast.success(successMessage || "Đã cập nhật");
-  } catch (error) {
-    toast.error(error?.message || "Cập nhật không thành công");
-  }
-};
+      setRows((prev) => prev.map((item) => (item.id === rowId ? updated : item)));
+      toast.success(successMessage || "Đã cập nhật");
+    } catch (error) {
+      toast.error(error?.message || "Cập nhật không thành công");
+    }
+  };
 
   const handleStatusChange = (row, nextStatus) => {
-  if (nextStatus === row.status) return;
+    if (nextStatus === row.status) return;
 
-  if (row.status === CORRECTION_COMPLETED_STATUS) {
-    toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
-    return;
-  }
+    if (row.status === CORRECTION_COMPLETED_STATUS) {
+      toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
+      return;
+    }
 
-  void handleInlineUpdate(row.id, { status: nextStatus }, "Đã cập nhật trạng thái");
-};
+    void handleInlineUpdate(row.id, { status: nextStatus }, "Đã cập nhật trạng thái");
+  };
 
-const handlePriorityChange = (row, nextPriority) => {
-  if (nextPriority === row.priority) return;
+  const handlePriorityChange = (row, nextPriority) => {
+    if (nextPriority === row.priority) return;
 
-  if (row.status === CORRECTION_COMPLETED_STATUS) {
-    toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
-    return;
-  }
+    if (row.status === CORRECTION_COMPLETED_STATUS) {
+      toast.error("Không thể chỉnh sửa yêu cầu chỉnh sửa đã hoàn thành");
+      return;
+    }
 
-  void handleInlineUpdate(row.id, { priority: nextPriority }, "Đã cập nhật mức ưu tiên");
-};
+    void handleInlineUpdate(row.id, { priority: nextPriority }, "Đã cập nhật mức ưu tiên");
+  };
 
   const handleDeleteOne = async (rowId) => {
     try {
@@ -287,6 +286,9 @@ const handlePriorityChange = (row, nextPriority) => {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Module
               </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Lỗi/ chỉnh sửa
+              </TableHead>
               <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">
                 Ưu tiên
               </TableHead>
@@ -300,13 +302,13 @@ const handlePriorityChange = (row, nextPriority) => {
                 Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Điểm cộng thêm
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Người giao (Quản lý)
               </TableHead>
               <TableHead className="border border-slate-200 p-4 px-7 text-center font-semibold text-slate-500">
                 Chuyển lập trình
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm cộng thêm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Ngày giao
@@ -363,6 +365,7 @@ const handlePriorityChange = (row, nextPriority) => {
                     {row.contractCode}
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.module}</TableCell>
+                  <TableCell className="border border-slate-200 p-4 text-left">{row.issueContent}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <InlinePrioritySelect
                       value={row.priority}
@@ -382,6 +385,7 @@ const handlePriorityChange = (row, nextPriority) => {
                       onChange={(nextValue) => handleStatusChange(row, nextValue)}
                     />
                   </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.assigner}</TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <select
@@ -397,19 +401,10 @@ const handlePriorityChange = (row, nextPriority) => {
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {formatDateTime(row.assignedAt)}
-                  </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {formatDateTime(row.receivedAt)}
-                  </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {formatDateTime(row.dueAt)}
-                  </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {formatDateTime(row.completedAt)}
-                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{formatDateTime(row.assignedAt)}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{formatDateTime(row.receivedAt)}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{formatDateTime(row.dueAt)}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{formatDateTime(row.completedAt)}</TableCell>
                   <TableCell
                     className="border border-slate-200 p-4 text-center"
                     onClick={(event) => event.stopPropagation()}
