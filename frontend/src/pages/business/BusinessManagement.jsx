@@ -117,6 +117,7 @@ function BusinessManagement() {
                 />
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">STT</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hồ sơ</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Số hợp đồng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Tên hợp đồng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Khách hàng</TableHead>
@@ -133,13 +134,13 @@ function BusinessManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={13} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -158,6 +159,18 @@ function BusinessManagement() {
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
+                  <TableCell className="border border-slate-200 p-4">
+                    <Button
+                      icon={FileText}
+                      label="Xem hồ sơ"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/kinh-doanh/hop-dong/${row.id}/ho-so`);
+                      }}
+                      variant="primary-outline"
+                      title="Xem hồ sơ hợp đồng"
+                    />
+                  </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.contractName}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.customerName}</TableCell>
@@ -174,16 +187,6 @@ function BusinessManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <Button
-                        icon={FileText}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          navigate(`/kinh-doanh/hop-dong/${row.id}/ho-so`);
-                        }}
-                        variant="primary-outline"
-                        iconOnly
-                        title="Xem hồ sơ hợp đồng"
-                      />
                       <Button
                         icon={SquarePen}
                         onClick={(event) => {

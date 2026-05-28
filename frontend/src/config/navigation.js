@@ -162,7 +162,7 @@ export const navItems = [
         path: "/kinh-doanh/danh-sach",
         permission: PERMISSIONS.CONTRACT_VIEW,
         activePaths: ["/kinh-doanh/them-moi"],
-        activePathPrefixes: ["/kinh-doanh/chinh-sua/"],
+        activePathPrefixes: ["/kinh-doanh/chinh-sua/", "/kinh-doanh/hop-dong/"],
       },
     ],
   },

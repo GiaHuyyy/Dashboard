@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, FileText, SquarePen } from "lucide-react";
+import { ArrowLeft, ExternalLink, SquarePen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -13,6 +13,12 @@ const formatPoint = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return "0";
   return Number(parsed.toFixed(3)).toString();
+};
+
+const formatCurrency = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "0 đ";
+  return `${parsed.toLocaleString("vi-VN")} đ`;
 };
 
 const formatValue = (value) => {
@@ -33,10 +39,13 @@ const Section = ({ title, description, actions, children }) => (
   </section>
 );
 
-const StatCard = ({ label, value, hint }) => (
+const StatCard = ({ label, value, subvalue, hint }) => (
   <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-    <p className="mt-2 text-2xl font-bold text-slate-800">{value}</p>
+    <div className="flex items-baseline gap-2 text-sky-700">
+      <p className="mt-2 text-2xl font-bold ">{value}</p>
+      {subvalue ? <p className="text-sm font-medium">{subvalue}</p> : null}
+    </div>
     {hint ? <p className="mt-1 text-sm text-slate-500">{hint}</p> : null}
   </div>
 );
@@ -46,7 +55,7 @@ const InfoGrid = ({ items }) => (
     {items.map((item) => (
       <div key={item.label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
         <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</dt>
-        <dd className="mt-1 break-words text-sm font-medium text-slate-700">{formatValue(item.value)}</dd>
+        <dd className="mt-1 wrap-break-word text-sm font-medium text-slate-700">{formatValue(item.value)}</dd>
       </div>
     ))}
   </dl>
@@ -59,41 +68,64 @@ const EmptyState = ({ children = "Chưa có dữ liệu" }) => (
 );
 
 const DataTable = ({ columns, rows, emptyText, onRowClick }) => (
-  <Table className="min-w-full text-center text-sm">
-    <TableHeader className="bg-slate-50 text-slate-500">
-      <TableRow>
-        {columns.map((column) => (
-          <TableHead key={column.key} className="border border-slate-200 p-3 text-center font-semibold text-slate-500">
-            {column.label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {rows.length === 0 ? (
+  <div className="w-full overflow-x-auto">
+    <Table className="min-w-full text-center text-sm">
+      <TableHeader className="bg-slate-50 text-slate-500">
         <TableRow>
-          <TableCell colSpan={columns.length} className="border border-slate-200 p-4 py-8 text-slate-500">
-            {emptyText || "Chưa có dữ liệu"}
-          </TableCell>
+          {columns.map((column) => (
+            <TableHead
+              key={column.key}
+              className="border border-slate-200 p-3 text-center font-semibold text-slate-500"
+            >
+              {column.label}
+            </TableHead>
+          ))}
         </TableRow>
-      ) : (
-        rows.map((row, index) => (
-          <TableRow
-            key={row.id || index}
-            className={onRowClick ? "cursor-pointer text-slate-700 hover:bg-slate-50" : "text-slate-700"}
-            onClick={() => onRowClick?.(row)}
-          >
-            {columns.map((column) => (
-              <TableCell key={column.key} className={["border border-slate-200 p-3", column.className].filter(Boolean).join(" ")}>
-                {column.render ? column.render(row, index) : formatValue(row[column.key])}
-              </TableCell>
-            ))}
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={columns.length} className="border border-slate-200 p-4 py-8 text-slate-500">
+              {emptyText || "Chưa có dữ liệu"}
+            </TableCell>
           </TableRow>
-        ))
-      )}
-    </TableBody>
-  </Table>
+        ) : (
+          rows.map((row, index) => (
+            <TableRow
+              key={row.id || index}
+              className={onRowClick ? "cursor-pointer text-slate-700 hover:bg-slate-50" : "text-slate-700"}
+              onClick={() => onRowClick?.(row)}
+            >
+              {columns.map((column) => (
+                <TableCell
+                  key={column.key}
+                  className={["border border-slate-200 p-3", column.className].filter(Boolean).join(" ")}
+                >
+                  {column.render ? column.render(row, index) : formatValue(row[column.key])}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+    </Table>
+  </div>
 );
+
+const PriceReferencesList = ({ references = [] }) => {
+  if (!Array.isArray(references) || references.length === 0) return <span>{EMPTY_TEXT}</span>;
+
+  return (
+    <div className="space-y-1 text-left">
+      {references.map((item, index) => (
+        <div key={`${item.type}-${index}`} className="rounded-lg bg-slate-50 px-2 py-1">
+          <p className="font-medium text-slate-700">{[item.type, item.label].filter(Boolean).join(" - ")}</p>
+          {item.description ? <p className="text-xs text-slate-500">{item.description}</p> : null}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 function BusinessContractProfile() {
   const { id } = useParams();
@@ -136,7 +168,7 @@ function BusinessContractProfile() {
       { label: "Khách hàng", value: contract.customerName },
       { label: "SĐT khách hàng", value: contract.customerPhone },
       { label: "Email khách hàng", value: contract.customerEmail },
-      { label: "Giá trị hợp đồng", value: Number(contract.contractValue || 0).toLocaleString("vi-VN") },
+      { label: "Giá trị hợp đồng gốc", value: formatCurrency(contract.contractValue || 0) },
       { label: "Nhân viên kinh doanh", value: contract.selectedSalesStaff },
       { label: "Trạng thái", value: contract.status },
       { label: "Trạng thái mail", value: contract.mailStatus },
@@ -150,7 +182,7 @@ function BusinessContractProfile() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500">
+      <div className="flex min-h-60 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500">
         Đang tải hồ sơ hợp đồng...
       </div>
     );
@@ -163,7 +195,7 @@ function BusinessContractProfile() {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div>
           <p className="text-sm text-slate-500">Kinh doanh / Hợp đồng / Hồ sơ hợp đồng</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-800">Hồ sơ hợp đồng {contract.contractCode}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-sky-700">Hồ sơ hợp đồng {contract.contractCode}</h1>
           <p className="mt-1 text-sm text-slate-500">
             Tổng hợp hợp đồng, design, lập trình, chỉnh sửa, nâng cấp, source, điểm và timeline xử lý.
           </p>
@@ -184,11 +216,33 @@ function BusinessContractProfile() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Tổng điểm" value={formatPoint(summary.totalPoint)} hint="Design + lập trình + chỉnh sửa + nâng cấp" />
-        <StatCard label="Công việc chính" value={(summary.designCount || 0) + (summary.programCount || 0)} hint={`${summary.designCount || 0} design, ${summary.programCount || 0} lập trình`} />
-        <StatCard label="Yêu cầu phát sinh" value={(summary.correctionCount || 0) + (summary.upgradeCount || 0)} hint={`${summary.correctionCount || 0} chỉnh sửa, ${summary.upgradeCount || 0} nâng cấp`} />
-        <StatCard label="Source" value={summary.sourceCount || 0} hint={`${summary.contractImageCount || 0} ảnh hợp đồng`} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          label="Tổng điểm"
+          value={`${formatPoint(summary.totalPoint)}`}
+          subvalue={`${summary.totalDurationLabel ? ` (${summary.totalDurationLabel})` : ""}`}
+          hint="Design + lập trình + chỉnh sửa + nâng cấp"
+        />
+        <StatCard
+          label="Công việc chính"
+          value={(summary.designCount || 0) + (summary.programCount || 0)}
+          hint={`${summary.designCount || 0} design, ${summary.programCount || 0} lập trình`}
+        />
+        <StatCard
+          label="Yêu cầu phát sinh"
+          value={(summary.correctionCount || 0) + (summary.upgradeCount || 0)}
+          hint={`${summary.correctionCount || 0} chỉnh sửa, ${summary.upgradeCount || 0} nâng cấp`}
+        />
+        <StatCard
+          label="Source"
+          value={summary.sourceCount || 0}
+          hint={`${summary.contractImageCount || 0} ảnh hợp đồng`}
+        />
+        <StatCard
+          label="Tổng giá trị hợp đồng"
+          value={formatCurrency(summary.totalContractValue || 0)}
+          hint={`Gốc ${formatCurrency(contract.contractValue || 0)} + source ${formatCurrency(summary.sourcePriceTotal || 0)}`}
+        />
       </div>
 
       <Section title="Tổng quan hợp đồng">
@@ -203,7 +257,11 @@ function BusinessContractProfile() {
                 rel="noreferrer"
                 className="group overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
               >
-                <img src={image.url} alt={`Ảnh hợp đồng ${index + 1}`} className="h-36 w-full object-contain p-2 transition group-hover:scale-[1.02]" />
+                <img
+                  src={image.url}
+                  alt={`Ảnh hợp đồng ${index + 1}`}
+                  className="h-36 w-full object-contain p-2 transition group-hover:scale-[1.02]"
+                />
               </a>
             ))}
           </div>
@@ -216,7 +274,10 @@ function BusinessContractProfile() {
         ) : (
           <div className="space-y-3">
             {profile.timeline.map((item, index) => (
-              <div key={`${item.date}-${index}`} className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div
+                key={`${item.date}-${index}`}
+                className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
+              >
                 <div className="mt-1 h-3 w-3 shrink-0 rounded-full bg-sky-500" />
                 <div>
                   <p className="text-sm font-semibold text-slate-700">{item.title}</p>
@@ -242,6 +303,7 @@ function BusinessContractProfile() {
             { key: "convert", label: "Quy đổi", render: (row) => formatPoint(row.convert) },
             { key: "bonusPoint", label: "Điểm cộng thêm", render: (row) => formatPoint(row.bonusPoint) },
             { key: "status", label: "Trạng thái" },
+            { key: "assigner", label: "Người giao" },
             { key: "assignee", label: "Người nhận" },
             { key: "completedDateLabel", label: "Hoàn thành" },
           ]}
@@ -260,6 +322,7 @@ function BusinessContractProfile() {
             { key: "convert", label: "Quy đổi", render: (row) => formatPoint(row.convert) },
             { key: "bonusPoint", label: "Điểm cộng thêm", render: (row) => formatPoint(row.bonusPoint) },
             { key: "processingStatus", label: "Trạng thái" },
+            { key: "assigner", label: "Người giao" },
             { key: "assignee", label: "Lập trình viên" },
             { key: "dueAtLabel", label: "Hạn xử lý" },
             { key: "note", label: "Ghi chú", className: "text-left" },
@@ -280,6 +343,7 @@ function BusinessContractProfile() {
             { key: "convert", label: "Quy đổi", render: (row) => formatPoint(row.convert) },
             { key: "bonusPoint", label: "Điểm cộng thêm", render: (row) => formatPoint(row.bonusPoint) },
             { key: "status", label: "Trạng thái" },
+            { key: "assigner", label: "Người giao" },
             { key: "assignee", label: "Người nhận" },
           ]}
         />
@@ -298,6 +362,7 @@ function BusinessContractProfile() {
             { key: "convert", label: "Quy đổi", render: (row) => formatPoint(row.convert) },
             { key: "bonusPoint", label: "Điểm cộng thêm", render: (row) => formatPoint(row.bonusPoint) },
             { key: "status", label: "Trạng thái" },
+            { key: "assigner", label: "Người giao" },
             { key: "assignee", label: "Người nhận" },
           ]}
         />
@@ -321,6 +386,13 @@ function BusinessContractProfile() {
                 </span>
               ),
             },
+            {
+              key: "priceReferences",
+              label: "Tham chiếu bảng giá",
+              className: "min-w-[260px]",
+              render: (row) => <PriceReferencesList references={row.priceReferences} />,
+            },
+            { key: "priceTotal", label: "Giá tiền", render: (row) => formatCurrency(row.priceTotal || 0) },
             { key: "sendStatus", label: "Trạng thái gửi" },
             { key: "sentAtLabel", label: "Ngày gửi" },
             { key: "expiresAtLabel", label: "Hết hạn link" },
@@ -340,7 +412,16 @@ function BusinessContractProfile() {
             { key: "programPoint", label: "Lập trình", render: (row) => formatPoint(row.programPoint) },
             { key: "correctionPoint", label: "Chỉnh sửa", render: (row) => formatPoint(row.correctionPoint) },
             { key: "upgradePoint", label: "Nâng cấp", render: (row) => formatPoint(row.upgradePoint) },
-            { key: "totalPoint", label: "Tổng điểm", render: (row) => <span className="font-semibold text-sky-700">{formatPoint(row.totalPoint)}</span> },
+            {
+              key: "totalPoint",
+              label: "Tổng điểm",
+              render: (row) => (
+                <span className="font-semibold text-sky-700">
+                  {formatPoint(row.totalPoint)}
+                  {row.totalDurationLabel ? ` (${row.totalDurationLabel})` : ""}
+                </span>
+              ),
+            },
           ]}
         />
       </Section>
