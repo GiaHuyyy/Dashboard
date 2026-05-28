@@ -1,9 +1,9 @@
-
 import { AlertTriangle, ArrowRight, Clock3, FileText, RefreshCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { Button } from "@/components/ui/button-v2";
 import { dashboardApi } from "@/lib/api-client";
 
@@ -25,6 +25,22 @@ const typeLabels = {
   contract: "contract",
 };
 
+const alertTypeOptions = [
+  { value: "all", label: "Tất cả loại" },
+  { value: "program", label: "Lập trình" },
+  { value: "correction", label: "Chỉnh sửa" },
+  { value: "upgrade", label: "Nâng cấp" },
+  { value: "design", label: "Design" },
+  { value: "source", label: "Source" },
+  { value: "contract", label: "Hợp đồng" },
+];
+
+const alertStatusOptions = [
+  { value: "all", label: "Tất cả trạng thái" },
+  { value: "overdue", label: "Quá hạn" },
+  { value: "warning", label: "Sắp đến hạn" },
+];
+
 const getCardHint = (card = {}) => {
   const overdue = Number(card.overdue || 0);
   const warning = Number(card.warning || 0);
@@ -45,6 +61,10 @@ function Home() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState({ cards: emptyCards, alerts: [], alertSummary: {}, warningBeforeHours: 24 });
+  const [alertTypeFilter, setAlertTypeFilter] = useState("all");
+  const [alertStatusFilter, setAlertStatusFilter] = useState("all");
+  const [alertPage, setAlertPage] = useState(1);
+  const [alertLimit, setAlertLimit] = useState(5);
 
   const cards = useMemo(() => ({ ...emptyCards, ...(summary.cards || {}) }), [summary.cards]);
 
@@ -72,6 +92,28 @@ function Home() {
   const cardItems = [cards.program, cards.correction, cards.upgrade, cards.design, cards.source, cards.contract];
   const totalOverdue = summary.alertSummary?.overdue || 0;
   const totalWarning = summary.alertSummary?.warning || 0;
+
+  const filteredAlerts = useMemo(() => {
+    return (summary.alerts || []).filter((item) => {
+      const matchesType = alertTypeFilter === "all" || item.type === alertTypeFilter;
+      const matchesStatus = alertStatusFilter === "all" || item.status === alertStatusFilter;
+      return matchesType && matchesStatus;
+    });
+  }, [alertStatusFilter, alertTypeFilter, summary.alerts]);
+
+  const pagedAlerts = useMemo(() => {
+    const start = (alertPage - 1) * alertLimit;
+    return filteredAlerts.slice(start, start + alertLimit);
+  }, [alertLimit, alertPage, filteredAlerts]);
+
+  useEffect(() => {
+    setAlertPage(1);
+  }, [alertLimit, alertStatusFilter, alertTypeFilter]);
+
+  const handleAlertLimitChange = (nextLimit) => {
+    setAlertLimit(nextLimit);
+    setAlertPage(1);
+  };
 
   return (
     <div className="space-y-5">
@@ -120,12 +162,12 @@ function Home() {
 
       <div className="mt-6 grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-          <div className="flex items-center justify-between rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
             <div>
               <h2 className="text-base font-semibold text-gray-500">Cảnh báo gần nhất</h2>
               <p className="mt-1 text-sm text-slate-400">Quá hạn được ưu tiên hiển thị trước.</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               {totalOverdue > 0 ? (
                 <span className="rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-700">
                   <AlertTriangle className="mr-1 inline h-4 w-4" />
@@ -137,16 +179,38 @@ function Home() {
                   {totalWarning} sắp đến hạn
                 </span>
               ) : null}
+              <select
+                value={alertTypeFilter}
+                onChange={(event) => setAlertTypeFilter(event.target.value)}
+                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              >
+                {alertTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={alertStatusFilter}
+                onChange={(event) => setAlertStatusFilter(event.target.value)}
+                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              >
+                {alertStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           <div className="space-y-3 border-x border-b border-slate-200 p-4">
             {isLoading ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Đang tải cảnh báo...</div>
-            ) : summary.alerts.length === 0 ? (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Không có cảnh báo.</div>
+            ) : filteredAlerts.length === 0 ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Không có cảnh báo phù hợp.</div>
             ) : (
-              summary.alerts.map((item, index) => (
+              pagedAlerts.map((item, index) => (
                 <button
                   key={`${item.type}-${item.title}-${item.deadline}-${index}`}
                   type="button"
@@ -173,6 +237,16 @@ function Home() {
               ))
             )}
           </div>
+          {!isLoading && filteredAlerts.length > 0 ? (
+            <ManagementPagination
+              page={alertPage}
+              limit={alertLimit}
+              total={filteredAlerts.length}
+              onPageChange={setAlertPage}
+              onLimitChange={handleAlertLimitChange}
+              pageSizeOptions={[5, 10, 20]}
+            />
+          ) : null}
         </div>
 
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">

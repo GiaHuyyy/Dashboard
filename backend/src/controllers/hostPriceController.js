@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 import HostPrice from "../models/HostPrice.js";
 import { formatDateTime } from "../utils/date.js";
-import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
+import { normalizeBoolean, normalizeNumber, normalizeString, parsePositiveInteger } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
 import { sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
@@ -69,10 +69,16 @@ export const listHostPrices = async (req, res) => {
     ];
   }
 
-  const items = await HostPrice.find(filters).sort({ createdAt: 1 }).lean();
-  return sendOk(res, {
-    hostPrices: items.map(toResponseItem),
-  });
+  const page = parsePositiveInteger(req.query.page) || 1;
+  const limit = Math.min(parsePositiveInteger(req.query.limit) || 10, 100);
+  const skip = (page - 1) * limit;
+
+  const [items, total] = await Promise.all([
+    HostPrice.find(filters).sort({ createdAt: 1 }).skip(skip).limit(limit).lean(),
+    HostPrice.countDocuments(filters),
+  ]);
+
+  return sendOk(res, { hostPrices: items.map(toResponseItem), total, page, limit });
 };
 
 export const getHostPriceById = async (req, res) => {

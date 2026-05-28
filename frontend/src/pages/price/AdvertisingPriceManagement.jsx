@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { useManagementList } from "@/hooks/useManagementList";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
@@ -23,6 +24,12 @@ function AdvertisingPriceManagement() {
   const canDelete = can(PERMISSIONS.PRICE_DELETE);
   const {
     rows,
+    total,
+    page,
+    limit,
+    setPage,
+    setLimit,
+    rowNumberOffset,
     searchText,
     setSearchText,
     isLoading,
@@ -41,6 +48,7 @@ function AdvertisingPriceManagement() {
     listApi: advertisingPriceApi.list,
     removeApi: advertisingPriceApi.remove,
     removeManyApi: advertisingPriceApi.removeMany,
+    enablePagination: true,
     responseKey: "advertisingPrices",
     loadErrorMessage: "Không thể tải bảng giá quảng cáo",
     noDeletePermissionMessage: "Bạn không có quyền xóa bảng giá",
@@ -150,7 +158,7 @@ function AdvertisingPriceManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.platform}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
@@ -200,6 +208,14 @@ function AdvertisingPriceManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

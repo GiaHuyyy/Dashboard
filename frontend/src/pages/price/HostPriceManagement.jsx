@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { useManagementList } from "@/hooks/useManagementList";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
@@ -23,6 +24,12 @@ function HostPriceManagement() {
   const canDelete = can(PERMISSIONS.PRICE_DELETE);
   const {
     rows,
+    total,
+    page,
+    limit,
+    setPage,
+    setLimit,
+    rowNumberOffset,
     searchText,
     setSearchText,
     isLoading,
@@ -41,6 +48,7 @@ function HostPriceManagement() {
     listApi: hostPriceApi.list,
     removeApi: hostPriceApi.remove,
     removeManyApi: hostPriceApi.removeMany,
+    enablePagination: true,
     responseKey: "hostPrices",
     loadErrorMessage: "Không thể tải bảng giá host",
     noDeletePermissionMessage: "Bạn không có quyền xóa bảng giá",
@@ -155,7 +163,7 @@ function HostPriceManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className="border px-3 py-1.5">{index + 1}</span>
+                    <span className="border px-3 py-1.5">{rowNumberOffset + index + 1}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
                     {row.name}
@@ -206,6 +214,14 @@ function HostPriceManagement() {
             )}
           </TableBody>
         </Table>
+        <ManagementPagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoading}
+        />
       </ManagementTableCard>
 
       <Modal

@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 import DomainPrice from "../models/DomainPrice.js";
 import { formatDateTime } from "../utils/date.js";
-import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
+import { normalizeBoolean, normalizeNumber, normalizeString, parsePositiveInteger } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
 import { sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
@@ -59,8 +59,16 @@ export const listDomainPrices = async (req, res) => {
       { note: { $regex: search, $options: "i" } },
     ];
   }
-  const items = await DomainPrice.find(filters).sort({ createdAt: 1 }).lean();
-  return sendOk(res, { domainPrices: items.map(toResponseItem) });
+  const page = parsePositiveInteger(req.query.page) || 1;
+  const limit = Math.min(parsePositiveInteger(req.query.limit) || 10, 100);
+  const skip = (page - 1) * limit;
+
+  const [items, total] = await Promise.all([
+    DomainPrice.find(filters).sort({ createdAt: 1 }).skip(skip).limit(limit).lean(),
+    DomainPrice.countDocuments(filters),
+  ]);
+
+  return sendOk(res, { domainPrices: items.map(toResponseItem), total, page, limit });
 };
 
 export const getDomainPriceById = async (req, res) => {

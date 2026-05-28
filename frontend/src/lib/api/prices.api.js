@@ -1,9 +1,11 @@
 import { request } from "./request.js";
 
 export const hostPriceApi = {
-  list: ({ search = "" } = {}) => {
+  list: ({ search = "", page = 1, limit = 10 } = {}) => {
     const searchParams = new URLSearchParams();
     if (search) searchParams.set("search", search);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
     return request(`/host-prices${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
   },
   detail: (id) => request(`/host-prices/${id}`),
@@ -30,9 +32,11 @@ export const hostPriceApi = {
 
 
 export const sslPriceApi = {
-  list: ({ search = "" } = {}) => {
+  list: ({ search = "", page = 1, limit = 10 } = {}) => {
     const searchParams = new URLSearchParams();
     if (search) searchParams.set("search", search);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
     return request(`/ssl-prices${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
   },
   detail: (id) => request(`/ssl-prices/${id}`),
@@ -59,9 +63,11 @@ export const sslPriceApi = {
 
 
 export const domainPriceApi = {
-  list: ({ search = "" } = {}) => {
+  list: ({ search = "", page = 1, limit = 10 } = {}) => {
     const searchParams = new URLSearchParams();
     if (search) searchParams.set("search", search);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
     return request(`/domain-prices${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
   },
   detail: (id) => request(`/domain-prices/${id}`),
@@ -88,9 +94,11 @@ export const domainPriceApi = {
 
 
 export const packagePriceApi = {
-  list: ({ search = "" } = {}) => {
+  list: ({ search = "", page = 1, limit = 10 } = {}) => {
     const searchParams = new URLSearchParams();
     if (search) searchParams.set("search", search);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
     return request(`/package-prices${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
   },
   detail: (id) => request(`/package-prices/${id}`),
@@ -117,9 +125,11 @@ export const packagePriceApi = {
 
 
 export const administrationPriceApi = {
-  list: ({ search = "" } = {}) => {
+  list: ({ search = "", page = 1, limit = 10 } = {}) => {
     const searchParams = new URLSearchParams();
     if (search) searchParams.set("search", search);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
     return request(`/administration-prices${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
   },
   detail: (id) => request(`/administration-prices/${id}`),
@@ -146,9 +156,11 @@ export const administrationPriceApi = {
 
 
 export const advertisingPriceApi = {
-  list: ({ search = "" } = {}) => {
+  list: ({ search = "", page = 1, limit = 10 } = {}) => {
     const searchParams = new URLSearchParams();
     if (search) searchParams.set("search", search);
+    searchParams.set("page", String(page));
+    searchParams.set("limit", String(limit));
     return request(`/advertising-prices${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
   },
   detail: (id) => request(`/advertising-prices/${id}`),
@@ -172,4 +184,3 @@ export const advertisingPriceApi = {
       body: JSON.stringify({ ids }),
     }),
 };
-

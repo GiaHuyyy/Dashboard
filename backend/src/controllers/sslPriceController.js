@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 import SslPrice from "../models/SslPrice.js";
 import { formatDateTime } from "../utils/date.js";
-import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
+import { normalizeBoolean, normalizeNumber, normalizeString, parsePositiveInteger } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
 import { sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
@@ -66,8 +66,16 @@ export const listSslPrices = async (req, res) => {
     ];
   }
 
-  const items = await SslPrice.find(filters).sort({ createdAt: 1 }).lean();
-  return sendOk(res, { sslPrices: items.map(toResponseItem) });
+  const page = parsePositiveInteger(req.query.page) || 1;
+  const limit = Math.min(parsePositiveInteger(req.query.limit) || 10, 100);
+  const skip = (page - 1) * limit;
+
+  const [items, total] = await Promise.all([
+    SslPrice.find(filters).sort({ createdAt: 1 }).skip(skip).limit(limit).lean(),
+    SslPrice.countDocuments(filters),
+  ]);
+
+  return sendOk(res, { sslPrices: items.map(toResponseItem), total, page, limit });
 };
 
 export const getSslPriceById = async (req, res) => {
