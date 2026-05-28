@@ -71,7 +71,7 @@ function ProgramPointManagement() {
     }
     const header = [
       "Nguồn điểm",
-      "Phiếu gốc (HĐ)",
+      "Phiếu gốc / Số HĐ",
       "Module",
       "Mô tả",
       "Trạng thái",
@@ -109,12 +109,7 @@ function ProgramPointManagement() {
     <>
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <Button icon={Lock} label="Chốt kỳ" variant="primary" onClick={() => toast.success("Đã chốt kỳ")} />
-        <Button
-          icon={LockOpen}
-          label="Mở khóa kỳ"
-          variant="secondary"
-          onClick={() => toast.success("Đã mở khóa kỳ")}
-        />
+        <Button icon={LockOpen} label="Mở khóa kỳ" variant="secondary" onClick={() => toast.success("Đã mở khóa kỳ")} />
         <Button icon={Download} label="Xuất file" variant="success" onClick={exportCsv} />
       </div>
 
@@ -244,7 +239,7 @@ function ProgramPointManagement() {
                 Nguồn điểm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Phiếu gốc (HĐ)
+                Phiếu gốc / Số HĐ
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Module

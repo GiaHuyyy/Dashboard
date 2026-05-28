@@ -136,7 +136,7 @@ function SourceManagement() {
                 STT
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Phiếu gốc (HĐ)
+                Phiếu gốc / Số HĐ
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Module
@@ -207,10 +207,12 @@ function SourceManagement() {
                   <TableCell className="border border-slate-200 p-4">
                     <span className="border px-3 py-1.5">{index + 1}</span>
                   </TableCell>
-                    <TableCell className="border border-slate-200 p-4 font-bold text-sky-700">{row.contractCode}</TableCell>
-                    <TableCell className="border border-slate-200 p-4">{row.module}</TableCell>
-                    <TableCell className="max-w-52 border border-slate-200 p-4 text-left">
-                      <a
+                  <TableCell className="border border-slate-200 p-4 font-bold text-sky-700">
+                    {row.contractCode}
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.module}</TableCell>
+                  <TableCell className="max-w-52 border border-slate-200 p-4 text-left">
+                    <a
                       href={row.domain}
                       target="_blank"
                       rel="noreferrer"
@@ -219,7 +221,7 @@ function SourceManagement() {
                     >
                       {row.domain || "-"}
                     </a>
-                    </TableCell>
+                  </TableCell>
                   <TableCell className="max-w-60 border border-slate-200 p-4 text-left">
                     <a
                       href={row.sourceLink}
@@ -251,9 +253,7 @@ function SourceManagement() {
                     </div>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
-                    <span className={row.sendStatus === "Đã gửi" ? "text-emerald-700" : ""}>
-                      {row.sendStatus}
-                    </span>
+                    <span className={row.sendStatus === "Đã gửi" ? "text-emerald-700" : ""}>{row.sendStatus}</span>
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <span className={row.downloadStatus === "Đã tải" ? "text-emerald-700" : ""}>

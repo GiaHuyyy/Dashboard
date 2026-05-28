@@ -31,6 +31,9 @@ const calculateConvertByDuration = (durationValue, durationUnit) => {
   return "";
 };
 
+const getContractOptionLabel = (item) =>
+  item ? item.label || `${item.contractCode || "N/A"} - ${item.contractName || "N/A"}`.trim() : "";
+
 const isValidDateValue = (value) => {
   if (!value) return false;
   const date = new Date(value);
@@ -123,6 +126,7 @@ function ProgramForm() {
   const [programReferences, setProgramReferences] = useState([]);
   const [businessContractReferences, setBusinessContractReferences] = useState([]);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
+  const [lockedContractLabel, setLockedContractLabel] = useState("");
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
 
@@ -228,7 +232,7 @@ function ProgramForm() {
     const value = item?.id ?? item?._id ?? item?.contractCode ?? item?.label;
     const isUsed = !isEditMode && usedBusinessContractIds.has(value);
     return {
-      label: item?.label || `${item.contractCode || "N/A"} - ${item.contractName || "N/A"}`,
+      label: getContractOptionLabel(item),
       value,
       disabled: isUsed,
     };
@@ -307,6 +311,12 @@ function ProgramForm() {
 
         const parsedDuration = Number(program.durationValue);
         const safeDuration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 1;
+        setLockedContractLabel(
+          getContractOptionLabel(
+            businessContractReferences.find((item) => String(item.id) === String(program.businessContractId)),
+          ) || [program.contractCode, program.contractName].filter(Boolean).join(" - "),
+        );
+
         const formValues = {
           businessContractId: program.businessContractId || "",
           module: program.module || "",
@@ -339,7 +349,7 @@ function ProgramForm() {
     };
 
     void fetchProgramDetail();
-  }, [isEditMode, navigate, programId, reset, returnPath]);
+  }, [businessContractReferences, isEditMode, navigate, programId, reset, returnPath]);
 
   const persistProgram = async (values, mode) => {
     const payload = {
@@ -446,6 +456,8 @@ function ProgramForm() {
             contractOptions={contractOptions}
             selectedContract={selectedBusinessContract}
             designTaskOptions={designTaskOptions}
+            lockContractSelection={isEditMode}
+            lockedContractLabel={lockedContractLabel || getContractOptionLabel(selectedBusinessContract)}
             moduleOptions={moduleCategories.options}
             priorityOptions={priorityCategories.options}
             designEnabled={Boolean(selectedDesign)}

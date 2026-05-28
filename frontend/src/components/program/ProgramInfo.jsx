@@ -9,18 +9,36 @@ export function ProgramInfo({
   moduleOptions = [],
   priorityOptions = [],
   designEnabled = false,
+  lockContractSelection = false,
+  lockedContractLabel = "",
 }) {
   return (
     <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
       <p className="text-md font-semibold text-slate-700">Thông tin lập trình</p>
 
-      <FormField
-        label="Phiếu gốc (HĐ)"
-        type="select"
-        options={contractOptions.length > 0 ? contractOptions : [{ label: "Chưa có hợp đồng", value: "" }]}
-        selectProps={{ ...register("businessContractId"), disabled: contractOptions.length === 0 }}
-        error={errors.businessContractId?.message}
-      />
+      {lockContractSelection ? (
+        <>
+          <input type="hidden" {...register("businessContractId")} />
+          <FormField
+            label="Phiếu gốc / Số HĐ"
+            type="text"
+            inputProps={{
+              value: lockedContractLabel || "Không có dữ liệu",
+              readOnly: true,
+              placeholder: "Phiếu gốc / Số HĐ đang chỉnh sửa",
+            }}
+            error={errors.businessContractId?.message}
+          />
+        </>
+      ) : (
+        <FormField
+          label="Phiếu gốc / Số HĐ"
+          type="select"
+          options={contractOptions.length > 0 ? contractOptions : [{ label: "Chưa có hợp đồng", value: "" }]}
+          selectProps={{ ...register("businessContractId"), disabled: contractOptions.length === 0 }}
+          error={errors.businessContractId?.message}
+        />
+      )}
 
       <FormField
         label="Module"

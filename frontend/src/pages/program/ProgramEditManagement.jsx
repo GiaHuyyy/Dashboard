@@ -281,7 +281,7 @@ function ProgramEditManagement() {
                 STT
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Phiếu gốc (HĐ)
+                Phiếu gốc / Số HĐ
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Module

@@ -165,11 +165,7 @@ function ListProgram() {
       };
 
       await programApi.update(row.id, payload);
-      setPrograms((prev) =>
-        prev.map((item) =>
-          item.id === row.id ? { ...item, ...patch } : item
-        )
-      );
+      setPrograms((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...patch } : item)));
       toast.success("Đã cập nhật trạng thái");
     } catch (error) {
       toast.error(error?.message || "Cập nhật trạng thái không thành công");
@@ -243,7 +239,7 @@ function ListProgram() {
                 STT
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Phiếu gốc (HĐ)
+                Phiếu gốc / Số HĐ
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Module
@@ -338,10 +334,7 @@ function ListProgram() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
-                  <TableCell
-                    className="border border-slate-200 p-4"
-                    onClick={(event) => event.stopPropagation()}
-                  >
+                  <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <InlineStatusSelect
                       value={row.processingStatus || ""}
                       options={statusOptions}
@@ -354,16 +347,10 @@ function ListProgram() {
                   <TableCell className="border border-slate-200 p-4">{row.bonusPoint ?? 0}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assigner || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {row.assignedAtLabel || "-"}
-                  </TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {row.receivedAtLabel || "-"}
-                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.assignedAtLabel || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.receivedAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.dueAtLabel || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">
-                    {row.completedAtLabel || "-"}
-                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.completedAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4 text-center">
                     <input
                       type="checkbox"

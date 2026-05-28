@@ -24,7 +24,7 @@ import {
 } from "@/lib/api-client";
 
 const schema = z.object({
-  programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc (HĐ)"),
+  programId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
   domain: z.string().trim().min(1, "Vui lòng chọn Domain"),
   sourceLink: z.string().trim().url("Link source không hợp lệ"),
   expiresAt: z.string().trim().min(1, "Vui lòng chọn hạn hiệu lực link"),
@@ -97,6 +97,9 @@ const appendPriceLabel = (label, price) => {
   return priceLabel ? `${label} - ${priceLabel}` : label;
 };
 
+const getProgramOptionLabel = (item) =>
+  item ? `${item.contractCode || "N/A"} - ${item.contractName || "N/A"} - ${item.customerName || "N/A"}`.trim() : "";
+
 const mapSourceToForm = (source) => ({
   programId: source.programId || "",
   domain: source.domain || "",
@@ -134,6 +137,7 @@ function SourceForm() {
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(defaultValues);
+  const [lockedProgramLabel, setLockedProgramLabel] = useState("");
 
   const {
     control,
@@ -239,6 +243,10 @@ function SourceForm() {
           return;
         }
         const mapped = mapSourceToForm(source);
+        setLockedProgramLabel(
+          getProgramOptionLabel(programReferences.find((item) => item.id === mapped.programId)) ||
+            [source.contractCode, source.module].filter(Boolean).join(" - "),
+        );
         reset(mapped);
         setInitialSnapshot(mapped);
       } catch (error) {
@@ -249,7 +257,7 @@ function SourceForm() {
       }
     };
     void fetchDetail();
-  }, [id, isEditMode, navigate, reset, returnPath]);
+  }, [id, isEditMode, navigate, programReferences, reset, returnPath]);
 
   const persistSource = async (values, mode) => {
     const payload = {
@@ -335,23 +343,38 @@ function SourceForm() {
       disabled={isReadOnlyMode}
       actions={
         <FormActions
-        onSave={() => submitWithMode("save")}
-        onSaveMail={() => submitWithMode("save-mail")}
-        onSaveStay={() => submitWithMode("save-stay")}
-        onReset={() => reset(initialSnapshot)}
-        isSubmitting={isSubmitting}
-        isUploading={false}
-        isEditMode={isEditMode}
-        exitPath={returnPath}
-        readOnlyMode={isReadOnlyMode}
-        saveMailDisabled={!canSendMail}
-      />
+          onSave={() => submitWithMode("save")}
+          onSaveMail={() => submitWithMode("save-mail")}
+          onSaveStay={() => submitWithMode("save-stay")}
+          onReset={() => reset(initialSnapshot)}
+          isSubmitting={isSubmitting}
+          isUploading={false}
+          isEditMode={isEditMode}
+          exitPath={returnPath}
+          readOnlyMode={isReadOnlyMode}
+          saveMailDisabled={!canSendMail}
+        />
       }
     >
       <FormSection title="Nội dung source">
-          <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
-            <p className="text-md font-semibold text-slate-700">Thông tin source</p>
+        <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
+          <p className="text-md font-semibold text-slate-700">Thông tin source</p>
 
+          {isEditMode ? (
+            <>
+              <input type="hidden" {...register("programId")} />
+              <FormField
+                label="Phiếu gốc / Số HĐ"
+                type="text"
+                inputProps={{
+                  value: lockedProgramLabel || getProgramOptionLabel(selectedProgram) || "Không có dữ liệu",
+                  readOnly: true,
+                  placeholder: "Phiếu gốc / Số HĐ đang chỉnh sửa",
+                }}
+                error={errors.programId?.message}
+              />
+            </>
+          ) : (
             <FormField
               label="Phiếu gốc / Số HĐ"
               type="select"
@@ -359,7 +382,7 @@ function SourceForm() {
                 programReferences.length === 0
                   ? [{ label: "Không có dữ liệu", value: "" }]
                   : programReferences.map((item) => ({
-                      label: `${item.contractCode} - ${item.contractName} - ${item.customerName}`.trim(),
+                      label: getProgramOptionLabel(item),
                       value: item.id,
                     }))
               }
@@ -369,216 +392,214 @@ function SourceForm() {
               }}
               error={errors.programId?.message}
             />
+          )}
 
-            <FormField
-              label="Module"
-              type="text"
-              inputProps={{
-                value: selectedProgram?.module || "",
-                readOnly: true,
-                placeholder: "Tự động theo phiếu gốc",
-              }}
-            />
+          <FormField
+            label="Module"
+            type="text"
+            inputProps={{
+              value: selectedProgram?.module || "",
+              readOnly: true,
+              placeholder: "Tự động theo phiếu gốc",
+            }}
+          />
 
-            <FormField
-              label="Link source"
-              type="text"
-              inputProps={{ ...register("sourceLink"), placeholder: "https://..." }}
-              error={errors.sourceLink?.message}
-            />
+          <FormField
+            label="Link source"
+            type="text"
+            inputProps={{ ...register("sourceLink"), placeholder: "https://..." }}
+            error={errors.sourceLink?.message}
+          />
 
-            <FormField
-              label="Hạn hiệu lực link"
-              type="datetime-local"
-              inputProps={{ ...register("expiresAt") }}
-              error={errors.expiresAt?.message}
-            />
+          <FormField
+            label="Hạn hiệu lực link"
+            type="datetime-local"
+            inputProps={{ ...register("expiresAt") }}
+            error={errors.expiresAt?.message}
+          />
 
-            <FormField
-              label="Trạng thái gửi"
-              type="select"
-              options={SOURCE_SEND_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
-              selectProps={register("sendStatus")}
-              error={errors.sendStatus?.message}
-            />
+          <FormField
+            label="Trạng thái gửi"
+            type="select"
+            options={SOURCE_SEND_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+            selectProps={register("sendStatus")}
+            error={errors.sendStatus?.message}
+          />
 
-            <FormField
-              label="Ghi chú"
-              type="textarea"
-              inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)" }}
-              error={errors.note?.message}
-            />
-          </div>
+          <FormField
+            label="Ghi chú"
+            type="textarea"
+            inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)" }}
+            error={errors.note?.message}
+          />
+        </div>
 
-          <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
-            <p className="text-md font-semibold text-slate-700">Theo dõi tải source</p>
+        <div className="flex flex-col gap-4 rounded-xl border border-slate-100 p-4">
+          <p className="text-md font-semibold text-slate-700">Theo dõi tải source</p>
 
-            <FormField
-              label="Xác nhận tải"
-              type="select"
-              options={SOURCE_DOWNLOAD_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
-              selectProps={register("downloadStatus")}
-              error={errors.downloadStatus?.message}
-            />
+          <FormField
+            label="Xác nhận tải"
+            type="select"
+            options={SOURCE_DOWNLOAD_STATUS_OPTIONS.map((item) => ({ label: item, value: item }))}
+            selectProps={register("downloadStatus")}
+            error={errors.downloadStatus?.message}
+          />
 
-            <FormField
-              label="Ngày xác nhận tải"
-              type="datetime-local"
-              inputProps={{
-                ...register("downloadedAt"),
-                disabled: selectedDownloadStatus !== "Đã tải",
-              }}
-              error={errors.downloadedAt?.message}
-            />
+          <FormField
+            label="Ngày xác nhận tải"
+            type="datetime-local"
+            inputProps={{
+              ...register("downloadedAt"),
+              disabled: selectedDownloadStatus !== "Đã tải",
+            }}
+            error={errors.downloadedAt?.message}
+          />
 
-            <FormField
-              label="Số lượt tải"
-              type="number"
-              inputProps={{ ...register("downloadCount"), min: "0", step: "1" }}
-              error={errors.downloadCount?.message}
-            />
+          <FormField
+            label="Số lượt tải"
+            type="number"
+            inputProps={{ ...register("downloadCount"), min: "0", step: "1" }}
+            error={errors.downloadCount?.message}
+          />
 
-            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-              <input type="checkbox" {...register("visible")} />
-              Hiển thị
-            </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+            <input type="checkbox" {...register("visible")} />
+            Hiển thị
+          </label>
 
-            <FormField
-              label="Email kinh doanh nhận"
-              type="text"
-              inputProps={{
-                value: selectedProgram?.salesReceiverEmail || "",
-                readOnly: true,
-                placeholder: "Tự động theo phiếu gốc",
-              }}
-            />
+          <FormField
+            label="Email kinh doanh nhận"
+            type="text"
+            inputProps={{
+              value: selectedProgram?.salesReceiverEmail || "",
+              readOnly: true,
+              placeholder: "Tự động theo phiếu gốc",
+            }}
+          />
 
-            <FormField
-              label="Danh sách email cc"
-              type="text"
-              inputProps={{
-                value: Array.isArray(selectedProgram?.ccEmails) ? selectedProgram.ccEmails.join(", ") : "",
-                readOnly: true,
-                placeholder: "Tự động theo phiếu gốc",
-              }}
-            />
-          </div>
+          <FormField
+            label="Danh sách email cc"
+            type="text"
+            inputProps={{
+              value: Array.isArray(selectedProgram?.ccEmails) ? selectedProgram.ccEmails.join(", ") : "",
+              readOnly: true,
+              placeholder: "Tự động theo phiếu gốc",
+            }}
+          />
+        </div>
       </FormSection>
 
       <FormSection title="Tham chiếu bảng giá">
-          <FormField
-            label="Bảng giá domain"
-            type="select"
-            options={
-              domainPriceReferences.length === 0
-                ? [{ label: "Không có dữ liệu", value: "" }]
-                : domainPriceReferences.map((item) => ({
-                    label: appendPriceLabel(`${item.extension} - ${item.provider}`.trim(), item.registerPrice),
-                    value: item.extension,
-                  }))
-            }
-            selectProps={{
-              ...register("domain"),
-              disabled: domainPriceReferences.length === 0,
-            }}
-            error={errors.domain?.message}
-          />
+        <FormField
+          label="Bảng giá domain"
+          type="select"
+          options={
+            domainPriceReferences.length === 0
+              ? [{ label: "Không có dữ liệu", value: "" }]
+              : domainPriceReferences.map((item) => ({
+                  label: appendPriceLabel(`${item.extension} - ${item.provider}`.trim(), item.registerPrice),
+                  value: item.extension,
+                }))
+          }
+          selectProps={{
+            ...register("domain"),
+            disabled: domainPriceReferences.length === 0,
+          }}
+          error={errors.domain?.message}
+        />
 
-          <FormField
-            label="Bảng giá host"
-            type="select"
-            options={
-              hostPriceReferences.length === 0
-                ? [{ label: "Không có dữ liệu", value: "" }]
-                : hostPriceReferences.map((item) => ({
-                    label: appendPriceLabel(`${item.name} - ${item.storage}`.trim(), item.monthlyPrice),
-                    value: item.id,
-                  }))
-            }
-            selectProps={{
-              ...register("hostPriceId"),
-              disabled: hostPriceReferences.length === 0,
-            }}
-            error={errors.hostPriceId?.message}
-          />
+        <FormField
+          label="Bảng giá host"
+          type="select"
+          options={
+            hostPriceReferences.length === 0
+              ? [{ label: "Không có dữ liệu", value: "" }]
+              : hostPriceReferences.map((item) => ({
+                  label: appendPriceLabel(`${item.name} - ${item.storage}`.trim(), item.monthlyPrice),
+                  value: item.id,
+                }))
+          }
+          selectProps={{
+            ...register("hostPriceId"),
+            disabled: hostPriceReferences.length === 0,
+          }}
+          error={errors.hostPriceId?.message}
+        />
 
-          <FormField
-            label="Bảng giá SSL"
-            type="select"
-            options={
-              sslPriceReferences.length === 0
-                ? [{ label: "Không có dữ liệu", value: "" }]
-                : sslPriceReferences.map((item) => ({
-                    label: appendPriceLabel(
-                      `${item.name} - ${item.sslType} - ${item.validityMonths} tháng`.trim(),
-                      item.price,
-                    ),
-                    value: item.id,
-                  }))
-            }
-            selectProps={{
-              ...register("sslPriceId"),
-              disabled: sslPriceReferences.length === 0,
-            }}
-            error={errors.sslPriceId?.message}
-          />
+        <FormField
+          label="Bảng giá SSL"
+          type="select"
+          options={
+            sslPriceReferences.length === 0
+              ? [{ label: "Không có dữ liệu", value: "" }]
+              : sslPriceReferences.map((item) => ({
+                  label: appendPriceLabel(
+                    `${item.name} - ${item.sslType} - ${item.validityMonths} tháng`.trim(),
+                    item.price,
+                  ),
+                  value: item.id,
+                }))
+          }
+          selectProps={{
+            ...register("sslPriceId"),
+            disabled: sslPriceReferences.length === 0,
+          }}
+          error={errors.sslPriceId?.message}
+        />
 
-          <FormField
-            label="Bảng giá trọn gói"
-            type="select"
-            options={
-              packagePriceReferences.length === 0
-                ? [{ label: "Không có dữ liệu", value: "" }]
-                : packagePriceReferences.map((item) => ({
-                    label: appendPriceLabel(item.name || "Gói trọn gói", item.yearlyPrice),
-                    value: item.id,
-                  }))
-            }
-            selectProps={{
-              ...register("packagePriceId"),
-              disabled: packagePriceReferences.length === 0,
-            }}
-            error={errors.packagePriceId?.message}
-          />
+        <FormField
+          label="Bảng giá trọn gói"
+          type="select"
+          options={
+            packagePriceReferences.length === 0
+              ? [{ label: "Không có dữ liệu", value: "" }]
+              : packagePriceReferences.map((item) => ({
+                  label: appendPriceLabel(item.name || "Gói trọn gói", item.yearlyPrice),
+                  value: item.id,
+                }))
+          }
+          selectProps={{
+            ...register("packagePriceId"),
+            disabled: packagePriceReferences.length === 0,
+          }}
+          error={errors.packagePriceId?.message}
+        />
 
-          <FormField
-            label="Bảng giá quản trị"
-            type="select"
-            options={
-              administrationPriceReferences.length === 0
-                ? [{ label: "Không có dữ liệu", value: "" }]
-                : administrationPriceReferences.map((item) => ({
-                    label: appendPriceLabel(
-                      `${item.serviceName} - ${item.scope} - ${item.frequency}`.trim(),
-                      item.price,
-                    ),
-                    value: item.id,
-                  }))
-            }
-            selectProps={{
-              ...register("administrationPriceId"),
-              disabled: administrationPriceReferences.length === 0,
-            }}
-            error={errors.administrationPriceId?.message}
-          />
+        <FormField
+          label="Bảng giá quản trị"
+          type="select"
+          options={
+            administrationPriceReferences.length === 0
+              ? [{ label: "Không có dữ liệu", value: "" }]
+              : administrationPriceReferences.map((item) => ({
+                  label: appendPriceLabel(`${item.serviceName} - ${item.scope} - ${item.frequency}`.trim(), item.price),
+                  value: item.id,
+                }))
+          }
+          selectProps={{
+            ...register("administrationPriceId"),
+            disabled: administrationPriceReferences.length === 0,
+          }}
+          error={errors.administrationPriceId?.message}
+        />
 
-          <FormField
-            label="Bảng giá quảng cáo"
-            type="select"
-            options={
-              advertisingPriceReferences.length === 0
-                ? [{ label: "Không có dữ liệu", value: "" }]
-                : advertisingPriceReferences.map((item) => ({
-                    label: appendPriceLabel(`${item.platform} - ${item.packageName}`.trim(), item.minimumBudget),
-                    value: item.id,
-                  }))
-            }
-            selectProps={{
-              ...register("advertisingPriceId"),
-              disabled: advertisingPriceReferences.length === 0,
-            }}
-            error={errors.advertisingPriceId?.message}
-          />
+        <FormField
+          label="Bảng giá quảng cáo"
+          type="select"
+          options={
+            advertisingPriceReferences.length === 0
+              ? [{ label: "Không có dữ liệu", value: "" }]
+              : advertisingPriceReferences.map((item) => ({
+                  label: appendPriceLabel(`${item.platform} - ${item.packageName}`.trim(), item.minimumBudget),
+                  value: item.id,
+                }))
+          }
+          selectProps={{
+            ...register("advertisingPriceId"),
+            disabled: advertisingPriceReferences.length === 0,
+          }}
+          error={errors.advertisingPriceId?.message}
+        />
       </FormSection>
     </FormPageLayout>
   );
