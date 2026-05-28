@@ -8,6 +8,7 @@ import { ManagementTableCard } from "@/components/management/ManagementTableCard
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PERMISSIONS } from "@/constants/permissions";
 import { useManagementList } from "@/hooks/useManagementList";
 import { userApi } from "@/lib/api-client";
 import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
@@ -19,10 +20,10 @@ function UserManagement() {
   const [selectedActive, setSelectedActive] = useState("all");
   const { canAny } = usePermission();
 
-  const canView = canAny(["permission.user.view", "user.view"]);
-  const canCreate = canAny(["permission.user.create", "user.create"]);
-  const canUpdate = canAny(["permission.user.update", "user.update"]);
-  const canDelete = canAny(["permission.user.delete", "user.delete"]);
+  const canView = canAny([PERMISSIONS.PERMISSION_USER_VIEW, PERMISSIONS.LEGACY_USER_VIEW]);
+  const canCreate = canAny([PERMISSIONS.PERMISSION_USER_CREATE, PERMISSIONS.LEGACY_USER_CREATE]);
+  const canUpdate = canAny([PERMISSIONS.PERMISSION_USER_UPDATE, PERMISSIONS.LEGACY_USER_UPDATE]);
+  const canDelete = canAny([PERMISSIONS.PERMISSION_USER_DELETE, PERMISSIONS.LEGACY_USER_DELETE]);
   const getUserListParams = useCallback(
     (value) => ({
       search: value.trim(),

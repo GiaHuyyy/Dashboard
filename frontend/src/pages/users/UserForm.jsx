@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import FormField from "@/components/ui/form-field";
+import { PERMISSIONS } from "@/constants/permissions";
 import { userApi } from "@/lib/api-client";
 import { PERMISSION_DENIED_MESSAGE, usePermission } from "@/lib/permissions";
 import { USER_ROLE_OPTIONS } from "@/lib/user-roles";
@@ -57,9 +58,11 @@ function UserForm() {
   const isEditMode = Boolean(id);
   const { canAny } = usePermission();
 
-  const canView = canAny(["permission.user.view", "user.view"]);
+  const canView = canAny([PERMISSIONS.PERMISSION_USER_VIEW, PERMISSIONS.LEGACY_USER_VIEW]);
   const canSave = canAny(
-    isEditMode ? ["permission.user.update", "user.update"] : ["permission.user.create", "user.create"],
+    isEditMode
+      ? [PERMISSIONS.PERMISSION_USER_UPDATE, PERMISSIONS.LEGACY_USER_UPDATE]
+      : [PERMISSIONS.PERMISSION_USER_CREATE, PERMISSIONS.LEGACY_USER_CREATE],
   );
   const isReadOnly = isEditMode && canView && !canSave;
 

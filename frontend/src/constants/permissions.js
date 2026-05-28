@@ -80,6 +80,12 @@ export const PERMISSIONS = {
   PERMISSION_USER_CREATE: "permission.user.create",
   PERMISSION_USER_UPDATE: "permission.user.update",
   PERMISSION_USER_DELETE: "permission.user.delete",
+
+  LEGACY_USER_VIEW: "user.view",
+  LEGACY_USER_CREATE: "user.create",
+  LEGACY_USER_UPDATE: "user.update",
+  LEGACY_USER_DELETE: "user.delete",
+
   PERMISSION_ROLE_VIEW: "permission.role.view",
   PERMISSION_ROLE_UPDATE: "permission.role.update",
 };

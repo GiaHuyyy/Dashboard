@@ -4,7 +4,7 @@ import AdministrationPrice from "../models/AdministrationPrice.js";
 import { formatDateTime } from "../utils/date.js";
 import { normalizeBoolean, normalizeNumber, normalizeString } from "../utils/normalize.js";
 import { escapeRegex } from "../utils/query.js";
-import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
+import { sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
 const SCOPE_OPTIONS = ["Website", "Hệ thống", "Server"];
 const FREQUENCY_OPTIONS = ["Tháng", "Quý", "Năm", "Theo yêu cầu"];
