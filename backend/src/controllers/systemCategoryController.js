@@ -15,6 +15,49 @@ const DEFAULT_CATEGORIES = {
   contractProjectStatus: ["Chưa nhận", "Đã nhận", "Đang làm", "Ưu tiên", "Hoãn"],
 };
 
+const DEFAULT_CATEGORY_TYPE_BY_NAME = Object.entries(DEFAULT_CATEGORIES).reduce((acc, [type, names]) => {
+  names.forEach((name) => {
+    acc[name.toLowerCase()] = type;
+  });
+  return acc;
+}, {});
+
+const repairDefaultCategoryTypes = async () => {
+  const defaultNames = Object.values(DEFAULT_CATEGORIES).flat();
+  const existingItems = await SystemCategory.find({
+    name: { $in: defaultNames },
+    isDeleted: false,
+  })
+    .select("_id name type sortOrder isActive createdAt")
+    .sort({ sortOrder: 1, createdAt: 1 })
+    .lean();
+
+  if (existingItems.length === 0) return;
+
+  const activeTargetKeys = new Set(
+    existingItems
+      .filter((item) => DEFAULT_CATEGORY_TYPE_BY_NAME[String(item.name || "").toLowerCase()] === item.type)
+      .map((item) => `${item.type}:${String(item.name || "").toLowerCase()}`),
+  );
+
+  await Promise.all(
+    existingItems.map(async (item) => {
+      const nameKey = String(item.name || "").toLowerCase();
+      const correctType = DEFAULT_CATEGORY_TYPE_BY_NAME[nameKey];
+      if (!correctType || item.type === correctType) return;
+
+      const targetKey = `${correctType}:${nameKey}`;
+      if (activeTargetKeys.has(targetKey)) {
+        await SystemCategory.updateOne({ _id: item._id }, { $set: { isDeleted: true } });
+        return;
+      }
+
+      await SystemCategory.updateOne({ _id: item._id }, { $set: { type: correctType } });
+      activeTargetKeys.add(targetKey);
+    }),
+  );
+};
+
 const normalizePayload = (body = {}) => ({
   name: normalizeString(body.name),
   type: normalizeString(body.type),
@@ -57,6 +100,7 @@ const toResponseItem = (doc) => ({
 });
 
 const seedDefaults = async (type, createdBy) => {
+  await repairDefaultCategoryTypes();
   if (!createdBy) return;
   const typesToSeed = type ? [type] : CATEGORY_TYPES;
   await Promise.all(

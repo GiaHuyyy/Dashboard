@@ -16,7 +16,6 @@ const programUpgradeSchema = new mongoose.Schema(
     priority: {
       type: String,
       required: true,
-      enum: ["Thấp", "Trung bình", "Cao", "Khẩn"],
     },
     durationValue: {
       type: Number,
@@ -52,7 +51,6 @@ const programUpgradeSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"],
       index: true,
     },
     assignee: {

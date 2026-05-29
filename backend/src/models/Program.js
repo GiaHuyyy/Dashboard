@@ -94,7 +94,6 @@ const programSchema = new mongoose.Schema(
     },
     processingStatus: {
       type: String,
-      enum: ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"],
       required: true,
       default: "Mới tạo",
       index: true,
