@@ -90,12 +90,98 @@ const getWarningBeforeHours = async () => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 24;
 };
 
+
+const MONTH_LABELS = Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`);
+
+const MONTHLY_STAT_TYPES = [
+  { key: "program", label: "Lập trình", model: Program, dateFields: ["programCreatedAt", "createdAt"] },
+  { key: "design", label: "Design", model: DesignTask, dateFields: ["createdAt"] },
+  { key: "correction", label: "Chỉnh sửa", model: ProgramCorrection, dateFields: ["createdAt"] },
+  { key: "upgrade", label: "Nâng cấp", model: ProgramUpgrade, dateFields: ["createdAt"] },
+  { key: "source", label: "Source", model: ProgramSource, dateFields: ["createdAt"] },
+];
+
+const normalizeStatsYear = (value, now = new Date()) => {
+  const parsed = Number(value);
+  if (Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100) return parsed;
+  return now.getFullYear();
+};
+
+const buildDateFallbackExpression = (dateFields = []) => {
+  const fields = dateFields.length > 0 ? dateFields : ["createdAt"];
+  return fields.slice(1).reduce((currentExpression, field) => ({ $ifNull: [currentExpression, `$${field}`] }), `$${fields[0]}`);
+};
+
+const getMonthlyCountMap = async ({ model, dateFields, year }) => {
+  const startDate = new Date(year, 0, 1);
+  const endDate = new Date(year + 1, 0, 1);
+  const dateExpression = buildDateFallbackExpression(dateFields);
+
+  const rows = await model.aggregate([
+    { $match: { isDeleted: false } },
+    { $addFields: { dashboardStatsDate: dateExpression } },
+    { $match: { dashboardStatsDate: { $gte: startDate, $lt: endDate } } },
+    { $group: { _id: { $month: "$dashboardStatsDate" }, count: { $sum: 1 } } },
+  ]);
+
+  return rows.reduce((map, item) => {
+    map[item._id] = item.count;
+    return map;
+  }, {});
+};
+
+const buildMonthlyStats = async ({ year }) => {
+  const countMaps = await Promise.all(
+    MONTHLY_STAT_TYPES.map(async (type) => ({
+      ...type,
+      countMap: await getMonthlyCountMap({ model: type.model, dateFields: type.dateFields, year }),
+    })),
+  );
+
+  const items = MONTH_LABELS.map((label, index) => {
+    const month = index + 1;
+    const row = { month, label, total: 0 };
+
+    countMaps.forEach((type) => {
+      const count = Number(type.countMap[month] || 0);
+      row[type.key] = count;
+      row.total += count;
+    });
+
+    return row;
+  });
+
+  const totals = countMaps.reduce(
+    (result, type) => {
+      const count = Object.values(type.countMap).reduce((sum, value) => sum + Number(value || 0), 0);
+      result[type.key] = count;
+      result.total += count;
+      return result;
+    },
+    { total: 0 },
+  );
+
+  return {
+    year,
+    types: MONTHLY_STAT_TYPES.map(({ key, label }) => ({ key, label })),
+    totals,
+    items,
+  };
+};
+
+export const getDashboardMonthlyStats = async (req, res) => {
+  const statsYear = normalizeStatsYear(req.query?.year);
+  const monthlyStats = await buildMonthlyStats({ year: statsYear });
+  return sendOk(res, { monthlyStats });
+};
+
 export const getDashboardSummary = async (req, res) => {
   const now = new Date();
+  const statsYear = normalizeStatsYear(req.query?.year, now);
   const warningBeforeHours = await getWarningBeforeHours();
   const warningBeforeMs = warningBeforeHours * 60 * 60 * 1000;
 
-  const [programs, corrections, upgrades, designs, sources, contracts] = await Promise.all([
+  const [programs, corrections, upgrades, designs, sources, contracts, monthlyStats] = await Promise.all([
     Program.find({ isDeleted: false, processingStatus: { $ne: COMPLETED_STATUS } })
       .select("contractCode module processingStatus dueAt")
       .lean(),
@@ -121,6 +207,7 @@ export const getDashboardSummary = async (req, res) => {
     BusinessContract.find({ isDeleted: false, handoverStatus: { $ne: HANDED_OVER_STATUS } })
       .select("contractCode contractName customerName handoverStatus expectedHandoverAt")
       .lean(),
+    buildMonthlyStats({ year: statsYear }),
   ]);
 
   const programAlerts = programs
@@ -223,6 +310,7 @@ export const getDashboardSummary = async (req, res) => {
 
   return sendOk(res, {
     warningBeforeHours,
+    monthlyStats,
     cards: {
       program: {
         label: "Lập trình đang xử lý",
