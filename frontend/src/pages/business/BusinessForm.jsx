@@ -23,12 +23,16 @@ import { PERMISSIONS } from "@/constants/permissions";
 const schema = z.object({
   contractCode: z.string().trim().min(1, "Vui lòng nhập số hợp đồng"),
   contractName: z.string().trim().min(1, "Vui lòng nhập tên hợp đồng"),
-  contractValue: z.coerce.number().gte(0, "Giá trị hợp đồng không hợp lệ"),
-  customerName: z.string().trim().min(1, "Vui lòng nhập tên khách hàng"),
+  customerName: z.string().trim().optional(),
   customerPhone: z.string().optional(),
-  customerEmail: z.string().trim().email("Email khách hàng không hợp lệ"),
+  customerEmail: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Email khách hàng không hợp lệ"),
   mailStatus: z.enum(MAIL_STATUS_OPTIONS, { message: "Vui lòng chọn mail nhận hợp lệ" }),
   selectedSalesStaff: z.string().trim().min(1, "Vui lòng chọn nhân viên kinh doanh"),
+  selectedManager: z.string().optional(),
   ccEmails: z
     .string()
     .optional()
@@ -58,12 +62,12 @@ const schema = z.object({
 const defaultValues = {
   contractCode: "",
   contractName: "",
-  contractValue: 0,
   customerName: "",
   customerPhone: "",
   customerEmail: "",
   mailStatus: MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: "",
+  selectedManager: "",
   ccEmails: "",
   expectedHandoverAt: "",
   handoverStatus: HANDOVER_STATUS_OPTIONS[0],
@@ -84,12 +88,12 @@ const toDateTimeLocal = (value) => {
 const mapDetailToForm = (contract) => ({
   contractCode: contract.contractCode || "",
   contractName: contract.contractName || "",
-  contractValue: Number(contract.contractValue) || 0,
   customerName: contract.customerName || "",
   customerPhone: contract.customerPhone || "",
   customerEmail: contract.customerEmail || "",
   mailStatus: contract.mailStatus || MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: contract.selectedSalesStaff || "",
+  selectedManager: contract.selectedManager || "",
   ccEmails: Array.isArray(contract.ccEmails) ? contract.ccEmails.join(", ") : "",
   expectedHandoverAt: toDateTimeLocal(contract.expectedHandoverAt),
   handoverStatus: contract.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
@@ -143,6 +147,9 @@ function BusinessForm() {
     isEditMode && initialSnapshot.values?.handoverStatus === "Đã bàn giao" && !canOverrideHandover;
   const isFormReadOnly = !canSave || isHandedOverLocked;
   const salesOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh"));
+  const managerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
+  const customerEmail = useWatch({ control, name: "customerEmail" });
+  const hasCustomerEmail = Boolean(customerEmail?.trim());
 
   useEffect(() => {
     contractImagesRef.current = contractImages;
@@ -167,8 +174,12 @@ function BusinessForm() {
         setStaffReferences(references);
         if (!isEditMode) {
           const firstSales = getStaffNamesByRole(references, "Nhân viên kinh doanh")[0] || "";
+          const firstManager = getStaffNamesByRole(references, "Quản lý")[0] || "";
           if (firstSales) {
             setValue("selectedSalesStaff", firstSales, { shouldValidate: true });
+          }
+          if (firstManager) {
+            setValue("selectedManager", firstManager, { shouldValidate: true });
           }
         }
       } catch {
@@ -273,6 +284,11 @@ function BusinessForm() {
       return;
     }
 
+    if (mode === "save-mail" && !values.customerEmail?.trim()) {
+      toast.error("Vui lòng nhập Email khách hàng trước khi gửi mail");
+      return;
+    }
+
     let uploadedContractImages = [];
     try {
       uploadedContractImages = await uploadNewImages();
@@ -369,8 +385,8 @@ function BusinessForm() {
           isEditMode={isEditMode}
           exitPath="/kinh-doanh/danh-sach"
           showSaveMail
-          saveMailDisabled={!canSendMail}
-          saveMailDisabledTitle="Bạn không có quyền gửi mail hợp đồng"
+          saveMailDisabled={!canSendMail || !hasCustomerEmail}
+          saveMailDisabledTitle={!canSendMail ? "Bạn không có quyền gửi mail hợp đồng" : "Vui lòng nhập Email khách hàng trước khi gửi mail"}
           readOnlyMode={isFormReadOnly}
         />
       }
@@ -387,12 +403,6 @@ function BusinessForm() {
             type="text"
             inputProps={{ ...register("contractName"), placeholder: "Website", disabled: isFormReadOnly }}
             error={errors.contractName?.message}
-          />
-          <FormField
-            label="Giá trị hợp đồng"
-            type="number"
-            inputProps={{ ...register("contractValue"), min: "0", step: "1000", disabled: isFormReadOnly }}
-            error={errors.contractValue?.message}
           />
           <FormField
             label="Tên khách hàng"
@@ -413,6 +423,7 @@ function BusinessForm() {
             error={errors.customerEmail?.message}
           />
 
+          {/* Tạm ẩn Mail nhận, giữ lại field/default để dùng lại khi cần gửi mail theo trạng thái.
           <div>
             <p className="text-sm font-semibold text-slate-600">Mail nhận</p>
             <div className="mt-2 flex flex-wrap gap-6 text-sm text-slate-600">
@@ -425,6 +436,7 @@ function BusinessForm() {
             </div>
             {errors.mailStatus && <p className="mt-1 text-xs text-rose-600">{errors.mailStatus.message}</p>}
           </div>
+          */}
 
           <FormField
             label="Nhân viên kinh doanh"
@@ -434,11 +446,20 @@ function BusinessForm() {
             error={errors.selectedSalesStaff?.message}
           />
           <FormField
+            label="Quản lý"
+            type="select"
+            options={managerOptions}
+            selectProps={{ ...register("selectedManager"), disabled: isFormReadOnly || managerOptions.length === 0 }}
+            error={errors.selectedManager?.message}
+          />
+          {/* Tạm ẩn Danh sách email cc, giữ lại logic để bật lại khi cần.
+          <FormField
             label="Danh sách email cc"
             type="text"
             inputProps={{ ...register("ccEmails"), placeholder: "email1@x.com, email2@x.com", disabled: isFormReadOnly }}
             error={errors.ccEmails?.message}
           />
+          */}
           <FormField
             label="Ngày dự kiến bàn giao"
             type="datetime-local"

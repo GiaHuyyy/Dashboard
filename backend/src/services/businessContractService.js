@@ -77,6 +77,7 @@ export const normalizeBusinessContractPayload = (body = {}) => {
     status: normalizeString(body.status) || BUSINESS_CONTRACT_STATUS_OPTIONS[0],
     mailStatus: normalizeString(body.mailStatus) || BUSINESS_CONTRACT_MAIL_STATUS_OPTIONS[0],
     selectedSalesStaff: normalizeString(body.selectedSalesStaff),
+    selectedManager: normalizeString(body.selectedManager),
     salesReceiverName: normalizeString(body.salesReceiverName) || customerName,
     salesReceiverEmail: normalizeString(body.salesReceiverEmail).toLowerCase() || customerEmail,
     ccEmails: parseBusinessContractCcEmails(body.ccEmails),
@@ -94,8 +95,6 @@ export const validateBusinessContractPayload = async (payload, { excludeId = "" 
   if (!payload.contractName) return { status: 400, message: "contractName là bắt buộc" };
   if (payload.contractValue === null || payload.contractValue < 0)
     return { status: 400, message: "contractValue không hợp lệ" };
-  if (!payload.customerName) return { status: 400, message: "customerName là bắt buộc" };
-  if (!payload.customerEmail) return { status: 400, message: "customerEmail là bắt buộc" };
   if (!payload.selectedSalesStaff) return { status: 400, message: "selectedSalesStaff là bắt buộc" };
   if (!payload.expectedHandoverAt) return { status: 400, message: "expectedHandoverAt là bắt buộc" };
 
@@ -160,6 +159,7 @@ export const toBusinessContractResponseItem = (doc) => ({
   status: doc.status || BUSINESS_CONTRACT_STATUS_OPTIONS[0],
   mailStatus: doc.mailStatus || BUSINESS_CONTRACT_MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: doc.selectedSalesStaff || "",
+  selectedManager: doc.selectedManager || "",
   salesReceiverName: doc.salesReceiverName || "",
   salesReceiverEmail: doc.salesReceiverEmail || "",
   ccEmails: Array.isArray(doc.ccEmails) ? doc.ccEmails : [],
@@ -184,6 +184,7 @@ export const toBusinessContractReferenceItem = (item) => ({
   status: item.status || BUSINESS_CONTRACT_STATUS_OPTIONS[0],
   mailStatus: item.mailStatus || BUSINESS_CONTRACT_MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: item.selectedSalesStaff || "",
+  selectedManager: item.selectedManager || "",
   salesReceiverName: item.salesReceiverName || "",
   salesReceiverEmail: item.salesReceiverEmail || "",
   ccEmails: Array.isArray(item.ccEmails) ? item.ccEmails : [],

@@ -37,8 +37,8 @@ const businessContractSchema = new mongoose.Schema(
     },
     customerName: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     customerPhone: {
       type: String,
@@ -68,16 +68,21 @@ const businessContractSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    selectedManager: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     salesReceiverName: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     salesReceiverEmail: {
       type: String,
-      required: true,
       trim: true,
       lowercase: true,
+      default: "",
     },
     ccEmails: {
       type: [String],

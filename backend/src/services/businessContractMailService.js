@@ -23,6 +23,7 @@ const buildImageHtml = (contract) => {
   const images = Array.isArray(contract.contractImages) ? contract.contractImages : [];
 
   return images
+    .map((item) => (typeof item === "string" ? item : item?.url))
     .filter(Boolean)
     .map(
       (url) =>
@@ -69,6 +70,7 @@ const buildTemplateVariables = ({ contract, actionLabel }) => ({
   handoverAt: formatDateTime(contract.handoverAt) || "",
   signedDate: formatDateTime(contract.createdAt) || "",
   selectedSalesStaff: contract.selectedSalesStaff || "",
+  selectedManager: contract.selectedManager || "",
   salesReceiverName: contract.salesReceiverName || "",
   salesReceiverEmail: contract.salesReceiverEmail || "",
   ccEmails: Array.isArray(contract.ccEmails) ? contract.ccEmails.join(", ") : "",

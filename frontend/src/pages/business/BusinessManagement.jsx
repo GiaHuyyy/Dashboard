@@ -122,7 +122,7 @@ function BusinessManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Tên hợp đồng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Khách hàng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Nhân viên kinh doanh</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mail nhận</TableHead>
+              {/* <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mail nhận</TableHead> */}
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Email khách hàng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày dự kiến bàn giao</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái bàn giao</TableHead>
@@ -173,11 +173,11 @@ function BusinessManagement() {
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-left">{row.contractName}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-left">{row.customerName}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.contractName}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.customerName || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.selectedSalesStaff}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.mailStatus}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 text-left">{row.customerEmail}</TableCell>
+                  {/* <TableCell className="border border-slate-200 p-4">{row.mailStatus}</TableCell> */}
+                  <TableCell className="border border-slate-200 p-4">{row.customerEmail || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.expectedHandoverAtLabel || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <span className={row.handoverStatus === "Đã bàn giao" ? "text-emerald-700" : "text-slate-600"}>{row.handoverStatus}</span>

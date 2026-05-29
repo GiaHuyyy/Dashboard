@@ -44,6 +44,10 @@ export const createBusinessContract = async (req, res) => {
   const validation = await validateBusinessContractPayload(payload);
   if (validation) return sendValidationError(res, validation);
 
+  if (shouldSendMail && !payload.customerEmail) {
+    return sendValidationError(res, { status: 400, message: "Vui lòng nhập Email khách hàng trước khi gửi mail" });
+  }
+
   const created = await BusinessContract.create({
     ...payload,
     createdBy: req.user.sub,
@@ -88,6 +92,7 @@ export const listBusinessContracts = async (req, res) => {
       "customerPhone",
       "customerEmail",
       "selectedSalesStaff",
+      "selectedManager",
       "salesReceiverName",
       "salesReceiverEmail",
       "note",
@@ -113,7 +118,7 @@ export const listBusinessContractReferences = async (req, res) => {
   const items = await BusinessContract.find({ isDeleted: false, visible: true })
     .sort({ createdAt: 1 })
     .select(
-      "contractCode contractName contractValue customerName status mailStatus selectedSalesStaff salesReceiverName salesReceiverEmail ccEmails contractImages expectedHandoverAt handoverStatus",
+      "contractCode contractName contractValue customerName status mailStatus selectedSalesStaff selectedManager salesReceiverName salesReceiverEmail ccEmails contractImages expectedHandoverAt handoverStatus",
     )
     .lean();
 
@@ -154,18 +159,21 @@ export const updateBusinessContract = async (req, res) => {
   if (!existing || existing.isDeleted) return sendNotFound(res, "Không tìm thấy hợp đồng kinh doanh");
 
   const input = normalizeBusinessContractPayload(req.body);
+  const hasCustomerName = typeof req.body.customerName === "string";
+  const hasCustomerEmail = typeof req.body.customerEmail === "string";
   const mergedPayload = {
     contractCode: input.contractCode || existing.contractCode,
     contractName: input.contractName || existing.contractName,
     contractValue: input.contractValue === null ? Number(existing.contractValue ?? 0) : input.contractValue,
-    customerName: input.customerName || existing.customerName,
+    customerName: hasCustomerName ? input.customerName : existing.customerName,
     customerPhone: typeof req.body.customerPhone === "string" ? input.customerPhone : existing.customerPhone,
-    customerEmail: typeof req.body.customerEmail === "string" ? input.customerEmail : existing.customerEmail,
+    customerEmail: hasCustomerEmail ? input.customerEmail : existing.customerEmail,
     status: input.status || existing.status,
     mailStatus: input.mailStatus || existing.mailStatus,
     selectedSalesStaff: input.selectedSalesStaff || existing.selectedSalesStaff,
-    salesReceiverName: input.customerName || existing.customerName,
-    salesReceiverEmail: input.customerEmail || existing.customerEmail,
+    selectedManager: typeof req.body.selectedManager === "string" ? input.selectedManager : existing.selectedManager,
+    salesReceiverName: hasCustomerName ? input.customerName : existing.salesReceiverName || existing.customerName,
+    salesReceiverEmail: hasCustomerEmail ? input.customerEmail : existing.salesReceiverEmail || existing.customerEmail,
     ccEmails: req.body.ccEmails !== undefined ? input.ccEmails : existing.ccEmails,
     contractImages: Array.isArray(req.body.contractImages) ? input.contractImages : existing.contractImages,
     expectedHandoverAt: req.body.expectedHandoverAt === null ? null : input.expectedHandoverAt || existing.expectedHandoverAt,
@@ -182,6 +190,10 @@ export const updateBusinessContract = async (req, res) => {
   const validation = await validateBusinessContractPayload(mergedPayload, { excludeId: String(existing._id) });
   if (validation) return sendValidationError(res, validation);
 
+  if (shouldSendMail && !mergedPayload.customerEmail) {
+    return sendValidationError(res, { status: 400, message: "Vui lòng nhập Email khách hàng trước khi gửi mail" });
+  }
+
   const removedImagePublicIds = getRemovedContractImagePublicIds(existing.contractImages, mergedPayload.contractImages);
 
   existing.contractCode = mergedPayload.contractCode;
@@ -193,6 +205,7 @@ export const updateBusinessContract = async (req, res) => {
   existing.status = mergedPayload.status;
   existing.mailStatus = mergedPayload.mailStatus;
   existing.selectedSalesStaff = mergedPayload.selectedSalesStaff;
+  existing.selectedManager = mergedPayload.selectedManager;
   existing.salesReceiverName = mergedPayload.salesReceiverName;
   existing.salesReceiverEmail = mergedPayload.salesReceiverEmail;
   existing.ccEmails = mergedPayload.ccEmails;
