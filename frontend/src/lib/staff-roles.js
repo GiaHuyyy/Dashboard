@@ -1,5 +1,7 @@
 export const STAFF_ROLE_OPTIONS = ["Lập trình viên", "Thiết kế", "Nhân viên kinh doanh", "Quản lý"];
 
+export const STAFF_DEPARTMENT_OPTIONS = ["Lập trình", "Design", "Kinh doanh", "Quản lý", "Khác"];
+
 export const STAFF_DEPARTMENT_BY_ROLE = {
   "Lập trình viên": "Lập trình",
   "Thiết kế": "Design",

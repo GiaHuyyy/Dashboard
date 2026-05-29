@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { staffApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
-import { STAFF_ROLE_OPTIONS, getDepartmentByRole } from "@/lib/staff-roles";
+import { STAFF_DEPARTMENT_OPTIONS, STAFF_ROLE_OPTIONS, getDepartmentByRole } from "@/lib/staff-roles";
 import { PERMISSIONS } from "@/constants/permissions";
 
 const schema = z.object({
@@ -42,20 +42,12 @@ function StaffForm() {
     register,
     handleSubmit,
     reset,
-    setValue,
-    control,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues,
   });
 
-  const watchedRole = useWatch({ control, name: "role" });
-
-  useEffect(() => {
-    if (!watchedRole) return;
-    setValue("department", getDepartmentByRole(watchedRole), { shouldValidate: true });
-  }, [setValue, watchedRole]);
 
   useEffect(() => {
     if (!isEditMode) return;
@@ -144,8 +136,9 @@ function StaffForm() {
         />
         <FormField
           label="Phòng ban"
-          type="text"
-          inputProps={{ ...register("department"), readOnly: true, className: "bg-slate-50" }}
+          type="select"
+          options={STAFF_DEPARTMENT_OPTIONS.map((item) => ({ label: item, value: item }))}
+          selectProps={{ ...register("department") }}
           error={errors.department?.message}
         />
         <FormField

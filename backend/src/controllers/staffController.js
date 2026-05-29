@@ -21,13 +21,14 @@ const normalizePayload = (body = {}) => ({
   email: normalizeString(body.email).toLowerCase(),
   phone: normalizeString(body.phone),
   role: normalizeString(body.role) || "Lập trình viên",
-  department: "",
+  department: normalizeString(body.department),
   isActive: normalizeBoolean(body.isActive),
 });
 
 const validatePayload = async (payload, { excludeId = "" } = {}) => {
   if (!payload.fullName) return { status: 400, message: "fullName là bắt buộc" };
   if (!payload.email) return { status: 400, message: "email là bắt buộc" };
+  if (!payload.department) return { status: 400, message: "department là bắt buộc" };
   if (!EMAIL_REGEX.test(payload.email)) return { status: 400, message: "email không đúng định dạng" };
   if (payload.isActive === null) return { status: 400, message: "isActive phải là kiểu boolean" };
 
@@ -54,10 +55,7 @@ const resolveDepartment = ({ role, fallbackDepartment = "" } = {}) =>
 
 export const createStaff = async (req, res) => {
   const payload = normalizePayload(req.body);
-  payload.department = resolveDepartment({
-    role: payload.role,
-    fallbackDepartment: normalizeString(req.body.department),
-  });
+  payload.department = payload.department || resolveDepartment({ role: payload.role });
 
   const validation = await validatePayload(payload);
   if (validation) return sendValidationError(res, validation);
@@ -139,10 +137,7 @@ export const updateStaff = async (req, res) => {
     email: input.email || existing.email,
     phone: typeof req.body.phone === "string" ? input.phone : existing.phone,
     role: input.role || existing.role,
-    department: resolveDepartment({
-      role: input.role || existing.role,
-      fallbackDepartment: input.department || existing.department,
-    }),
+    department: input.department || existing.department || resolveDepartment({ role: input.role || existing.role }),
     isActive: input.isActive === null ? existing.isActive : input.isActive,
   };
 
