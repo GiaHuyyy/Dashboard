@@ -54,8 +54,8 @@ const businessContractSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Đã nhận", "Đang xử lý", "Hoàn thành"],
-      default: "Đã nhận",
+      default: "Chưa nhận",
+      index: true,
     },
     mailStatus: {
       type: String,

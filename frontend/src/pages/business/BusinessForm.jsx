@@ -11,10 +11,10 @@ import { ImageLightbox } from "@/components/forms/ImageLightbox";
 import { ImageUpload } from "@/components/forms/ImageUpload";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
-import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
+import { BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE, BUSINESS_CONTRACT_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
 import { UPLOAD_FOLDERS } from "@/constants/upload-folders";
 import { MAIL_STATUS_OPTIONS } from "@/constants/program";
-import { businessContractApi, staffApi } from "@/lib/api-client";
+import { businessContractApi, staffApi, systemCategoryApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { uploadApi } from "@/lib/upload";
@@ -30,6 +30,7 @@ const schema = z.object({
     .trim()
     .optional()
     .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Email khách hàng không hợp lệ"),
+  status: z.string().trim().min(1, "Vui lòng chọn trạng thái dự án"),
   mailStatus: z.enum(MAIL_STATUS_OPTIONS, { message: "Vui lòng chọn mail nhận hợp lệ" }),
   selectedSalesStaff: z.string().trim().min(1, "Vui lòng chọn nhân viên kinh doanh"),
   selectedManager: z.string().optional(),
@@ -65,6 +66,7 @@ const defaultValues = {
   customerName: "",
   customerPhone: "",
   customerEmail: "",
+  status: BUSINESS_CONTRACT_STATUS_OPTIONS[0],
   mailStatus: MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: "",
   selectedManager: "",
@@ -91,6 +93,7 @@ const mapDetailToForm = (contract) => ({
   customerName: contract.customerName || "",
   customerPhone: contract.customerPhone || "",
   customerEmail: contract.customerEmail || "",
+  status: contract.status || BUSINESS_CONTRACT_STATUS_OPTIONS[0],
   mailStatus: contract.mailStatus || MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: contract.selectedSalesStaff || "",
   selectedManager: contract.selectedManager || "",
@@ -127,6 +130,7 @@ function BusinessForm() {
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
   const [staffReferences, setStaffReferences] = useState([]);
+  const [projectStatusOptions, setProjectStatusOptions] = useState(BUSINESS_CONTRACT_STATUS_OPTIONS);
   const [handoverConfirmOpen, setHandoverConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
 
@@ -149,7 +153,11 @@ function BusinessForm() {
   const salesOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh"));
   const managerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const customerEmail = useWatch({ control, name: "customerEmail" });
+  const selectedStatus = useWatch({ control, name: "status" });
   const hasCustomerEmail = Boolean(customerEmail?.trim());
+  const visibleProjectStatusOptions = selectedStatus && !projectStatusOptions.includes(selectedStatus)
+    ? [selectedStatus, ...projectStatusOptions]
+    : projectStatusOptions;
 
   useEffect(() => {
     contractImagesRef.current = contractImages;
@@ -188,6 +196,33 @@ function BusinessForm() {
     };
     void fetchStaffReferences();
   }, [isEditMode, setValue]);
+
+  useEffect(() => {
+    const fetchProjectStatusOptions = async () => {
+      try {
+        const response = await systemCategoryApi.list({
+          type: BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE,
+          limit: 200,
+        });
+        const options = Array.isArray(response?.categories)
+          ? response.categories
+              .filter((item) => item?.isActive !== false)
+              .map((item) => item.name)
+              .filter(Boolean)
+          : [];
+        const nextOptions = options.length > 0 ? options : BUSINESS_CONTRACT_STATUS_OPTIONS;
+        setProjectStatusOptions(nextOptions);
+        if (!isEditMode && nextOptions[0]) {
+          setValue("status", nextOptions[0], { shouldValidate: true });
+        }
+      } catch {
+        setProjectStatusOptions(BUSINESS_CONTRACT_STATUS_OPTIONS);
+      }
+    };
+
+    void fetchProjectStatusOptions();
+  }, [isEditMode, setValue]);
+
 
   useEffect(() => {
     if (handoverStatus === "Đã bàn giao") return;
@@ -421,6 +456,13 @@ function BusinessForm() {
             type="text"
             inputProps={{ ...register("customerEmail"), placeholder: "nguyenvana@email.com", disabled: isFormReadOnly }}
             error={errors.customerEmail?.message}
+          />
+          <FormField
+            label="Trạng thái dự án"
+            type="select"
+            options={visibleProjectStatusOptions.map((item) => ({ label: item, value: item }))}
+            selectProps={{ ...register("status"), disabled: isFormReadOnly }}
+            error={errors.status?.message}
           />
 
           {/* Tạm ẩn Mail nhận, giữ lại field/default để dùng lại khi cần gửi mail theo trạng thái.

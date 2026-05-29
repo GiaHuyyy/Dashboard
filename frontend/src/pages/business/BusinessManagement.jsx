@@ -1,40 +1,97 @@
 import { FileText, SquarePen, Trash2 } from "lucide-react";
-import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
-import { HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
+import { InlineProjectStatusSelect } from "@/components/table/InlineProjectStatusSelect";
+import { BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE, BUSINESS_CONTRACT_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
 import { useManagementList } from "@/hooks/useManagementList";
-import { businessContractApi } from "@/lib/api-client";
+import { businessContractApi, systemCategoryApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermission } from "@/lib/permissions";
 import { PERMISSIONS } from "@/constants/permissions";
 
+const monthFilterOptions = [
+  { value: "all", label: "Tất cả tháng" },
+  ...Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: `Tháng ${index + 1}` })),
+];
+
+const buildYearFilterOptions = () => {
+  const currentYear = new Date().getFullYear();
+  return [
+    { value: "all", label: "Tất cả năm" },
+    ...Array.from({ length: 6 }, (_, index) => {
+      const year = currentYear - index;
+      return { value: String(year), label: `Năm ${year}` };
+    }),
+  ];
+};
+
 function BusinessManagement() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { can } = usePermission();
   const canCreate = can(PERMISSIONS.CONTRACT_CREATE);
   const canUpdate = can(PERMISSIONS.CONTRACT_UPDATE);
   const canDelete = can(PERMISSIONS.CONTRACT_DELETE);
 
-  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedHandoverStatus, setSelectedHandoverStatus] = useState("all");
+  const [selectedProjectStatus, setSelectedProjectStatus] = useState(searchParams.get("status") || "all");
+  const [selectedMonth, setSelectedMonth] = useState(searchParams.get("month") || "all");
+  const [selectedYear, setSelectedYear] = useState(searchParams.get("year") || "all");
+  const [projectStatusOptions, setProjectStatusOptions] = useState(BUSINESS_CONTRACT_STATUS_OPTIONS);
+  const yearFilterOptions = buildYearFilterOptions();
 
   const getBusinessListParams = useCallback(
     ({ searchText, page, limit }) => ({
-      handoverStatus: selectedStatus,
+      handoverStatus: selectedHandoverStatus,
+      status: selectedProjectStatus,
+      month: selectedMonth,
+      year: selectedYear,
       search: searchText.trim(),
       page,
       limit,
     }),
-    [selectedStatus],
+    [selectedHandoverStatus, selectedMonth, selectedProjectStatus, selectedYear],
   );
+
+  useEffect(() => {
+    const fetchProjectStatusOptions = async () => {
+      try {
+        const response = await systemCategoryApi.list({
+          type: BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE,
+          limit: 200,
+        });
+        const options = Array.isArray(response?.categories)
+          ? response.categories
+              .filter((item) => item?.isActive !== false)
+              .map((item) => item.name)
+              .filter(Boolean)
+          : [];
+        setProjectStatusOptions(options.length > 0 ? options : BUSINESS_CONTRACT_STATUS_OPTIONS);
+      } catch {
+        setProjectStatusOptions(BUSINESS_CONTRACT_STATUS_OPTIONS);
+      }
+    };
+
+    void fetchProjectStatusOptions();
+  }, []);
+
+  const filterProjectStatusOptions = useMemo(() => {
+    if (selectedProjectStatus !== "all" && !projectStatusOptions.includes(selectedProjectStatus)) {
+      return [selectedProjectStatus, ...projectStatusOptions];
+    }
+    return projectStatusOptions;
+  }, [projectStatusOptions, selectedProjectStatus]);
 
   const {
     rows,
+    setRows,
     total,
     page,
     limit,
@@ -69,6 +126,46 @@ function BusinessManagement() {
     deleteAllSuccessMessage: ({ deletedCount }) => `Đã xóa toàn bộ (${deletedCount || 0}) hợp đồng`,
   });
 
+
+  const handleProjectStatusChange = useCallback(
+    async (row, nextStatus) => {
+      if (!row?.id || nextStatus === row.status) return;
+
+      if (!canUpdate) {
+        toast.error("Bạn không có quyền cập nhật trạng thái dự án");
+        return;
+      }
+
+      const previousStatus = row.status;
+      setRows((prevRows) =>
+        prevRows.map((item) => (item.id === row.id ? { ...item, status: nextStatus } : item)),
+      );
+
+      try {
+        const response = await businessContractApi.update(row.id, { status: nextStatus });
+        const updatedContract = response?.contract;
+        setRows((prevRows) =>
+          prevRows.map((item) =>
+            item.id === row.id
+              ? {
+                  ...item,
+                  ...(updatedContract || {}),
+                  status: updatedContract?.status || nextStatus,
+                }
+              : item,
+          ),
+        );
+        toast.success("Đã cập nhật trạng thái dự án");
+      } catch (error) {
+        setRows((prevRows) =>
+          prevRows.map((item) => (item.id === row.id ? { ...item, status: previousStatus } : item)),
+        );
+        toast.error(error?.message || "Cập nhật trạng thái dự án không thành công");
+      }
+    },
+    [canUpdate, setRows],
+  );
+
   return (
     <>
       <ManagementActions
@@ -87,9 +184,9 @@ function BusinessManagement() {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-          value={selectedStatus}
+          value={selectedHandoverStatus}
           onChange={(event) => {
-            setSelectedStatus(event.target.value);
+            setSelectedHandoverStatus(event.target.value);
             setPage(1);
           }}
         >
@@ -97,6 +194,49 @@ function BusinessManagement() {
           {HANDOVER_STATUS_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option}
+            </option>
+          ))}
+        </select>
+        <select
+          className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+          value={selectedProjectStatus}
+          onChange={(event) => {
+            setSelectedProjectStatus(event.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="all">Trạng thái dự án</option>
+          {filterProjectStatusOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <select
+          className="w-44 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+          value={selectedMonth}
+          onChange={(event) => {
+            setSelectedMonth(event.target.value);
+            setPage(1);
+          }}
+        >
+          {monthFilterOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className="w-40 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+          value={selectedYear}
+          onChange={(event) => {
+            setSelectedYear(event.target.value);
+            setPage(1);
+          }}
+        >
+          {yearFilterOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>
@@ -120,6 +260,7 @@ function BusinessManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hồ sơ</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Số hợp đồng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Tên hợp đồng</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái dự án</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Khách hàng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Nhân viên kinh doanh</TableHead>
               {/* <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Mail nhận</TableHead> */}
@@ -134,13 +275,13 @@ function BusinessManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={14} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -174,6 +315,15 @@ function BusinessManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.contractName}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">
+                    <InlineProjectStatusSelect
+                      value={row.status}
+                      options={projectStatusOptions}
+                      disabled={!canUpdate}
+                      onChange={(nextStatus) => void handleProjectStatusChange(row, nextStatus)}
+                      title={!canUpdate ? "Bạn không có quyền cập nhật trạng thái dự án" : "Cập nhật trạng thái dự án"}
+                    />
+                  </TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.customerName || "-"}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.selectedSalesStaff}</TableCell>
                   {/* <TableCell className="border border-slate-200 p-4">{row.mailStatus}</TableCell> */}

@@ -4,6 +4,7 @@ import Program from "../models/Program.js";
 import ProgramCorrection from "../models/ProgramCorrection.js";
 import ProgramSource from "../models/ProgramSource.js";
 import ProgramUpgrade from "../models/ProgramUpgrade.js";
+import { getBusinessContractStatusOptions } from "../services/businessContractService.js";
 import { getSystemSettingValue } from "../services/systemSettingService.js";
 import { formatDateTime } from "../utils/date.js";
 import { sendOk } from "../utils/httpResponse.js";
@@ -101,6 +102,100 @@ const MONTHLY_STAT_TYPES = [
   { key: "source", label: "Source", model: ProgramSource, dateFields: ["createdAt"] },
 ];
 
+const PROJECT_STATUS_KEYS = {
+  "Chưa nhận": "notReceived",
+  "Đã nhận": "received",
+  "Đang làm": "doing",
+  "Ưu tiên": "priority",
+  "Hoãn": "paused",
+};
+
+const toProjectStatusKey = (status, index = 0) => PROJECT_STATUS_KEYS[status] || `status-${index + 1}`;
+
+const normalizeStatsMonth = (value) => {
+  if (value === undefined || value === null || value === "" || value === "all") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12 ? parsed : null;
+};
+
+const normalizeOptionalStatsYear = (value) => {
+  if (value === undefined || value === null || value === "" || value === "all") return null;
+  return normalizeStatsYear(value);
+};
+
+const buildCreatedAtMatchFilter = ({ month, year } = {}) => {
+  const normalizedMonth = normalizeStatsMonth(month);
+  const normalizedYear = normalizeOptionalStatsYear(year);
+
+  if (!normalizedMonth && !normalizedYear) return null;
+
+  if (normalizedMonth && normalizedYear) {
+    return {
+      createdAt: {
+        $gte: new Date(normalizedYear, normalizedMonth - 1, 1),
+        $lt: new Date(normalizedYear, normalizedMonth, 1),
+      },
+    };
+  }
+
+  if (normalizedYear) {
+    return {
+      createdAt: {
+        $gte: new Date(normalizedYear, 0, 1),
+        $lt: new Date(normalizedYear + 1, 0, 1),
+      },
+    };
+  }
+
+  return {
+    $expr: { $eq: [{ $month: "$createdAt" }, normalizedMonth] },
+  };
+};
+
+const appendProjectStatusHrefFilters = (status, { month, year } = {}) => {
+  const params = new URLSearchParams();
+  params.set("status", status);
+  if (month) params.set("month", String(month));
+  if (year) params.set("year", String(year));
+  return `/kinh-doanh/danh-sach?${params.toString()}`;
+};
+
+const buildContractProjectStatusSummary = async ({ month, year } = {}) => {
+  const normalizedMonth = normalizeStatsMonth(month);
+  const normalizedYear = normalizeOptionalStatsYear(year);
+  const statusOptions = await getBusinessContractStatusOptions({ includeLegacy: false });
+  const match = {
+    isDeleted: false,
+    status: { $in: statusOptions },
+  };
+  Object.assign(match, buildCreatedAtMatchFilter({ month: normalizedMonth, year: normalizedYear }) || {});
+
+  const rows = await BusinessContract.aggregate([
+    { $match: match },
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+
+  const countMap = rows.reduce((result, item) => {
+    result[item._id] = Number(item.count || 0);
+    return result;
+  }, {});
+
+  const items = statusOptions.map((status, index) => ({
+    key: toProjectStatusKey(status, index),
+    status,
+    label: status,
+    value: countMap[status] || 0,
+    href: appendProjectStatusHrefFilters(status, { month: normalizedMonth, year: normalizedYear }),
+  }));
+
+  return {
+    month: normalizedMonth || "all",
+    year: normalizedYear || "all",
+    total: items.reduce((sum, item) => sum + Number(item.value || 0), 0),
+    items,
+  };
+};
+
 const normalizeStatsYear = (value, now = new Date()) => {
   const parsed = Number(value);
   if (Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100) return parsed;
@@ -175,13 +270,21 @@ export const getDashboardMonthlyStats = async (req, res) => {
   return sendOk(res, { monthlyStats });
 };
 
+export const getDashboardProjectStatusSummary = async (req, res) => {
+  const projectStatusSummary = await buildContractProjectStatusSummary({
+    month: req.query?.month,
+    year: req.query?.year,
+  });
+  return sendOk(res, { projectStatusSummary });
+};
+
 export const getDashboardSummary = async (req, res) => {
   const now = new Date();
   const statsYear = normalizeStatsYear(req.query?.year, now);
   const warningBeforeHours = await getWarningBeforeHours();
   const warningBeforeMs = warningBeforeHours * 60 * 60 * 1000;
 
-  const [programs, corrections, upgrades, designs, sources, contracts, monthlyStats] = await Promise.all([
+  const [programs, corrections, upgrades, designs, sources, contracts, monthlyStats, projectStatusSummary] = await Promise.all([
     Program.find({ isDeleted: false, processingStatus: { $ne: COMPLETED_STATUS } })
       .select("contractCode module processingStatus dueAt")
       .lean(),
@@ -208,6 +311,7 @@ export const getDashboardSummary = async (req, res) => {
       .select("contractCode contractName customerName handoverStatus expectedHandoverAt")
       .lean(),
     buildMonthlyStats({ year: statsYear }),
+    buildContractProjectStatusSummary(),
   ]);
 
   const programAlerts = programs
@@ -311,6 +415,7 @@ export const getDashboardSummary = async (req, res) => {
   return sendOk(res, {
     warningBeforeHours,
     monthlyStats,
+    projectStatusSummary,
     cards: {
       program: {
         label: "Lập trình đang xử lý",

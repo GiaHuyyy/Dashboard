@@ -1,4 +1,5 @@
 import BusinessContract from "../models/BusinessContract.js";
+import SystemCategory from "../models/SystemCategory.js";
 import { formatDateTime, toIsoString } from "../utils/date.js";
 import {
   normalizeBoolean,
@@ -9,8 +10,32 @@ import {
 import { escapeRegex } from "../utils/query.js";
 
 export const BUSINESS_CONTRACT_HANDOVER_STATUS_OPTIONS = ["Chưa bàn giao", "Đã bàn giao"];
-export const BUSINESS_CONTRACT_STATUS_OPTIONS = ["Đã nhận", "Đang xử lý", "Hoàn thành"];
+export const BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE = "contractProjectStatus";
+export const BUSINESS_CONTRACT_STATUS_OPTIONS = ["Chưa nhận", "Đã nhận", "Đang làm", "Ưu tiên", "Hoãn"];
+export const BUSINESS_CONTRACT_LEGACY_STATUS_OPTIONS = ["Đang xử lý", "Hoàn thành"];
+export const BUSINESS_CONTRACT_ALLOWED_STATUS_OPTIONS = [
+  ...BUSINESS_CONTRACT_STATUS_OPTIONS,
+  ...BUSINESS_CONTRACT_LEGACY_STATUS_OPTIONS,
+];
 export const BUSINESS_CONTRACT_MAIL_STATUS_OPTIONS = ["Mail nhận", "Mail dự kiến", "Mail hoàn thành"];
+
+export const getBusinessContractStatusOptions = async ({ includeLegacy = true } = {}) => {
+  const categories = await SystemCategory.find({
+    type: BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE,
+    isActive: true,
+    isDeleted: false,
+  })
+    .sort({ sortOrder: 1, createdAt: 1 })
+    .select("name")
+    .lean();
+
+  const activeStatuses = categories.map((item) => normalizeString(item.name)).filter(Boolean);
+  const baseStatuses = activeStatuses.length > 0 ? activeStatuses : BUSINESS_CONTRACT_STATUS_OPTIONS;
+  const nextStatuses = includeLegacy ? [...baseStatuses, ...BUSINESS_CONTRACT_LEGACY_STATUS_OPTIONS] : baseStatuses;
+
+  return [...new Set(nextStatuses)];
+};
+
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -98,10 +123,11 @@ export const validateBusinessContractPayload = async (payload, { excludeId = "" 
   if (!payload.selectedSalesStaff) return { status: 400, message: "selectedSalesStaff là bắt buộc" };
   if (!payload.expectedHandoverAt) return { status: 400, message: "expectedHandoverAt là bắt buộc" };
 
-  if (!BUSINESS_CONTRACT_STATUS_OPTIONS.includes(payload.status)) {
+  const allowedStatusOptions = await getBusinessContractStatusOptions({ includeLegacy: true });
+  if (!allowedStatusOptions.includes(payload.status)) {
     return {
       status: 400,
-      message: `status không hợp lệ. Giá trị cho phép: ${BUSINESS_CONTRACT_STATUS_OPTIONS.join(", ")}`,
+      message: `status không hợp lệ. Giá trị cho phép: ${allowedStatusOptions.join(", ")}`,
     };
   }
 

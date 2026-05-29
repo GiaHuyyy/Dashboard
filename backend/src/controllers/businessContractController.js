@@ -72,8 +72,47 @@ export const createBusinessContract = async (req, res) => {
   });
 };
 
+const normalizeContractFilterMonth = (value) => {
+  if (value === undefined || value === null || value === "" || value === "all") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12 ? parsed : null;
+};
+
+const normalizeContractFilterYear = (value) => {
+  if (value === undefined || value === null || value === "" || value === "all") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100 ? parsed : null;
+};
+
+const buildContractCreatedAtFilter = ({ month, year } = {}) => {
+  const normalizedMonth = normalizeContractFilterMonth(month);
+  const normalizedYear = normalizeContractFilterYear(year);
+
+  if (!normalizedMonth && !normalizedYear) return null;
+  if (normalizedMonth && normalizedYear) {
+    return {
+      createdAt: {
+        $gte: new Date(normalizedYear, normalizedMonth - 1, 1),
+        $lt: new Date(normalizedYear, normalizedMonth, 1),
+      },
+    };
+  }
+  if (normalizedYear) {
+    return {
+      createdAt: {
+        $gte: new Date(normalizedYear, 0, 1),
+        $lt: new Date(normalizedYear + 1, 0, 1),
+      },
+    };
+  }
+
+  return {
+    $expr: { $eq: [{ $month: "$createdAt" }, normalizedMonth] },
+  };
+};
+
 export const listBusinessContracts = async (req, res) => {
-  const { search = "", handoverStatus = "all", page = "1", limit = "200" } = req.query;
+  const { search = "", handoverStatus = "all", status = "all", month = "all", year = "all", page = "1", limit = "200" } = req.query;
   const pageNumber = parsePositiveInteger(page) || 1;
   const limitNumber = parsePositiveInteger(limit) || 200;
   const skip = (pageNumber - 1) * limitNumber;
@@ -82,6 +121,12 @@ export const listBusinessContracts = async (req, res) => {
   if (handoverStatus && handoverStatus !== "all") {
     filters.handoverStatus = normalizeString(handoverStatus);
   }
+
+  if (status && status !== "all") {
+    filters.status = normalizeString(status);
+  }
+
+  Object.assign(filters, buildContractCreatedAtFilter({ month, year }) || {});
 
   Object.assign(
     filters,
