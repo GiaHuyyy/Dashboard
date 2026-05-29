@@ -162,13 +162,14 @@ function BusinessManagement() {
                   <TableCell className="border border-slate-200 p-4">
                     <Button
                       icon={FileText}
-                      label="Xem hồ sơ"
+                      label="Hồ sơ tổng hợp"
                       onClick={(event) => {
                         event.stopPropagation();
                         navigate(`/kinh-doanh/hop-dong/${row.id}/ho-so`);
                       }}
                       variant="primary-outline"
-                      title="Xem hồ sơ hợp đồng"
+                      className=" hover:bg-sky-100"
+                      title="Xem hồ sơ hợp đồng tổng hợp"
                     />
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
