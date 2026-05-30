@@ -15,4 +15,6 @@ export const dashboardApi = {
   summary: () => request("/dashboard/summary"),
   monthlyStats: ({ year } = {}) => request(`/dashboard/monthly-stats${buildQuery({ year })}`),
   projectStatusSummary: ({ month, year } = {}) => request(`/dashboard/project-status-summary${buildQuery({ month, year })}`),
+  programWorkStatusSummary: ({ month, year } = {}) =>
+    request(`/dashboard/program-work-status-summary${buildQuery({ month, year })}`),
 };

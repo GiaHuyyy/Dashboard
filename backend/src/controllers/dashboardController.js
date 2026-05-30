@@ -5,6 +5,7 @@ import ProgramCorrection from "../models/ProgramCorrection.js";
 import ProgramSource from "../models/ProgramSource.js";
 import ProgramUpgrade from "../models/ProgramUpgrade.js";
 import { getBusinessContractStatusOptions } from "../services/businessContractService.js";
+import { getActiveCategoryNames } from "../utils/system-category.js";
 import { getSystemSettingValue } from "../services/systemSettingService.js";
 import { formatDateTime } from "../utils/date.js";
 import { sendOk } from "../utils/httpResponse.js";
@@ -112,6 +113,18 @@ const PROJECT_STATUS_KEYS = {
 
 const toProjectStatusKey = (status, index = 0) => PROJECT_STATUS_KEYS[status] || `status-${index + 1}`;
 
+const DEFAULT_WORK_STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"];
+
+const WORK_STATUS_KEYS = {
+  "Mới tạo": "new",
+  "Đã phân công": "assigned",
+  "Đang xử lý": "processing",
+  "Đã hoàn thành": "completed",
+};
+
+const toWorkStatusKey = (status, index = 0) => WORK_STATUS_KEYS[status] || `status-${index + 1}`;
+
+
 const normalizeStatsMonth = (value) => {
   if (value === undefined || value === null || value === "" || value === "all") return null;
   const parsed = Number(value);
@@ -158,6 +171,80 @@ const appendProjectStatusHrefFilters = (status, { month, year } = {}) => {
   if (month) params.set("month", String(month));
   if (year) params.set("year", String(year));
   return `/kinh-doanh/danh-sach?${params.toString()}`;
+};
+
+const appendWorkStatusHrefFilters = (basePath, status, { month, year } = {}) => {
+  const params = new URLSearchParams();
+  params.set("status", status);
+  if (month) params.set("month", String(month));
+  if (year) params.set("year", String(year));
+  return `${basePath}?${params.toString()}`;
+};
+
+const getDashboardWorkStatusOptions = async () => {
+  const statusOptions = await getActiveCategoryNames("status");
+  return statusOptions.length > 0 ? statusOptions : DEFAULT_WORK_STATUS_OPTIONS;
+};
+
+const buildProgramWorkStatusSummaryByType = async ({ model, basePath, month, year } = {}) => {
+  const normalizedMonth = normalizeStatsMonth(month);
+  const normalizedYear = normalizeOptionalStatsYear(year);
+  const statusOptions = await getDashboardWorkStatusOptions();
+  const match = {
+    isDeleted: false,
+    status: { $in: statusOptions },
+  };
+
+  Object.assign(match, buildCreatedAtMatchFilter({ month: normalizedMonth, year: normalizedYear }) || {});
+
+  const rows = await model.aggregate([
+    { $match: match },
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+
+  const countMap = rows.reduce((result, item) => {
+    result[item._id] = Number(item.count || 0);
+    return result;
+  }, {});
+
+  const items = statusOptions.map((status, index) => ({
+    key: toWorkStatusKey(status, index),
+    status,
+    label: status,
+    value: countMap[status] || 0,
+    href: appendWorkStatusHrefFilters(basePath, status, { month: normalizedMonth, year: normalizedYear }),
+  }));
+
+  return {
+    month: normalizedMonth || "all",
+    year: normalizedYear || "all",
+    total: items.reduce((sum, item) => sum + Number(item.value || 0), 0),
+    items,
+  };
+};
+
+const buildProgramWorkStatusSummary = async ({ month, year } = {}) => {
+  const [correction, upgrade] = await Promise.all([
+    buildProgramWorkStatusSummaryByType({
+      model: ProgramCorrection,
+      basePath: "/lap-trinh/chinh-sua",
+      month,
+      year,
+    }),
+    buildProgramWorkStatusSummaryByType({
+      model: ProgramUpgrade,
+      basePath: "/lap-trinh/nang-cap",
+      month,
+      year,
+    }),
+  ]);
+
+  return {
+    month: correction.month,
+    year: correction.year,
+    correction,
+    upgrade,
+  };
 };
 
 const buildContractProjectStatusSummary = async ({ month, year } = {}) => {
@@ -278,13 +365,31 @@ export const getDashboardProjectStatusSummary = async (req, res) => {
   return sendOk(res, { projectStatusSummary });
 };
 
+export const getDashboardProgramWorkStatusSummary = async (req, res) => {
+  const programWorkStatusSummary = await buildProgramWorkStatusSummary({
+    month: req.query?.month,
+    year: req.query?.year,
+  });
+  return sendOk(res, { programWorkStatusSummary });
+};
+
 export const getDashboardSummary = async (req, res) => {
   const now = new Date();
   const statsYear = normalizeStatsYear(req.query?.year, now);
   const warningBeforeHours = await getWarningBeforeHours();
   const warningBeforeMs = warningBeforeHours * 60 * 60 * 1000;
 
-  const [programs, corrections, upgrades, designs, sources, contracts, monthlyStats, projectStatusSummary] = await Promise.all([
+  const [
+    programs,
+    corrections,
+    upgrades,
+    designs,
+    sources,
+    contracts,
+    monthlyStats,
+    projectStatusSummary,
+    programWorkStatusSummary,
+  ] = await Promise.all([
     Program.find({ isDeleted: false, processingStatus: { $ne: COMPLETED_STATUS } })
       .select("contractCode module processingStatus dueAt")
       .lean(),
@@ -312,6 +417,7 @@ export const getDashboardSummary = async (req, res) => {
       .lean(),
     buildMonthlyStats({ year: statsYear }),
     buildContractProjectStatusSummary(),
+    buildProgramWorkStatusSummary(),
   ]);
 
   const programAlerts = programs
@@ -416,6 +522,7 @@ export const getDashboardSummary = async (req, res) => {
     warningBeforeHours,
     monthlyStats,
     projectStatusSummary,
+    programWorkStatusSummary,
     cards: {
       program: {
         label: "Lập trình đang xử lý",

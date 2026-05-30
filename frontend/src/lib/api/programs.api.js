@@ -42,11 +42,12 @@ export const programApi = {
 
 
 export const correctionApi = {
-  list: ({ assignee = "all", month = "all", year = "all", search = "", page = 1, limit = 50 } = {}) => {
+  list: ({ assignee = "all", month = "all", year = "all", status = "all", search = "", page = 1, limit = 50 } = {}) => {
     const searchParams = new URLSearchParams();
     searchParams.set("assignee", assignee);
     searchParams.set("month", String(month));
     searchParams.set("year", String(year));
+    searchParams.set("status", status);
     searchParams.set("search", search);
     searchParams.set("page", String(page));
     searchParams.set("limit", String(limit));
@@ -76,11 +77,12 @@ export const correctionApi = {
 
 
 export const upgradeApi = {
-  list: ({ assignee = "all", month = "all", year = "all", search = "", page = 1, limit = 50 } = {}) => {
+  list: ({ assignee = "all", month = "all", year = "all", status = "all", search = "", page = 1, limit = 50 } = {}) => {
     const searchParams = new URLSearchParams();
     searchParams.set("assignee", assignee);
     searchParams.set("month", String(month));
     searchParams.set("year", String(year));
+    searchParams.set("status", status);
     searchParams.set("search", search);
     searchParams.set("page", String(page));
     searchParams.set("limit", String(limit));

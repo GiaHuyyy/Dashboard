@@ -1,6 +1,6 @@
 import { SquarePen, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ManagementActions } from "@/components/management/ManagementActions";
@@ -36,6 +36,7 @@ const formatDateTime = (value) => {
 
 function ProgramEditManagement() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { can } = usePermission();
   const canCreate = can(PERMISSIONS.CORRECTION_CREATE);
   const canUpdate = can(PERMISSIONS.CORRECTION_UPDATE);
@@ -48,8 +49,15 @@ function ProgramEditManagement() {
   const [limit, setLimit] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProgrammer, setSelectedProgrammer] = useState("Tất cả");
-  const [selectedMonth, setSelectedMonth] = useState("Tất cả");
-  const [selectedYear, setSelectedYear] = useState("Tất cả");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const initialMonth = searchParams.get("month");
+    return initialMonth && initialMonth !== "all" ? `Tháng ${initialMonth}` : "Tất cả";
+  });
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const initialYear = searchParams.get("year");
+    return initialYear && initialYear !== "all" ? initialYear : "Tất cả";
+  });
+  const [selectedStatus, setSelectedStatus] = useState(() => searchParams.get("status") || "Tất cả");
   const [searchText, setSearchText] = useState("");
   const debouncedSearchText = useDebouncedValue(searchText, 2000);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -70,6 +78,7 @@ function ProgramEditManagement() {
         assignee: selectedProgrammer === "Tất cả" ? "all" : selectedProgrammer,
         month: selectedMonth === "Tất cả" ? "all" : Number(selectedMonth.split(" ")[1]),
         year: selectedYear === "Tất cả" ? "all" : Number(selectedYear),
+        status: selectedStatus === "Tất cả" ? "all" : selectedStatus,
         search: debouncedSearchText.trim(),
         page,
         limit,
@@ -82,7 +91,7 @@ function ProgramEditManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearchText, selectedMonth, selectedProgrammer, selectedYear, page, limit]);
+  }, [debouncedSearchText, selectedMonth, selectedProgrammer, selectedStatus, selectedYear, page, limit]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -287,6 +296,21 @@ function ProgramEditManagement() {
           {YEAR_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option === "Tất cả" ? "Chọn năm" : option}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+          value={selectedStatus}
+          onChange={(event) => {
+            setSelectedStatus(event.target.value);
+            setPage(1);
+          }}
+        >
+          {["Tất cả", ...(statusCategories.values || [])].map((option) => (
+            <option key={option} value={option}>
+              {option === "Tất cả" ? "Chọn trạng thái" : option}
             </option>
           ))}
         </select>

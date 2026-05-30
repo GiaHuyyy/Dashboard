@@ -51,7 +51,7 @@ export const createProgramCorrection = async (req, res) => {
 };
 
 export const listProgramCorrections = async (req, res) => {
-  const { assignee = "all", month = "all", year = "all", search = "", page = "1", limit = "20" } = req.query;
+  const { assignee = "all", month = "all", year = "all", status = "all", search = "", page = "1", limit = "20" } = req.query;
   const pageNumber = parsePositiveInteger(page) || 1;
   const limitNumber = parsePositiveInteger(limit) || 20;
   const skip = (pageNumber - 1) * limitNumber;
@@ -59,6 +59,10 @@ export const listProgramCorrections = async (req, res) => {
   const filters = { isDeleted: false };
   if (assignee && assignee !== "all") {
     filters.assignee = normalizeString(assignee);
+  }
+
+  if (status && status !== "all") {
+    filters.status = normalizeString(status);
   }
 
   const { startDate, endDate } = buildMonthYearDateRange({ month, year });

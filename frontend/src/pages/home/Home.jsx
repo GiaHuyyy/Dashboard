@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, BarChart3, Clock3, FileText, FolderKanban, RefreshCcw, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, BarChart3, Clock3, FileText, FolderKanban, RefreshCcw, SquarePen, Wrench, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -92,6 +92,13 @@ const projectStatusTextColors = {
   paused: "text-rose-600",
 };
 
+const workStatusTextColors = {
+  new: "text-slate-600",
+  assigned: "text-sky-600",
+  processing: "text-amber-600",
+  completed: "text-emerald-600",
+};
+
 const buildYearOptions = () => {
   const currentYear = new Date().getFullYear();
   return Array.from({ length: 5 }, (_, index) => currentYear - index);
@@ -122,6 +129,10 @@ function Home() {
     alertSummary: {},
     warningBeforeHours: 24,
     projectStatusSummary: { items: [], total: 0 },
+    programWorkStatusSummary: {
+      correction: { items: [], total: 0 },
+      upgrade: { items: [], total: 0 },
+    },
   });
   const [monthlyStats, setMonthlyStats] = useState({ items: [], types: [], totals: {} });
   const [isMonthlyLoading, setIsMonthlyLoading] = useState(false);
@@ -135,6 +146,12 @@ function Home() {
   const [projectStatusMonth, setProjectStatusMonth] = useState("all");
   const [projectStatusYear, setProjectStatusYear] = useState("all");
   const [isProjectStatusLoading, setIsProjectStatusLoading] = useState(false);
+  const [correctionStatusMonth, setCorrectionStatusMonth] = useState("all");
+  const [correctionStatusYear, setCorrectionStatusYear] = useState("all");
+  const [isCorrectionStatusLoading, setIsCorrectionStatusLoading] = useState(false);
+  const [upgradeStatusMonth, setUpgradeStatusMonth] = useState("all");
+  const [upgradeStatusYear, setUpgradeStatusYear] = useState("all");
+  const [isUpgradeStatusLoading, setIsUpgradeStatusLoading] = useState(false);
 
   const cards = useMemo(() => ({ ...emptyCards, ...(summary.cards || {}) }), [summary.cards]);
 
@@ -150,6 +167,10 @@ function Home() {
         alertSummary: response?.alertSummary || {},
         warningBeforeHours: response?.warningBeforeHours ?? 24,
         projectStatusSummary: response?.projectStatusSummary || { items: [], total: 0 },
+        programWorkStatusSummary: response?.programWorkStatusSummary || {
+          correction: { items: [], total: 0 },
+          upgrade: { items: [], total: 0 },
+        },
       });
 
       if (shouldSyncMonthlyStats) {
@@ -190,6 +211,44 @@ function Home() {
     }
   }, []);
 
+  const fetchCorrectionStatusSummary = useCallback(async ({ month, year }) => {
+    setIsCorrectionStatusLoading(true);
+    try {
+      const response = await dashboardApi.programWorkStatusSummary({ month, year });
+      const nextCorrectionSummary = response?.programWorkStatusSummary?.correction || { items: [], total: 0 };
+      setSummary((current) => ({
+        ...current,
+        programWorkStatusSummary: {
+          correction: nextCorrectionSummary,
+          upgrade: current.programWorkStatusSummary?.upgrade || { items: [], total: 0 },
+        },
+      }));
+    } catch (error) {
+      toast.error(error?.message || "Không thể tải thống kê trạng thái chỉnh sửa");
+    } finally {
+      setIsCorrectionStatusLoading(false);
+    }
+  }, []);
+
+  const fetchUpgradeStatusSummary = useCallback(async ({ month, year }) => {
+    setIsUpgradeStatusLoading(true);
+    try {
+      const response = await dashboardApi.programWorkStatusSummary({ month, year });
+      const nextUpgradeSummary = response?.programWorkStatusSummary?.upgrade || { items: [], total: 0 };
+      setSummary((current) => ({
+        ...current,
+        programWorkStatusSummary: {
+          correction: current.programWorkStatusSummary?.correction || { items: [], total: 0 },
+          upgrade: nextUpgradeSummary,
+        },
+      }));
+    } catch (error) {
+      toast.error(error?.message || "Không thể tải thống kê trạng thái nâng cấp");
+    } finally {
+      setIsUpgradeStatusLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void fetchSummary();
   }, [fetchSummary]);
@@ -205,11 +264,26 @@ function Home() {
     void fetchProjectStatusSummary({ month: projectStatusMonth, year: projectStatusYear });
   }, [fetchProjectStatusSummary, projectStatusMonth, projectStatusYear]);
 
+  useEffect(() => {
+    if (!hasLoadedSummaryRef.current) return;
+    void fetchCorrectionStatusSummary({ month: correctionStatusMonth, year: correctionStatusYear });
+  }, [fetchCorrectionStatusSummary, correctionStatusMonth, correctionStatusYear]);
+
+  useEffect(() => {
+    if (!hasLoadedSummaryRef.current) return;
+    void fetchUpgradeStatusSummary({ month: upgradeStatusMonth, year: upgradeStatusYear });
+  }, [fetchUpgradeStatusSummary, upgradeStatusMonth, upgradeStatusYear]);
+
   const cardItems = [cards.program, cards.correction, cards.upgrade, cards.design, cards.source, cards.contract];
   const monthlyItems = Array.isArray(monthlyStats.items) ? monthlyStats.items : [];
   const monthlyTypes = Array.isArray(monthlyStats.types) ? monthlyStats.types : [];
   const projectStatusSummary = summary.projectStatusSummary || { items: [], total: 0 };
   const projectStatusItems = Array.isArray(projectStatusSummary.items) ? projectStatusSummary.items : [];
+  const programWorkStatusSummary = summary.programWorkStatusSummary || {};
+  const correctionStatusSummary = programWorkStatusSummary.correction || { items: [], total: 0 };
+  const upgradeStatusSummary = programWorkStatusSummary.upgrade || { items: [], total: 0 };
+  const correctionStatusItems = Array.isArray(correctionStatusSummary.items) ? correctionStatusSummary.items : [];
+  const upgradeStatusItems = Array.isArray(upgradeStatusSummary.items) ? upgradeStatusSummary.items : [];
   const visibleMonthlyItems = useMemo(() => {
     if (monthlyRange === "first") return monthlyItems.slice(0, 6);
     if (monthlyRange === "second") return monthlyItems.slice(6, 12);
@@ -308,6 +382,140 @@ function Home() {
               </p>
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <SquarePen className="h-5 w-5 text-sky-600" />
+                <h2 className="text-base font-semibold text-slate-700">Thống kê trạng thái chỉnh sửa</h2>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Thống kê yêu cầu chỉnh sửa theo 4 trạng thái của danh mục Trạng thái.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <select
+                value={correctionStatusMonth}
+                onChange={(event) => setCorrectionStatusMonth(event.target.value)}
+                disabled={isCorrectionStatusLoading}
+                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                {projectStatusMonthOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={correctionStatusYear}
+                onChange={(event) => setCorrectionStatusYear(event.target.value)}
+                disabled={isCorrectionStatusLoading}
+                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                {projectStatusYearOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
+                Tổng {correctionStatusSummary.total || 0}
+              </span>
+            </div>
+          </div>
+
+          {isCorrectionStatusLoading ? (
+            <div className="mt-4 rounded-lg border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700">
+              Đang tải thống kê trạng thái chỉnh sửa...
+            </div>
+          ) : null}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {correctionStatusItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => item.href && navigate(item.href)}
+                className="group rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-sky-200 hover:bg-sky-50 hover:shadow-sm"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+                <p className={`mt-2 text-2xl font-semibold ${workStatusTextColors[item.key] || "text-slate-700"}`}>
+                  {item.value || 0}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Wrench className="h-5 w-5 text-sky-600" />
+                <h2 className="text-base font-semibold text-slate-700">Thống kê trạng thái nâng cấp</h2>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Thống kê yêu cầu nâng cấp theo 4 trạng thái của danh mục Trạng thái.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <select
+                value={upgradeStatusMonth}
+                onChange={(event) => setUpgradeStatusMonth(event.target.value)}
+                disabled={isUpgradeStatusLoading}
+                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                {projectStatusMonthOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={upgradeStatusYear}
+                onChange={(event) => setUpgradeStatusYear(event.target.value)}
+                disabled={isUpgradeStatusLoading}
+                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                {projectStatusYearOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
+                Tổng {upgradeStatusSummary.total || 0}
+              </span>
+            </div>
+          </div>
+
+          {isUpgradeStatusLoading ? (
+            <div className="mt-4 rounded-lg border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700">
+              Đang tải thống kê trạng thái nâng cấp...
+            </div>
+          ) : null}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {upgradeStatusItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => item.href && navigate(item.href)}
+                className="group rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-sky-200 hover:bg-sky-50 hover:shadow-sm"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+                <p className={`mt-2 text-2xl font-semibold ${workStatusTextColors[item.key] || "text-slate-700"}`}>
+                  {item.value || 0}
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
