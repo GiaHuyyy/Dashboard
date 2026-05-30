@@ -16,6 +16,13 @@ const workStatusTextColors = {
   completed: "text-emerald-600",
 };
 
+const priorityDotColors = {
+  Thấp: "bg-slate-500",
+  "Trung bình": "bg-sky-500",
+  Cao: "bg-amber-500",
+  Khẩn: "bg-rose-500",
+};
+
 function StatusFilterSelect({ value, onChange, disabled, options }) {
   return (
     <select
@@ -33,11 +40,28 @@ function StatusFilterSelect({ value, onChange, disabled, options }) {
   );
 }
 
-function StatusSummaryCard({ icon: Icon, title, description, total, items, colorMap, isLoading, loadingText, gridClass, month, year, onMonthChange, onYearChange, monthOptions, yearOptions }) {
+function StatusSummaryCard({
+  icon: Icon,
+  title,
+  description,
+  total,
+  items,
+  colorMap,
+  isLoading,
+  loadingText,
+  gridClass,
+  month,
+  year,
+  onMonthChange,
+  onYearChange,
+  monthOptions,
+  yearOptions,
+  showPriorityCounts = false,
+}) {
   const navigate = useNavigate();
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border-t-sky-500 border-t-3 border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -50,7 +74,7 @@ function StatusSummaryCard({ icon: Icon, title, description, total, items, color
         <div className="flex flex-wrap items-center justify-end gap-2">
           <StatusFilterSelect value={month} onChange={onMonthChange} disabled={isLoading} options={monthOptions} />
           <StatusFilterSelect value={year} onChange={onYearChange} disabled={isLoading} options={yearOptions} />
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-sky-700">
             Tổng {total || 0}
           </span>
         </div>
@@ -71,9 +95,27 @@ function StatusSummaryCard({ icon: Icon, title, description, total, items, color
             className="group rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-sky-200 hover:bg-sky-50 hover:shadow-sm"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
-            <p className={`mt-2 text-2xl font-semibold ${colorMap[item.key] || "text-slate-700"}`}>
-              {item.value || 0}
-            </p>
+            <p className={`mt-2 text-2xl font-semibold ${colorMap[item.key] || "text-slate-700"}`}>{item.value || 0}</p>
+
+            {showPriorityCounts && Array.isArray(item.priorityCounts) ? (
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 pt-2 text-xs font-medium text-slate-500">
+                {item.priorityCounts.map((priorityItem) => {
+                  const priorityLabel = priorityItem.label || priorityItem.priority;
+                  return (
+                    <span
+                      key={priorityItem.key || priorityLabel}
+                      className="inline-flex items-center gap-1.5 whitespace-nowrap"
+                      title={`${priorityLabel}: ${priorityItem.value || 0}`}
+                    >
+                      <span className={`h-2 w-2 rounded-full ${priorityDotColors[priorityLabel] || "bg-slate-400"}`} />
+                      <span>
+                        {priorityLabel}: <span className="font-semibold text-slate-700">{priorityItem.value || 0}</span>
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : null}
           </button>
         ))}
       </div>
@@ -143,6 +185,7 @@ export function StatusSummarySection({
           onYearChange={setCorrectionStatusYear}
           monthOptions={monthOptions}
           yearOptions={yearOptions}
+          showPriorityCounts
         />
 
         <StatusSummaryCard
@@ -161,6 +204,7 @@ export function StatusSummarySection({
           onYearChange={setUpgradeStatusYear}
           monthOptions={monthOptions}
           yearOptions={yearOptions}
+          showPriorityCounts
         />
       </div>
     </>

@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Clock3, FileText, RefreshCcw, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, CircleAlert, Clock3, FileText, RefreshCcw, Zap } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -71,7 +71,7 @@ export function WorkAlertsSection({
 
   return (
     <>
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border-t-sky-500 border-t-3 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -117,9 +117,9 @@ export function WorkAlertsSection({
         </div>
       </div>
 
-      <div className="mt-6 grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border-t-3 border-t-sky-500 px-4 py-3">
             <div>
               <h2 className="text-base font-semibold text-gray-500">Cảnh báo gần nhất</h2>
               <p className="mt-1 text-sm text-slate-400">Quá hạn được ưu tiên hiển thị trước.</p>
@@ -127,12 +127,13 @@ export function WorkAlertsSection({
             <div className="flex flex-wrap items-center justify-end gap-2">
               {totalOverdue > 0 ? (
                 <span className="rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-700">
-                  <AlertTriangle className="mr-1 inline h-4 w-4" />
+                  <AlertTriangle className="mr-1 mb-0.5 inline h-4 w-4" />
                   {totalOverdue} quá hạn
                 </span>
               ) : null}
               {totalWarning > 0 ? (
                 <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+                  <CircleAlert className="mr-1 mb-0.5 inline h-4 w-4" />
                   {totalWarning} sắp đến hạn
                 </span>
               ) : null}
@@ -216,7 +217,7 @@ export function WorkAlertsSection({
           <div className="rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
             <h2 className="text-base font-semibold text-gray-500">Ghi chú SLA</h2>
           </div>
-          <div className="space-y-3 border-x border-b border-slate-200 p-4 text-sm text-slate-500">
+          <div className="space-y-3 p-4 text-sm text-slate-500">
             <p>
               <span className="font-semibold text-slate-700">Sắp đến hạn</span> khi thời gian còn lại nhỏ hơn hoặc bằng
               cấu hình cảnh báo trước hạn.

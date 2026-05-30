@@ -114,6 +114,7 @@ const PROJECT_STATUS_KEYS = {
 const toProjectStatusKey = (status, index = 0) => PROJECT_STATUS_KEYS[status] || `status-${index + 1}`;
 
 const DEFAULT_WORK_STATUS_OPTIONS = ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"];
+const DEFAULT_PRIORITY_OPTIONS = ["Thấp", "Trung bình", "Cao", "Khẩn"];
 
 const WORK_STATUS_KEYS = {
   "Mới tạo": "new",
@@ -123,6 +124,15 @@ const WORK_STATUS_KEYS = {
 };
 
 const toWorkStatusKey = (status, index = 0) => WORK_STATUS_KEYS[status] || `status-${index + 1}`;
+
+const PRIORITY_KEYS = {
+  "Thấp": "low",
+  "Trung bình": "medium",
+  "Cao": "high",
+  "Khẩn": "urgent",
+};
+
+const toPriorityKey = (priority, index = 0) => PRIORITY_KEYS[priority] || `priority-${index + 1}`;
 
 
 const normalizeStatsMonth = (value) => {
@@ -186,10 +196,18 @@ const getDashboardWorkStatusOptions = async () => {
   return statusOptions.length > 0 ? statusOptions : DEFAULT_WORK_STATUS_OPTIONS;
 };
 
+const getDashboardPriorityOptions = async () => {
+  const priorityOptions = await getActiveCategoryNames("priority");
+  return priorityOptions.length > 0 ? priorityOptions : DEFAULT_PRIORITY_OPTIONS;
+};
+
 const buildProgramWorkStatusSummaryByType = async ({ model, basePath, month, year } = {}) => {
   const normalizedMonth = normalizeStatsMonth(month);
   const normalizedYear = normalizeOptionalStatsYear(year);
-  const statusOptions = await getDashboardWorkStatusOptions();
+  const [statusOptions, priorityOptions] = await Promise.all([
+    getDashboardWorkStatusOptions(),
+    getDashboardPriorityOptions(),
+  ]);
   const match = {
     isDeleted: false,
     status: { $in: statusOptions },
@@ -199,21 +217,40 @@ const buildProgramWorkStatusSummaryByType = async ({ model, basePath, month, yea
 
   const rows = await model.aggregate([
     { $match: match },
-    { $group: { _id: "$status", count: { $sum: 1 } } },
+    {
+      $group: {
+        _id: { status: "$status", priority: "$priority" },
+        count: { $sum: 1 },
+      },
+    },
   ]);
 
   const countMap = rows.reduce((result, item) => {
-    result[item._id] = Number(item.count || 0);
+    const status = item._id?.status || "";
+    const priority = item._id?.priority || "";
+    if (!result[status]) result[status] = { total: 0, priorities: {} };
+    const count = Number(item.count || 0);
+    result[status].total += count;
+    result[status].priorities[priority] = count;
     return result;
   }, {});
 
-  const items = statusOptions.map((status, index) => ({
-    key: toWorkStatusKey(status, index),
-    status,
-    label: status,
-    value: countMap[status] || 0,
-    href: appendWorkStatusHrefFilters(basePath, status, { month: normalizedMonth, year: normalizedYear }),
-  }));
+  const items = statusOptions.map((status, index) => {
+    const statusCount = countMap[status] || { total: 0, priorities: {} };
+    return {
+      key: toWorkStatusKey(status, index),
+      status,
+      label: status,
+      value: statusCount.total || 0,
+      href: appendWorkStatusHrefFilters(basePath, status, { month: normalizedMonth, year: normalizedYear }),
+      priorityCounts: priorityOptions.map((priority, priorityIndex) => ({
+        key: toPriorityKey(priority, priorityIndex),
+        priority,
+        label: priority,
+        value: statusCount.priorities[priority] || 0,
+      })),
+    };
+  });
 
   return {
     month: normalizedMonth || "all",
