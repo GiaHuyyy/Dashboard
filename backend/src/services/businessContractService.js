@@ -11,6 +11,8 @@ import { escapeRegex } from "../utils/query.js";
 
 export const BUSINESS_CONTRACT_HANDOVER_STATUS_OPTIONS = ["Chưa bàn giao", "Đã bàn giao"];
 export const BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE = "contractProjectStatus";
+export const BUSINESS_CONTRACT_TYPE_CATEGORY_TYPE = "contractType";
+export const BUSINESS_CONTRACT_TYPE_OPTIONS = ["Giao diện", "Lập trình", "Nâng cấp", "Upsource"];
 export const BUSINESS_CONTRACT_STATUS_OPTIONS = ["Chưa nhận", "Đã nhận", "Đang làm", "Ưu tiên", "Hoãn"];
 export const BUSINESS_CONTRACT_LEGACY_STATUS_OPTIONS = ["Đang xử lý", "Hoàn thành"];
 export const BUSINESS_CONTRACT_ALLOWED_STATUS_OPTIONS = [
@@ -34,6 +36,20 @@ export const getBusinessContractStatusOptions = async ({ includeLegacy = true } 
   const nextStatuses = includeLegacy ? [...baseStatuses, ...BUSINESS_CONTRACT_LEGACY_STATUS_OPTIONS] : baseStatuses;
 
   return [...new Set(nextStatuses)];
+};
+
+export const getBusinessContractTypeOptions = async () => {
+  const categories = await SystemCategory.find({
+    type: BUSINESS_CONTRACT_TYPE_CATEGORY_TYPE,
+    isActive: true,
+    isDeleted: false,
+  })
+    .sort({ sortOrder: 1, createdAt: 1 })
+    .select("name")
+    .lean();
+
+  const activeTypes = categories.map((item) => normalizeString(item.name)).filter(Boolean);
+  return activeTypes.length > 0 ? activeTypes : BUSINESS_CONTRACT_TYPE_OPTIONS;
 };
 
 
@@ -99,6 +115,7 @@ export const normalizeBusinessContractPayload = (body = {}) => {
     customerName,
     customerPhone: normalizeString(body.customerPhone),
     customerEmail,
+    contractType: normalizeString(body.contractType) || BUSINESS_CONTRACT_TYPE_OPTIONS[0],
     status: normalizeString(body.status) || BUSINESS_CONTRACT_STATUS_OPTIONS[0],
     mailStatus: normalizeString(body.mailStatus) || BUSINESS_CONTRACT_MAIL_STATUS_OPTIONS[0],
     selectedSalesStaff: normalizeString(body.selectedSalesStaff),
@@ -123,7 +140,18 @@ export const validateBusinessContractPayload = async (payload, { excludeId = "" 
   if (!payload.selectedSalesStaff) return { status: 400, message: "selectedSalesStaff là bắt buộc" };
   if (!payload.expectedHandoverAt) return { status: 400, message: "expectedHandoverAt là bắt buộc" };
 
-  const allowedStatusOptions = await getBusinessContractStatusOptions({ includeLegacy: true });
+  const [allowedTypeOptions, allowedStatusOptions] = await Promise.all([
+    getBusinessContractTypeOptions(),
+    getBusinessContractStatusOptions({ includeLegacy: true }),
+  ]);
+
+  if (!allowedTypeOptions.includes(payload.contractType)) {
+    return {
+      status: 400,
+      message: `contractType không hợp lệ. Giá trị cho phép: ${allowedTypeOptions.join(", ")}`,
+    };
+  }
+
   if (!allowedStatusOptions.includes(payload.status)) {
     return {
       status: 400,
@@ -182,6 +210,7 @@ export const toBusinessContractResponseItem = (doc) => ({
   customerName: doc.customerName,
   customerPhone: doc.customerPhone || "",
   customerEmail: doc.customerEmail || "",
+  contractType: doc.contractType || BUSINESS_CONTRACT_TYPE_OPTIONS[0],
   status: doc.status || BUSINESS_CONTRACT_STATUS_OPTIONS[0],
   mailStatus: doc.mailStatus || BUSINESS_CONTRACT_MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: doc.selectedSalesStaff || "",
@@ -207,6 +236,7 @@ export const toBusinessContractReferenceItem = (item) => ({
   contractName: item.contractName || "",
   contractValue: Number(item.contractValue) || 0,
   customerName: item.customerName || "",
+  contractType: item.contractType || BUSINESS_CONTRACT_TYPE_OPTIONS[0],
   status: item.status || BUSINESS_CONTRACT_STATUS_OPTIONS[0],
   mailStatus: item.mailStatus || BUSINESS_CONTRACT_MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: item.selectedSalesStaff || "",

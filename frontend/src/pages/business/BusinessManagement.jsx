@@ -6,8 +6,14 @@ import { toast } from "sonner";
 import { ManagementActions } from "@/components/management/ManagementActions";
 import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { ManagementTableCard } from "@/components/management/ManagementTableCard";
+import { InlineContractTypeSelect } from "@/components/table/InlineContractTypeSelect";
 import { InlineProjectStatusSelect } from "@/components/table/InlineProjectStatusSelect";
-import { BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE, BUSINESS_CONTRACT_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
+import {
+  BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE,
+  BUSINESS_CONTRACT_STATUS_OPTIONS,
+  BUSINESS_CONTRACT_TYPE_CATEGORY_TYPE,
+  HANDOVER_STATUS_OPTIONS,
+} from "@/constants/business-contract";
 import { useManagementList } from "@/hooks/useManagementList";
 import { businessContractApi, systemCategoryApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button-v2";
@@ -41,15 +47,18 @@ function BusinessManagement() {
   const canDelete = can(PERMISSIONS.CONTRACT_DELETE);
 
   const [selectedHandoverStatus, setSelectedHandoverStatus] = useState("all");
+  const [selectedContractType, setSelectedContractType] = useState(searchParams.get("contractType") || "all");
   const [selectedProjectStatus, setSelectedProjectStatus] = useState(searchParams.get("status") || "all");
   const [selectedMonth, setSelectedMonth] = useState(searchParams.get("month") || "all");
   const [selectedYear, setSelectedYear] = useState(searchParams.get("year") || "all");
+  const [contractTypeOptions, setContractTypeOptions] = useState([]);
   const [projectStatusOptions, setProjectStatusOptions] = useState(BUSINESS_CONTRACT_STATUS_OPTIONS);
   const yearFilterOptions = buildYearFilterOptions();
 
   const getBusinessListParams = useCallback(
     ({ searchText, page, limit }) => ({
       handoverStatus: selectedHandoverStatus,
+      contractType: selectedContractType,
       status: selectedProjectStatus,
       month: selectedMonth,
       year: selectedYear,
@@ -57,14 +66,14 @@ function BusinessManagement() {
       page,
       limit,
     }),
-    [selectedHandoverStatus, selectedMonth, selectedProjectStatus, selectedYear],
+    [selectedContractType, selectedHandoverStatus, selectedMonth, selectedProjectStatus, selectedYear],
   );
 
   useEffect(() => {
-    const fetchProjectStatusOptions = async () => {
+    const fetchCategoryOptions = async ({ type, fallback, setter }) => {
       try {
         const response = await systemCategoryApi.list({
-          type: BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE,
+          type,
           limit: 200,
         });
         const options = Array.isArray(response?.categories)
@@ -73,14 +82,30 @@ function BusinessManagement() {
               .map((item) => item.name)
               .filter(Boolean)
           : [];
-        setProjectStatusOptions(options.length > 0 ? options : BUSINESS_CONTRACT_STATUS_OPTIONS);
+        setter(options.length > 0 ? options : fallback);
       } catch {
-        setProjectStatusOptions(BUSINESS_CONTRACT_STATUS_OPTIONS);
+        setter(fallback);
       }
     };
 
-    void fetchProjectStatusOptions();
+    void fetchCategoryOptions({
+      type: BUSINESS_CONTRACT_TYPE_CATEGORY_TYPE,
+      fallback: [],
+      setter: setContractTypeOptions,
+    });
+    void fetchCategoryOptions({
+      type: BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE,
+      fallback: BUSINESS_CONTRACT_STATUS_OPTIONS,
+      setter: setProjectStatusOptions,
+    });
   }, []);
+
+  const filterContractTypeOptions = useMemo(() => {
+    if (selectedContractType !== "all" && !contractTypeOptions.includes(selectedContractType)) {
+      return [selectedContractType, ...contractTypeOptions];
+    }
+    return contractTypeOptions;
+  }, [contractTypeOptions, selectedContractType]);
 
   const filterProjectStatusOptions = useMemo(() => {
     if (selectedProjectStatus !== "all" && !projectStatusOptions.includes(selectedProjectStatus)) {
@@ -127,6 +152,45 @@ function BusinessManagement() {
   });
 
 
+  const handleContractTypeChange = useCallback(
+    async (row, nextContractType) => {
+      if (!row?.id || nextContractType === row.contractType) return;
+
+      if (!canUpdate) {
+        toast.error("Bạn không có quyền cập nhật loại hợp đồng");
+        return;
+      }
+
+      const previousContractType = row.contractType;
+      setRows((prevRows) =>
+        prevRows.map((item) => (item.id === row.id ? { ...item, contractType: nextContractType } : item)),
+      );
+
+      try {
+        const response = await businessContractApi.update(row.id, { contractType: nextContractType, status: row.status });
+        const updatedContract = response?.contract;
+        setRows((prevRows) =>
+          prevRows.map((item) =>
+            item.id === row.id
+              ? {
+                  ...item,
+                  ...(updatedContract || {}),
+                  contractType: updatedContract?.contractType || nextContractType,
+                }
+              : item,
+          ),
+        );
+        toast.success("Đã cập nhật loại hợp đồng");
+      } catch (error) {
+        setRows((prevRows) =>
+          prevRows.map((item) => (item.id === row.id ? { ...item, contractType: previousContractType } : item)),
+        );
+        toast.error(error?.message || "Cập nhật loại hợp đồng không thành công");
+      }
+    },
+    [canUpdate, setRows],
+  );
+
   const handleProjectStatusChange = useCallback(
     async (row, nextStatus) => {
       if (!row?.id || nextStatus === row.status) return;
@@ -142,7 +206,7 @@ function BusinessManagement() {
       );
 
       try {
-        const response = await businessContractApi.update(row.id, { status: nextStatus });
+        const response = await businessContractApi.update(row.id, { status: nextStatus, contractType: row.contractType });
         const updatedContract = response?.contract;
         setRows((prevRows) =>
           prevRows.map((item) =>
@@ -192,6 +256,21 @@ function BusinessManagement() {
         >
           <option value="all">Trạng thái bàn giao</option>
           {HANDOVER_STATUS_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <select
+          className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+          value={selectedContractType}
+          onChange={(event) => {
+            setSelectedContractType(event.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="all">Loại hợp đồng</option>
+          {filterContractTypeOptions.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
@@ -260,6 +339,7 @@ function BusinessManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Hồ sơ</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Số hợp đồng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Tên hợp đồng</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Loại hợp đồng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Trạng thái dự án</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Khách hàng</TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Nhân viên kinh doanh</TableHead>
@@ -275,13 +355,13 @@ function BusinessManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={16} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={15} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={16} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -315,6 +395,15 @@ function BusinessManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.contractCode}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.contractName}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">
+                    <InlineContractTypeSelect
+                      value={row.contractType}
+                      options={contractTypeOptions}
+                      disabled={!canUpdate}
+                      onChange={(nextContractType) => void handleContractTypeChange(row, nextContractType)}
+                      title={!canUpdate ? "Bạn không có quyền cập nhật loại hợp đồng" : "Cập nhật loại hợp đồng"}
+                    />
+                  </TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     <InlineProjectStatusSelect
                       value={row.status}

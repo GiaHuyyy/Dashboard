@@ -23,6 +23,7 @@ const CATEGORY_TYPES = [
   { value: "priority", label: "Ưu tiên", description: "Danh mục ưu tiên" },
   { value: "websiteTemplate", label: "Website mẫu", description: "danh mục website mẫu" },
   { value: "contractProjectStatus", label: "Trạng thái dự án", description: "Danh mục trạng thái dự án hợp đồng" },
+  { value: "contractType", label: "Loại hợp đồng", description: "Danh mục loại hợp đồng" },
 ];
 
 const formSchema = z.object({

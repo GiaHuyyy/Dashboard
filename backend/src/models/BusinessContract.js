@@ -51,6 +51,12 @@ const businessContractSchema = new mongoose.Schema(
       lowercase: true,
       default: "",
     },
+    contractType: {
+      type: String,
+      required: true,
+      default: "Giao diện",
+      index: true,
+    },
     status: {
       type: String,
       required: true,

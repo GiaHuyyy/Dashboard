@@ -112,7 +112,7 @@ const buildContractCreatedAtFilter = ({ month, year } = {}) => {
 };
 
 export const listBusinessContracts = async (req, res) => {
-  const { search = "", handoverStatus = "all", status = "all", month = "all", year = "all", page = "1", limit = "200" } = req.query;
+  const { search = "", handoverStatus = "all", status = "all", contractType = "all", month = "all", year = "all", page = "1", limit = "200" } = req.query;
   const pageNumber = parsePositiveInteger(page) || 1;
   const limitNumber = parsePositiveInteger(limit) || 200;
   const skip = (pageNumber - 1) * limitNumber;
@@ -124,6 +124,10 @@ export const listBusinessContracts = async (req, res) => {
 
   if (status && status !== "all") {
     filters.status = normalizeString(status);
+  }
+
+  if (contractType && contractType !== "all") {
+    filters.contractType = normalizeString(contractType);
   }
 
   Object.assign(filters, buildContractCreatedAtFilter({ month, year }) || {});
@@ -204,17 +208,22 @@ export const updateBusinessContract = async (req, res) => {
   if (!existing || existing.isDeleted) return sendNotFound(res, "Không tìm thấy hợp đồng kinh doanh");
 
   const input = normalizeBusinessContractPayload(req.body);
+  const hasContractType = typeof req.body.contractType === "string";
+  const hasStatus = typeof req.body.status === "string";
+  const hasMailStatus = typeof req.body.mailStatus === "string";
+  const hasHandoverStatus = typeof req.body.handoverStatus === "string";
   const hasCustomerName = typeof req.body.customerName === "string";
   const hasCustomerEmail = typeof req.body.customerEmail === "string";
   const mergedPayload = {
     contractCode: input.contractCode || existing.contractCode,
     contractName: input.contractName || existing.contractName,
     contractValue: input.contractValue === null ? Number(existing.contractValue ?? 0) : input.contractValue,
+    contractType: hasContractType ? input.contractType : existing.contractType,
     customerName: hasCustomerName ? input.customerName : existing.customerName,
     customerPhone: typeof req.body.customerPhone === "string" ? input.customerPhone : existing.customerPhone,
     customerEmail: hasCustomerEmail ? input.customerEmail : existing.customerEmail,
-    status: input.status || existing.status,
-    mailStatus: input.mailStatus || existing.mailStatus,
+    status: hasStatus ? input.status : existing.status,
+    mailStatus: hasMailStatus ? input.mailStatus : existing.mailStatus,
     selectedSalesStaff: input.selectedSalesStaff || existing.selectedSalesStaff,
     selectedManager: typeof req.body.selectedManager === "string" ? input.selectedManager : existing.selectedManager,
     salesReceiverName: hasCustomerName ? input.customerName : existing.salesReceiverName || existing.customerName,
@@ -222,7 +231,7 @@ export const updateBusinessContract = async (req, res) => {
     ccEmails: req.body.ccEmails !== undefined ? input.ccEmails : existing.ccEmails,
     contractImages: Array.isArray(req.body.contractImages) ? input.contractImages : existing.contractImages,
     expectedHandoverAt: req.body.expectedHandoverAt === null ? null : input.expectedHandoverAt || existing.expectedHandoverAt,
-    handoverStatus: input.handoverStatus || existing.handoverStatus,
+    handoverStatus: hasHandoverStatus ? input.handoverStatus : existing.handoverStatus,
     handoverAt: req.body.handoverAt === null ? null : input.handoverAt || existing.handoverAt,
     visible: input.visible === null ? existing.visible : input.visible,
     note: typeof req.body.note === "string" ? input.note : existing.note,
@@ -244,6 +253,7 @@ export const updateBusinessContract = async (req, res) => {
   existing.contractCode = mergedPayload.contractCode;
   existing.contractName = mergedPayload.contractName;
   existing.contractValue = mergedPayload.contractValue;
+  existing.contractType = mergedPayload.contractType;
   existing.customerName = mergedPayload.customerName;
   existing.customerPhone = mergedPayload.customerPhone;
   existing.customerEmail = mergedPayload.customerEmail;

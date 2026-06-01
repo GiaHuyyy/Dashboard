@@ -6,13 +6,14 @@ import { normalizeBoolean, normalizeNumber, normalizeString, parsePositiveIntege
 import { buildSearchOrFilter, escapeRegex } from "../utils/query.js";
 import { sendBadRequest, sendCreated, sendNotFound, sendOk, sendValidationError } from "../utils/httpResponse.js";
 
-const CATEGORY_TYPES = ["module", "status", "priority", "websiteTemplate", "contractProjectStatus"];
+const CATEGORY_TYPES = ["module", "status", "priority", "websiteTemplate", "contractProjectStatus", "contractType"];
 const DEFAULT_CATEGORIES = {
   module: ["Không tính điểm", "Cơ bản", "Cơ bản + Responsive", "Cơ bản + Mobile", "Giỏ hàng cơ bản"],
   status: ["Mới tạo", "Đã phân công", "Đang xử lý", "Đã hoàn thành"],
   priority: ["Thấp", "Trung bình", "Cao", "Khẩn"],
   websiteTemplate: ["Landing Page", "Website công ty", "Bán hàng", "Spa - Thẩm mỹ", "Nhà hàng - Cafe", "Bất động sản", "Giáo dục", "Tin tức - Blog"],
   contractProjectStatus: ["Chưa nhận", "Đã nhận", "Đang làm", "Ưu tiên", "Hoãn"],
+  contractType: ["Giao diện", "Lập trình", "Nâng cấp", "Upsource"],
 };
 
 const DEFAULT_CATEGORY_TYPE_BY_NAME = Object.entries(DEFAULT_CATEGORIES).reduce((acc, [type, names]) => {

@@ -1,11 +1,12 @@
 import { request } from "./request.js";
 
 export const businessContractApi = {
-  list: ({ search = "", handoverStatus = "all", status = "all", month = "all", year = "all", page = 1, limit = 200 } = {}) => {
+  list: ({ search = "", handoverStatus = "all", status = "all", contractType = "all", month = "all", year = "all", page = 1, limit = 200 } = {}) => {
     const searchParams = new URLSearchParams();
     searchParams.set("search", search);
     searchParams.set("handoverStatus", handoverStatus);
     searchParams.set("status", status);
+    searchParams.set("contractType", contractType);
     searchParams.set("month", month);
     searchParams.set("year", year);
     searchParams.set("page", String(page));

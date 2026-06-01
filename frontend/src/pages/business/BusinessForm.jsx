@@ -11,7 +11,12 @@ import { ImageLightbox } from "@/components/forms/ImageLightbox";
 import { ImageUpload } from "@/components/forms/ImageUpload";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
-import { BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE, BUSINESS_CONTRACT_STATUS_OPTIONS, HANDOVER_STATUS_OPTIONS } from "@/constants/business-contract";
+import {
+  BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE,
+  BUSINESS_CONTRACT_STATUS_OPTIONS,
+  BUSINESS_CONTRACT_TYPE_CATEGORY_TYPE,
+  HANDOVER_STATUS_OPTIONS,
+} from "@/constants/business-contract";
 import { UPLOAD_FOLDERS } from "@/constants/upload-folders";
 import { MAIL_STATUS_OPTIONS } from "@/constants/program";
 import { businessContractApi, staffApi, systemCategoryApi } from "@/lib/api-client";
@@ -30,6 +35,7 @@ const schema = z.object({
     .trim()
     .optional()
     .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Email khách hàng không hợp lệ"),
+  contractType: z.string().trim().min(1, "Vui lòng chọn loại hợp đồng"),
   status: z.string().trim().min(1, "Vui lòng chọn trạng thái dự án"),
   mailStatus: z.enum(MAIL_STATUS_OPTIONS, { message: "Vui lòng chọn mail nhận hợp lệ" }),
   selectedSalesStaff: z.string().trim().min(1, "Vui lòng chọn nhân viên kinh doanh"),
@@ -66,6 +72,7 @@ const defaultValues = {
   customerName: "",
   customerPhone: "",
   customerEmail: "",
+  contractType: "",
   status: BUSINESS_CONTRACT_STATUS_OPTIONS[0],
   mailStatus: MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: "",
@@ -93,6 +100,7 @@ const mapDetailToForm = (contract) => ({
   customerName: contract.customerName || "",
   customerPhone: contract.customerPhone || "",
   customerEmail: contract.customerEmail || "",
+  contractType: contract.contractType || "",
   status: contract.status || BUSINESS_CONTRACT_STATUS_OPTIONS[0],
   mailStatus: contract.mailStatus || MAIL_STATUS_OPTIONS[0],
   selectedSalesStaff: contract.selectedSalesStaff || "",
@@ -131,6 +139,7 @@ function BusinessForm() {
   const [initialSnapshot, setInitialSnapshot] = useState({ values: defaultValues, images: [] });
   const [staffReferences, setStaffReferences] = useState([]);
   const [projectStatusOptions, setProjectStatusOptions] = useState(BUSINESS_CONTRACT_STATUS_OPTIONS);
+  const [contractTypeOptions, setContractTypeOptions] = useState([]);
   const [handoverConfirmOpen, setHandoverConfirmOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(null);
 
@@ -154,10 +163,14 @@ function BusinessForm() {
   const managerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
   const customerEmail = useWatch({ control, name: "customerEmail" });
   const selectedStatus = useWatch({ control, name: "status" });
+  const selectedContractType = useWatch({ control, name: "contractType" });
   const hasCustomerEmail = Boolean(customerEmail?.trim());
   const visibleProjectStatusOptions = selectedStatus && !projectStatusOptions.includes(selectedStatus)
     ? [selectedStatus, ...projectStatusOptions]
     : projectStatusOptions;
+  const visibleContractTypeOptions = selectedContractType && !contractTypeOptions.includes(selectedContractType)
+    ? [selectedContractType, ...contractTypeOptions]
+    : contractTypeOptions;
 
   useEffect(() => {
     contractImagesRef.current = contractImages;
@@ -198,29 +211,39 @@ function BusinessForm() {
   }, [isEditMode, setValue]);
 
   useEffect(() => {
-    const fetchProjectStatusOptions = async () => {
+    const getCategoryValues = (response) =>
+      Array.isArray(response?.categories)
+        ? response.categories
+            .filter((item) => item?.isActive !== false)
+            .map((item) => item.name)
+            .filter(Boolean)
+        : [];
+
+    const fetchContractCategoryOptions = async () => {
       try {
-        const response = await systemCategoryApi.list({
-          type: BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE,
-          limit: 200,
-        });
-        const options = Array.isArray(response?.categories)
-          ? response.categories
-              .filter((item) => item?.isActive !== false)
-              .map((item) => item.name)
-              .filter(Boolean)
-          : [];
-        const nextOptions = options.length > 0 ? options : BUSINESS_CONTRACT_STATUS_OPTIONS;
-        setProjectStatusOptions(nextOptions);
-        if (!isEditMode && nextOptions[0]) {
-          setValue("status", nextOptions[0], { shouldValidate: true });
+        const [projectStatusResponse, contractTypeResponse] = await Promise.all([
+          systemCategoryApi.list({ type: BUSINESS_CONTRACT_PROJECT_STATUS_CATEGORY_TYPE, limit: 200 }),
+          systemCategoryApi.list({ type: BUSINESS_CONTRACT_TYPE_CATEGORY_TYPE, limit: 200 }),
+        ]);
+
+        const nextProjectStatusOptions = getCategoryValues(projectStatusResponse);
+        const nextContractTypeOptions = getCategoryValues(contractTypeResponse);
+        const nextStatuses = nextProjectStatusOptions.length > 0 ? nextProjectStatusOptions : BUSINESS_CONTRACT_STATUS_OPTIONS;
+        const nextTypes = nextContractTypeOptions;
+
+        setProjectStatusOptions(nextStatuses);
+        setContractTypeOptions(nextTypes);
+        if (!isEditMode) {
+          if (nextStatuses[0]) setValue("status", nextStatuses[0], { shouldValidate: true });
+          if (nextTypes[0]) setValue("contractType", nextTypes[0], { shouldValidate: true });
         }
       } catch {
         setProjectStatusOptions(BUSINESS_CONTRACT_STATUS_OPTIONS);
+        setContractTypeOptions([]);
       }
     };
 
-    void fetchProjectStatusOptions();
+    void fetchContractCategoryOptions();
   }, [isEditMode, setValue]);
 
 
@@ -456,6 +479,13 @@ function BusinessForm() {
             type="text"
             inputProps={{ ...register("customerEmail"), placeholder: "nguyenvana@email.com", disabled: isFormReadOnly }}
             error={errors.customerEmail?.message}
+          />
+          <FormField
+            label="Loại hợp đồng"
+            type="select"
+            options={visibleContractTypeOptions.map((item) => ({ label: item, value: item }))}
+            selectProps={{ ...register("contractType"), disabled: isFormReadOnly }}
+            error={errors.contractType?.message}
           />
           <FormField
             label="Trạng thái dự án"
