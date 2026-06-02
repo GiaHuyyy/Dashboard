@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useSelector } from "react-redux";
 
 import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
-import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
+import { COMPLETED_STATUS } from "@/constants/program";
 import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { ensureSelectOption, getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
@@ -16,19 +16,6 @@ import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { PERMISSIONS } from "@/constants/permissions";
 
-const formatNumber = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return "";
-  return Number(parsed.toFixed(3)).toString();
-};
-
-const calculateConvertByDuration = (durationValue, durationUnit) => {
-  const numeric = Number(durationValue);
-  if (!Number.isFinite(numeric) || numeric <= 0) return "";
-  if (durationUnit === "ngày") return formatNumber(numeric);
-  if (durationUnit === "h") return formatNumber(numeric / 8);
-  return "";
-};
 
 const getContractOptionLabel = (item) =>
   item ? item.label || `${item.contractCode || "N/A"} - ${item.contractName || "N/A"}`.trim() : "";
@@ -58,6 +45,7 @@ function ProgramInfo({
   designEnabled = false,
   lockContractSelection = false,
   lockedContractLabel = "",
+  selectedProcessingStatus = "",
 }) {
   return (
     <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
@@ -102,38 +90,17 @@ function ProgramInfo({
         selectProps={{ ...register("priority"), disabled: priorityOptions.length === 0 }}
         error={errors.priority?.message}
       />
-
-      <div className="grid grid-cols-2 gap-3">
-        <FormField
-          label="Thời gian"
-          type="number"
-          inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", placeholder: "Nhập số" }}
-          error={errors.durationValue?.message}
-        />
-        <FormField
-          label="Đơn vị"
-          type="select"
-          options={DURATION_UNIT_OPTIONS.map((item) => ({ label: item, value: item }))}
-          selectProps={register("durationUnit")}
-          error={errors.durationUnit?.message}
-        />
-      </div>
+            {selectedProcessingStatus === COMPLETED_STATUS ? (
 
       <FormField
-        label="Quy đổi"
-        type="text"
-        inputProps={{ ...register("convert"), readOnly: true, placeholder: "Tự động" }}
-        error={errors.convert?.message}
-      />
-
-      <FormField
-        label="Điểm cộng thêm"
+        label="Điểm cộng"
         type="number"
-        inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125", placeholder: "Nhập điểm cộng thêm" }}
+        inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125", placeholder: "Nhập điểm cộng" }}
         error={errors.bonusPoint?.message}
       />
 
-      <div className="grid grid-cols-2 gap-4">
+                  ) : null}
+<div className="grid grid-cols-2 gap-4">
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
           <input type="checkbox" {...register("design")} />
           Design
@@ -169,10 +136,7 @@ const programSchema = z
     businessContractId: z.string().trim().min(1, "Vui lòng chọn hợp đồng"),
     module: z.string().trim().min(1, "Vui lòng chọn module"),
     priority: z.string().trim().min(1, "Vui lòng chọn mức độ ưu tiên"),
-    durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
-    durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
-    convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
-    bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
+    bonusPoint: z.coerce.number().gte(0, "Điểm cộng không hợp lệ"),
     assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
     assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
     designTaskId: z.string().trim().optional(),
@@ -207,9 +171,9 @@ const defaultValues = {
   businessContractId: "",
   module: "",
   priority: "",
-  durationValue: 1,
+  durationValue: 0,
   durationUnit: "ngày",
-  convert: "1",
+  convert: "0",
   bonusPoint: 0,
   assigner: "",
   assignee: "",
@@ -257,9 +221,6 @@ function ProgramForm() {
     resolver: zodResolver(programSchema),
     defaultValues,
   });
-
-  const selectedDurationValue = useWatch({ control, name: "durationValue" });
-  const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
   const selectedDesign = useWatch({ control, name: "design" });
   const selectedDesignTaskId = useWatch({ control, name: "designTaskId" });
   const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
@@ -376,11 +337,6 @@ function ProgramForm() {
   }, [getValues, moduleCategories.options, priorityCategories.options, processingStatusValues, setValue]);
 
   useEffect(() => {
-    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
-    setValue("convert", convertedValue, { shouldValidate: true });
-  }, [selectedDurationValue, selectedDurationUnit, setValue]);
-
-  useEffect(() => {
     if (!selectedDesign) {
       setValue("designTaskId", "", { shouldValidate: true });
     }
@@ -434,9 +390,6 @@ function ProgramForm() {
           navigate(returnPath);
           return;
         }
-
-        const parsedDuration = Number(program.durationValue);
-        const safeDuration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 1;
         setLockedContractLabel(
           [program.contractCode, program.contractName].filter(Boolean).join(" - ") ||
             program.businessContractId ||
@@ -447,9 +400,9 @@ function ProgramForm() {
           businessContractId: program.businessContractId || "",
           module: program.module || "",
           priority: program.priority || "",
-          durationValue: safeDuration,
+          durationValue: Number(program.durationValue) || 0,
           durationUnit: program.durationUnit || "ngày",
-          convert: program.convert || "1",
+          convert: program.convert || "0",
           bonusPoint: Number(program.bonusPoint) || 0,
           assigner: program.assigner || "",
           assignee: program.assignee || "",
@@ -488,8 +441,11 @@ function ProgramForm() {
   const persistProgram = async (values, mode) => {
     const payload = {
       ...values,
-      convert: calculateConvertByDuration(values.durationValue, values.durationUnit),
-      bonusPoint: values.bonusPoint,
+      durationValue: 0,
+      durationUnit: "ngày",
+      time: "",
+      convert: "0",
+      bonusPoint: values.processingStatus === COMPLETED_STATUS ? values.bonusPoint : 0,
       receivedAt: values.receivedAt || null,
       completedAt: values.processingStatus === COMPLETED_STATUS ? values.completedAt || null : null,
       note: values.note || "",
@@ -593,6 +549,7 @@ function ProgramForm() {
             moduleOptions={moduleCategories.options}
             priorityOptions={priorityCategories.options}
             designEnabled={Boolean(selectedDesign)}
+            selectedProcessingStatus={selectedProcessingStatus}
           />
 
           <div className="space-y-4 flex flex-col rounded-xl border border-slate-100 p-4">
@@ -646,6 +603,8 @@ function ProgramForm() {
               inputProps={register("dueAt")}
               error={errors.dueAt?.message}
             />
+            {selectedProcessingStatus === COMPLETED_STATUS ? (
+
 
             <FormField
               label="Ngày hoàn thành"
@@ -657,7 +616,8 @@ function ProgramForm() {
               error={errors.completedAt?.message}
             />
 
-            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                        ) : null}
+<label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
               <input type="checkbox" {...register("visible")} />
               Hiển thị
             </label>

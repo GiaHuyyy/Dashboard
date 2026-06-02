@@ -134,8 +134,7 @@ function ProgramPointManagement() {
       "Mô tả",
       "Trạng thái",
       "Lập trình",
-      "Điểm quy đổi",
-      "Điểm cộng thêm",
+      "Điểm cộng",
       "Tổng điểm",
       "Ngày",
     ];
@@ -146,7 +145,6 @@ function ProgramPointManagement() {
       item.description,
       item.status,
       item.assignee,
-      item.convertPoint ?? "",
       item.bonusPoint ?? "",
       item.point,
       item.createdAtLabel,
@@ -312,10 +310,7 @@ function ProgramPointManagement() {
                 Lập trình
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm quy đổi
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm cộng thêm
+                Điểm cộng
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Tổng điểm
@@ -328,13 +323,13 @@ function ProgramPointManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={11} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={10} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : filteredDetailRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={10} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -357,7 +352,6 @@ function ProgramPointManagement() {
                   <TableCell className="border border-slate-200 p-4 text-left">{row.description}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.status}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.convertPoint ?? 0}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.bonusPoint ?? 0}</TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.point}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.createdAtLabel}</TableCell>

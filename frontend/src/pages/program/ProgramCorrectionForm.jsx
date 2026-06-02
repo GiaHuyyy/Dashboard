@@ -7,7 +7,6 @@ import { z } from "zod";
 import { useSelector } from "react-redux";
 
 import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
-import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { CORRECTION_COMPLETED_STATUS } from "@/constants/program-correction";
 import { businessContractApi, correctionApi, programApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
@@ -28,10 +27,7 @@ const schema = z
     businessContractId: z.string().trim().min(1, "Vui lòng chọn Phiếu gốc / Số HĐ"),
     issueContent: z.string().trim().min(5, "Vui lòng nhập mô tả lỗi/chỉnh sửa"),
     priority: z.string().trim().min(1, "Vui lòng chọn mức độ ưu tiên"),
-    durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
-    durationUnit: z.enum(DURATION_UNIT_OPTIONS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
-    convert: z.string().trim().min(1, "Vui lòng nhập quy đổi"),
-    bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
+    bonusPoint: z.coerce.number().gte(0, "Điểm cộng không hợp lệ"),
     assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
     assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
     assignedAt: z.string().trim().min(1, "Vui lòng nhập ngày giao").refine(isValidDateValue, "Ngày giao không hợp lệ"),
@@ -59,9 +55,9 @@ const defaultValues = {
   businessContractId: "",
   issueContent: "",
   priority: "",
-  durationValue: 1,
+  durationValue: 0,
   durationUnit: "ngày",
-  convert: "1",
+  convert: "0",
   bonusPoint: 0,
   assigner: "",
   assignee: "",
@@ -85,9 +81,9 @@ const mapCorrectionToForm = (row) => ({
   businessContractId: row.businessContractId || "",
   issueContent: row.issueContent || "",
   priority: row.priority || "",
-  durationValue: Number(row.durationValue) || 1,
+  durationValue: Number(row.durationValue) || 0,
   durationUnit: row.durationUnit || "ngày",
-  convert: row.convert || "1",
+  convert: row.convert || "0",
   bonusPoint: Number(row.bonusPoint) || 0,
   assigner: row.assigner || "",
   assignee: row.assignee || "",
@@ -100,19 +96,6 @@ const mapCorrectionToForm = (row) => ({
   note: row.note || "",
 });
 
-const formatNumber = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return "";
-  return Number(parsed.toFixed(3)).toString();
-};
-
-const calculateConvertByDuration = (durationValue, durationUnit) => {
-  const numeric = Number(durationValue);
-  if (!Number.isFinite(numeric) || numeric <= 0) return "";
-  if (durationUnit === "ngày") return formatNumber(numeric);
-  if (durationUnit === "h") return formatNumber(numeric / 8);
-  return "";
-};
 
 const getProgramByBusinessContractId = (programs, businessContractId) =>
   programs.find((item) => item.businessContractId === businessContractId) || null;
@@ -152,8 +135,6 @@ function ProgramCorrectionForm() {
   });
 
   const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
-  const selectedDurationValue = useWatch({ control, name: "durationValue" });
-  const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
   const selectedStatus = useWatch({ control, name: "status" });
   const selectedAssigner = useWatch({ control, name: "assigner" });
   const selectedAssignee = useWatch({ control, name: "assignee" });
@@ -198,11 +179,6 @@ function ProgramCorrectionForm() {
       setValue("status", nextStatus, { shouldValidate: true });
     }
   }, [getValues, isEditMode, priorityCategories.options, setValue, statusValues]);
-
-  useEffect(() => {
-    const convertedValue = calculateConvertByDuration(selectedDurationValue, selectedDurationUnit);
-    setValue("convert", convertedValue, { shouldValidate: true });
-  }, [selectedDurationUnit, selectedDurationValue, setValue]);
 
   useEffect(() => {
     if (selectedStatus === CORRECTION_COMPLETED_STATUS) return;
@@ -282,7 +258,11 @@ function ProgramCorrectionForm() {
       durationValue: values.durationValue,
       durationUnit: values.durationUnit,
       convert: values.convert,
-      bonusPoint: values.bonusPoint,
+      durationValue: 0,
+      durationUnit: "ngày",
+      time: "",
+      convert: "0",
+      bonusPoint: values.status === CORRECTION_COMPLETED_STATUS ? values.bonusPoint : 0,
       assigner: values.assigner,
       assignee: values.assignee,
       assignedAt: values.assignedAt,
@@ -410,18 +390,8 @@ function ProgramCorrectionForm() {
                     const selected = getProgramByBusinessContractId(programReferences, event.target.value);
                     businessContractRegister.onChange(event);
                     if (!selected) {
-                      setValue("durationValue", defaultValues.durationValue, { shouldValidate: true });
-                      setValue("durationUnit", defaultValues.durationUnit, { shouldValidate: true });
-                      setValue("convert", defaultValues.convert, { shouldValidate: true });
                       return;
                     }
-                    setValue("durationValue", selected.durationValue || defaultValues.durationValue, {
-                      shouldValidate: true,
-                    });
-                    setValue("durationUnit", selected.durationUnit || defaultValues.durationUnit, {
-                      shouldValidate: true,
-                    });
-                    setValue("convert", selected.convert || defaultValues.convert, { shouldValidate: true });
                   },
                 }}
                 error={errors.businessContractId?.message}
@@ -460,38 +430,17 @@ function ProgramCorrectionForm() {
               selectProps={{ ...register("priority"), disabled: priorityCategories.options.length === 0 }}
               error={errors.priority?.message}
             />
-
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                label="Thời gian"
-                type="number"
-                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", placeholder: "Nhập số" }}
-                error={errors.durationValue?.message}
-              />
-              <FormField
-                label="Đơn vị"
-                type="select"
-                options={DURATION_UNIT_OPTIONS.map((item) => ({ label: item, value: item }))}
-                selectProps={register("durationUnit")}
-                error={errors.durationUnit?.message}
-              />
-            </div>
+            {selectedStatus === CORRECTION_COMPLETED_STATUS ? (
 
             <FormField
-              label="Quy đổi"
-              type="text"
-              inputProps={{ ...register("convert"), readOnly: true, placeholder: "Tự động" }}
-              error={errors.convert?.message}
-            />
-
-            <FormField
-              label="Điểm cộng thêm"
+              label="Điểm cộng"
               type="number"
               inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125" }}
               error={errors.bonusPoint?.message}
             />
 
-            <FormField
+                        ) : null}
+<FormField
               label="Ghi chú"
               type="textarea"
               inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)" }}
@@ -546,6 +495,8 @@ function ProgramCorrectionForm() {
               inputProps={{ ...register("dueAt") }}
               error={errors.dueAt?.message}
             />
+            {selectedStatus === CORRECTION_COMPLETED_STATUS ? (
+
 
             <FormField
               label="Ngày hoàn thành"
@@ -554,7 +505,8 @@ function ProgramCorrectionForm() {
               error={errors.completedAt?.message}
             />
 
-            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                        ) : null}
+<label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
               <input type="checkbox" {...register("visible")} />
               Hiển thị
             </label>

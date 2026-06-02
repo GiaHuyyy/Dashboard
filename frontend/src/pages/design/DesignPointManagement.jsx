@@ -130,7 +130,6 @@ function DesignPointManagement() {
       "Trạng thái",
       "Người giao (Quản lý)",
       "Người nhận",
-      "Quy đổi",
       "Điểm thêm",
       "Tổng điểm",
       "Ngày",
@@ -222,13 +221,9 @@ function DesignPointManagement() {
         </select>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-t-3 border-t-sky-500 border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-500">Điểm quy đổi</p>
-          <p className="text-2xl font-semibold text-slate-800">{summary.totalConvertPoint ?? 0}</p>
-        </div>
-        <div className="rounded-xl border border-t-3 border-t-sky-500 border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-500">Điểm cộng thêm</p>
+          <p className="text-sm text-slate-500">Điểm cộng</p>
           <p className="text-2xl font-semibold text-slate-800">{summary.totalBonusPoint ?? 0}</p>
         </div>
         <div className="rounded-xl border border-t-3 border-t-sky-500 border-slate-200 bg-white p-4 shadow-sm">
@@ -246,9 +241,6 @@ function DesignPointManagement() {
             <TableRow>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Nhân sự
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm quy đổi
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Điểm thêm
@@ -317,9 +309,6 @@ function DesignPointManagement() {
                 Người nhận
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Quy đổi
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Điểm thêm
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
@@ -333,13 +322,13 @@ function DesignPointManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={11} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : filteredDetailRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>

@@ -72,11 +72,11 @@ export const listProgramPoints = async (req, res) => {
     if (!isDateInRange(createdAt, startDate, endDate)) return;
     if (normalizedAssignee !== "all" && ownerName !== normalizedAssignee) return;
 
-    const description = `${item.module} - ${item.time} - Quy đổi ${item.convert}`;
+    const description = item.module || "";
     const searchable = buildSearchText(item.contractCode, item.module, description);
     if (keyword && !searchable.includes(keyword)) return;
 
-    const convertPoint = normalizePoint(item.convert);
+    const convertPoint = 0;
     const bonusPoint = normalizePoint(item.bonusPoint);
     pushPointDetail({
       details,
@@ -88,7 +88,7 @@ export const listProgramPoints = async (req, res) => {
       description,
       status: item.status,
       assignee: ownerName,
-      point: convertPoint + bonusPoint,
+      point: bonusPoint,
       convertPoint,
       bonusPoint,
       createdAt,
@@ -103,11 +103,9 @@ export const listProgramPoints = async (req, res) => {
 
     const contractCode = item.programId?.contractCode || "";
     const module = item.programId?.module || "";
-    const convertPoint = normalizePoint(item.convert);
+    const convertPoint = 0;
     const bonusPoint = normalizePoint(item.bonusPoint);
     const descriptionParts = [item.upgradeItem || ""];
-    if (item.time) descriptionParts.push(item.time);
-    if (item.convert !== undefined && item.convert !== null && item.convert !== "") descriptionParts.push(`Quy đổi ${item.convert}`);
     const description = descriptionParts.filter(Boolean).join(" - ");
     const searchable = buildSearchText(contractCode, module, description);
     if (keyword && !searchable.includes(keyword)) return;
@@ -122,7 +120,7 @@ export const listProgramPoints = async (req, res) => {
       description,
       status: item.status,
       assignee: ownerName,
-      point: convertPoint + bonusPoint,
+      point: bonusPoint,
       convertPoint,
       bonusPoint,
       createdAt,
@@ -137,11 +135,9 @@ export const listProgramPoints = async (req, res) => {
 
     const contractCode = item.programId?.contractCode || "";
     const module = item.programId?.module || "";
-    const convertPoint = normalizePoint(item.convert);
+    const convertPoint = 0;
     const bonusPoint = normalizePoint(item.bonusPoint);
     const descriptionParts = [item.issueContent || ""];
-    if (item.time) descriptionParts.push(item.time);
-    if (item.convert !== undefined && item.convert !== null && item.convert !== "") descriptionParts.push(`Quy đổi ${item.convert}`);
     const description = descriptionParts.filter(Boolean).join(" - ");
     const searchable = buildSearchText(contractCode, module, description);
     if (keyword && !searchable.includes(keyword)) return;
@@ -156,7 +152,7 @@ export const listProgramPoints = async (req, res) => {
       description,
       status: item.status,
       assignee: ownerName,
-      point: convertPoint + bonusPoint,
+      point: bonusPoint,
       convertPoint,
       bonusPoint,
       createdAt,

@@ -17,27 +17,12 @@ import { PERMISSIONS } from "@/constants/permissions";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
 const COMPLETED_STATUS = "Đã hoàn thành";
-const DURATION_UNITS = ["h", "ngày"];
-
 const isValidDateValue = (value) => {
   if (!value) return false;
   const date = new Date(value);
   return !Number.isNaN(date.getTime());
 };
 
-const formatNumber = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return "";
-  return Number(parsed.toFixed(3));
-};
-
-const calculateConvertByDuration = (durationValue, durationUnit) => {
-  const numeric = Number(durationValue);
-  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
-  if (durationUnit === "ngày") return formatNumber(numeric);
-  if (durationUnit === "h") return formatNumber(numeric / 8);
-  return 0;
-};
 
 const schema = z.object({
   title: z.string().trim().min(1, "Vui lòng nhập hạng mục design"),
@@ -45,10 +30,7 @@ const schema = z.object({
   priority: z.string().trim().min(1, "Vui lòng chọn mức ưu tiên hợp lệ"),
   assigner: z.string().trim().min(1, "Vui lòng chọn người giao"),
   assignee: z.string().trim().min(1, "Vui lòng chọn người nhận"),
-  durationValue: z.coerce.number().gt(0, "Thời gian phải lớn hơn 0"),
-  durationUnit: z.enum(DURATION_UNITS, { message: "Vui lòng chọn đơn vị thời gian hợp lệ" }),
-  convert: z.coerce.number().gte(0, "Quy đổi không hợp lệ"),
-  bonusPoint: z.coerce.number().gte(0, "Điểm cộng thêm không hợp lệ"),
+  bonusPoint: z.coerce.number().gte(0, "Điểm cộng không hợp lệ"),
   status: z.string().trim().min(1, "Vui lòng chọn trạng thái hợp lệ"),
   handoverDate: z.string().trim().min(1, "Vui lòng nhập ngày giao").refine(isValidDateValue, "Ngày giao không hợp lệ"),
   receiveDate: z.string().trim().min(1, "Vui lòng nhập ngày nhận").refine(isValidDateValue, "Ngày nhận không hợp lệ"),
@@ -79,9 +61,9 @@ const defaultValues = {
   priority: "",
   assigner: "",
   assignee: "",
-  durationValue: 1,
-  durationUnit: "h",
-  convert: 0.125,
+  durationValue: 0,
+  durationUnit: "ngày",
+  convert: 0,
   bonusPoint: 0,
   status: "",
   handoverDate: "",
@@ -127,9 +109,6 @@ function DesignForm() {
     resolver: zodResolver(schema),
     defaultValues,
   });
-
-  const durationValue = useWatch({ control, name: "durationValue" });
-  const durationUnit = useWatch({ control, name: "durationUnit" });
   const selectedStatus = useWatch({ control, name: "status" });
   const selectedAssigner = useWatch({ control, name: "assigner" });
   const selectedAssignee = useWatch({ control, name: "assignee" });
@@ -171,11 +150,6 @@ function DesignForm() {
       }));
     }
   }, [formStatusValues, getValues, isEditMode, isLoadingDetail, isLoadingReference, priorityCategories.options, setValue]);
-
-  useEffect(() => {
-    const nextConvert = calculateConvertByDuration(durationValue, durationUnit);
-    setValue("convert", nextConvert, { shouldValidate: true });
-  }, [durationUnit, durationValue, setValue]);
 
   useEffect(() => {
     if (selectedStatus === COMPLETED_STATUS) return;
@@ -228,8 +202,8 @@ function DesignForm() {
           priority: task.priority || "",
           assigner: task.assigner || "",
           assignee: task.assignee || "",
-          durationValue: Number(task.durationValue) || 1,
-          durationUnit: task.durationUnit || "h",
+          durationValue: Number(task.durationValue) || 0,
+          durationUnit: task.durationUnit || "ngày",
           convert: Number(task.convert) || 0,
           bonusPoint: Number(task.bonusPoint) || 0,
           status: task.status || "",
@@ -274,9 +248,10 @@ function DesignForm() {
 
     const payload = {
       ...values,
-      convert: Number(values.convert),
-      durationValue: Number(values.durationValue),
-      bonusPoint: Number(values.bonusPoint),
+      convert: 0,
+      durationValue: 0,
+      durationUnit: "ngày",
+      bonusPoint: values.status === COMPLETED_STATUS ? Number(values.bonusPoint) : 0,
       handoverDate: values.handoverDate || null,
       receiveDate: values.receiveDate || null,
       expectedDate: values.expectedDate || null,
@@ -376,37 +351,16 @@ function DesignForm() {
               selectProps={{ ...register("priority"), disabled: isFormReadOnly || priorityCategories.options.length === 0 }}
               error={errors.priority?.message}
             />
-
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                label="Thời gian"
-                type="number"
-                inputProps={{ ...register("durationValue"), min: "0.1", step: "0.1", disabled: isFormReadOnly }}
-                error={errors.durationValue?.message}
-              />
-              <FormField
-                label="Đơn vị"
-                type="select"
-                options={DURATION_UNITS.map((item) => ({ label: item, value: item }))}
-                selectProps={{ ...register("durationUnit"), disabled: isFormReadOnly }}
-                error={errors.durationUnit?.message}
-              />
-            </div>
+            {selectedStatus === COMPLETED_STATUS ? (
 
             <FormField
-              label="Quy đổi"
-              type="number"
-              inputProps={{ ...register("convert"), readOnly: true, disabled: isFormReadOnly }}
-              inputClassName="bg-slate-50"
-              error={errors.convert?.message}
-            />
-            <FormField
-              label="Điểm cộng thêm"
+              label="Điểm cộng"
               type="number"
               inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001", disabled: isFormReadOnly }}
               error={errors.bonusPoint?.message}
             />
-            <FormField
+                        ) : null}
+<FormField
               label="Ghi chú"
               type="textarea"
               inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)", disabled: isFormReadOnly }}
@@ -456,13 +410,16 @@ function DesignForm() {
               inputProps={{ ...register("expectedDate"), disabled: isFormReadOnly }}
               error={errors.expectedDate?.message}
             />
+            {selectedStatus === COMPLETED_STATUS ? (
+
             <FormField
               label="Ngày hoàn thành"
               type="datetime-local"
               inputProps={{ ...register("completedDate"), disabled: isFormReadOnly || selectedStatus !== COMPLETED_STATUS }}
               error={errors.completedDate?.message}
             />
-            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                        ) : null}
+<label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
               <input type="checkbox" {...register("visible")} disabled={isFormReadOnly} />
               Hiển thị
             </label>

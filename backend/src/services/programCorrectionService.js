@@ -51,8 +51,8 @@ export const normalizeProgramCorrectionPayload = (body = {}) => ({
   programId: normalizeString(body.programId),
   issueContent: normalizeString(body.issueContent),
   priority: normalizeString(body.priority),
-  durationValue: normalizeNumber(body.durationValue),
-  durationUnit: normalizeString(body.durationUnit),
+  durationValue: 0,
+  durationUnit: "ngày",
   bonusPoint: normalizeNumber(body.bonusPoint),
   assigner: normalizeString(body.assigner),
   assignee: normalizeString(body.assignee),
@@ -100,15 +100,6 @@ export const validateProgramCorrectionPayload = async (payload) => {
   if (!payload.issueContent) {
     return { status: 400, message: "issueContent là bắt buộc" };
   }
-  if (payload.durationValue === null || payload.durationValue <= 0) {
-    return { status: 400, message: "durationValue phải lớn hơn 0" };
-  }
-  if (!PROGRAM_CORRECTION_DURATION_UNITS.includes(payload.durationUnit)) {
-    return {
-      status: 400,
-      message: `durationUnit không hợp lệ. Giá trị cho phép: ${PROGRAM_CORRECTION_DURATION_UNITS.join(", ")}`,
-    };
-  }
   if (payload.bonusPoint === null || payload.bonusPoint < 0) {
     return { status: 400, message: "bonusPoint không hợp lệ" };
   }
@@ -143,12 +134,10 @@ export const validateProgramCorrectionPayload = async (payload) => {
     return { status: 400, message: "Ngày dự kiến không được nhỏ hơn ngày giao" };
   }
 
-  const convertSettings = await getProgramCorrectionConvertSettings();
-
   return {
     targetProgram,
-    time: `${formatNumber(payload.durationValue, convertSettings.roundingDigits)} ${payload.durationUnit}`,
-    convert: calculateProgramCorrectionConvertByDuration(payload.durationValue, payload.durationUnit, convertSettings),
+    time: "",
+    convert: "0",
   };
 };
 

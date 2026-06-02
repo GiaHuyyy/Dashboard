@@ -29,9 +29,9 @@ export const normalizeDesignTaskPayload = (body = {}) => ({
   priority: normalizeString(body.priority),
   assigner: normalizeString(body.assigner),
   assignee: normalizeString(body.assignee),
-  durationValue: normalizeNumber(body.durationValue),
-  durationUnit: normalizeString(body.durationUnit),
-  convert: normalizeNumber(body.convert),
+  durationValue: 0,
+  durationUnit: "ngày",
+  convert: 0,
   bonusPoint: normalizeNumber(body.bonusPoint),
   status: normalizeString(body.status),
   handoverDate: body.handoverDate ? normalizeDate(body.handoverDate) : null,
@@ -91,13 +91,6 @@ export const validateDesignTaskPayload = async (payload, { excludeId = "" } = {}
   if (!priorityOptions.includes(payload.priority)) return { status: 400, message: "priority không hợp lệ" };
   if (!payload.assigner) return { status: 400, message: "assigner là bắt buộc" };
   if (!payload.assignee) return { status: 400, message: "assignee là bắt buộc" };
-  if (payload.durationValue === null || payload.durationValue <= 0) {
-    return { status: 400, message: "durationValue không hợp lệ" };
-  }
-  if (!DESIGN_TASK_DURATION_UNITS.includes(payload.durationUnit)) {
-    return { status: 400, message: "durationUnit không hợp lệ" };
-  }
-  if (payload.convert === null || payload.convert < 0) return { status: 400, message: "convert không hợp lệ" };
   if (payload.bonusPoint === null || payload.bonusPoint < 0) return { status: 400, message: "bonusPoint không hợp lệ" };
   if (!statusOptions.includes(payload.status)) return { status: 400, message: "status không hợp lệ" };
   if (payload.visible === null) return { status: 400, message: "visible phải là kiểu boolean" };

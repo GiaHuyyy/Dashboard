@@ -19,23 +19,23 @@ const programUpgradeSchema = new mongoose.Schema(
     },
     durationValue: {
       type: Number,
-      required: true,
-      min: 0.1,
+      default: 0,
+      min: 0,
     },
     durationUnit: {
       type: String,
-      required: true,
       enum: ["h", "ngày"],
+      default: "ngày",
     },
     time: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     convert: {
       type: String,
-      required: true,
       trim: true,
+      default: "0",
     },
     slaHours: {
       type: Number,

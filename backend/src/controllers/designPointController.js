@@ -26,7 +26,7 @@ export const listDesignPoints = async (req, res) => {
       `${item.title} ${item.designType} ${item.assignee} ${item.assigner} ${item.note || ""}`.toLowerCase();
     if (keyword && !searchable.includes(keyword)) return;
 
-    const convertPoint = roundPoint(item.convert || 0);
+    const convertPoint = 0;
     const bonusPoint = roundPoint(item.bonusPoint || 0);
     assigneeSet.add(item.assignee);
     details.push({
@@ -39,7 +39,7 @@ export const listDesignPoints = async (req, res) => {
       assignee: item.assignee,
       convertPoint,
       bonusPoint,
-      totalPoint: roundPoint(convertPoint + bonusPoint),
+      totalPoint: bonusPoint,
       createdAt: item.createdAt,
       createdAtLabel: formatDateTime(item.createdAt, { includeSeconds: false }),
     });
@@ -59,18 +59,18 @@ export const listDesignPoints = async (req, res) => {
     const summary = summaryMap.get(item.assignee);
     summary.convertPoint += item.convertPoint;
     summary.bonusPoint += item.bonusPoint;
-    summary.totalPoint = roundPoint(summary.convertPoint + summary.bonusPoint);
+    summary.totalPoint = roundPoint(summary.bonusPoint);
   });
 
   const owners = Array.from(summaryMap.values()).sort((a, b) => b.totalPoint - a.totalPoint);
-  const totalConvertPoint = owners.reduce((sum, item) => sum + item.convertPoint, 0);
+  const totalConvertPoint = 0;
   const totalBonusPoint = owners.reduce((sum, item) => sum + item.bonusPoint, 0);
 
   return sendOk(res, {
     summary: {
       totalConvertPoint: roundPoint(totalConvertPoint),
       totalBonusPoint: roundPoint(totalBonusPoint),
-      totalPoint: roundPoint(totalConvertPoint + totalBonusPoint),
+      totalPoint: roundPoint(totalBonusPoint),
     },
     owners,
     details: details.map((item) => ({

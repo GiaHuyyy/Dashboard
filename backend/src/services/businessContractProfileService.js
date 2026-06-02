@@ -369,26 +369,22 @@ const buildStaffPointSummary = ({ designs, programs, corrections, upgrades, work
 
   designs.forEach((item) => {
     const summary = ensureStaff(item.assignee);
-    summary.designPoint += toNumber(item.totalPoint);
-    summary.totalConvert += toNumber(item.convert);
+    summary.designPoint += toNumber(item.bonusPoint);
   });
 
   programs.forEach((item) => {
     const summary = ensureStaff(item.assignee);
-    summary.programPoint += toNumber(item.convert) + toNumber(item.bonusPoint);
-    summary.totalConvert += toNumber(item.convert);
+    summary.programPoint += toNumber(item.bonusPoint);
   });
 
   corrections.forEach((item) => {
     const summary = ensureStaff(item.assignee);
-    summary.correctionPoint += toNumber(item.convert) + toNumber(item.bonusPoint);
-    summary.totalConvert += toNumber(item.convert);
+    summary.correctionPoint += toNumber(item.bonusPoint);
   });
 
   upgrades.forEach((item) => {
     const summary = ensureStaff(item.assignee);
-    summary.upgradePoint += toNumber(item.convert) + toNumber(item.bonusPoint);
-    summary.totalConvert += toNumber(item.convert);
+    summary.upgradePoint += toNumber(item.bonusPoint);
   });
 
   return Array.from(staffMap.values())
@@ -403,7 +399,7 @@ const buildStaffPointSummary = ({ designs, programs, corrections, upgrades, work
         upgradePoint: roundPoint(item.upgradePoint),
         totalPoint,
         totalConvert,
-        totalDurationLabel: formatConvertDuration(totalPoint, workingHoursPerDay),
+        totalDurationLabel: "",
       };
     })
     .sort((a, b) => b.totalPoint - a.totalPoint || a.name.localeCompare(b.name, "vi"));
@@ -525,22 +521,17 @@ export const buildBusinessContractProfile = async (contract) => {
     contractValue: toNumber(contractItem.contractValue),
     totalContractValue: roundPoint(toNumber(contractItem.contractValue) + sources.reduce((total, item) => total + toNumber(item.priceTotal), 0)),
     contractImageCount: normalizeContractImages(contract.contractImages).length,
-    designPoint: roundPoint(designs.reduce((total, item) => total + toNumber(item.totalPoint), 0)),
-    programPoint: roundPoint(programs.reduce((total, item) => total + toNumber(item.convert) + toNumber(item.bonusPoint), 0)),
-    correctionPoint: roundPoint(corrections.reduce((total, item) => total + toNumber(item.convert) + toNumber(item.bonusPoint), 0)),
-    upgradePoint: roundPoint(upgrades.reduce((total, item) => total + toNumber(item.convert) + toNumber(item.bonusPoint), 0)),
+    designPoint: roundPoint(designs.reduce((total, item) => total + toNumber(item.bonusPoint), 0)),
+    programPoint: roundPoint(programs.reduce((total, item) => total + toNumber(item.bonusPoint), 0)),
+    correctionPoint: roundPoint(corrections.reduce((total, item) => total + toNumber(item.bonusPoint), 0)),
+    upgradePoint: roundPoint(upgrades.reduce((total, item) => total + toNumber(item.bonusPoint), 0)),
   };
 
   summary.totalPoint = roundPoint(
     summary.designPoint + summary.programPoint + summary.correctionPoint + summary.upgradePoint,
   );
-  summary.totalConvert = roundPoint(
-    designs.reduce((total, item) => total + toNumber(item.convert), 0) +
-      programs.reduce((total, item) => total + toNumber(item.convert), 0) +
-      corrections.reduce((total, item) => total + toNumber(item.convert), 0) +
-      upgrades.reduce((total, item) => total + toNumber(item.convert), 0),
-  );
-  summary.totalDurationLabel = formatConvertDuration(summary.totalPoint, workingHoursPerDay);
+  summary.totalConvert = 0;
+  summary.totalDurationLabel = "";
 
   return {
     contract: contractItem,

@@ -32,17 +32,16 @@ const designTaskSchema = new mongoose.Schema(
     },
     durationValue: {
       type: Number,
-      required: true,
-      min: 0.1,
+      default: 0,
+      min: 0,
     },
     durationUnit: {
       type: String,
-      required: true,
       enum: ["h", "ngày"],
+      default: "ngày",
     },
     convert: {
       type: Number,
-      required: true,
       min: 0,
       default: 0,
     },

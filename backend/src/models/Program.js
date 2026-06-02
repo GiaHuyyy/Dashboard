@@ -14,23 +14,23 @@ const programSchema = new mongoose.Schema(
     },
     time: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     durationValue: {
       type: Number,
-      required: true,
-      min: 0.1,
+      default: 0,
+      min: 0,
     },
     durationUnit: {
       type: String,
-      required: true,
       enum: ["h", "ngày"],
+      default: "ngày",
     },
     convert: {
       type: String,
-      required: true,
       trim: true,
+      default: "0",
     },
     bonusPoint: {
       type: Number,

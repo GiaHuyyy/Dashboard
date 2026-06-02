@@ -52,8 +52,8 @@ export const normalizeProgramUpgradePayload = (body = {}) => ({
   programId: normalizeString(body.programId),
   upgradeItem: normalizeString(body.upgradeItem),
   priority: normalizeString(body.priority),
-  durationValue: normalizeNumber(body.durationValue),
-  durationUnit: normalizeString(body.durationUnit),
+  durationValue: 0,
+  durationUnit: "ngày",
   bonusPoint: normalizeNumber(body.bonusPoint),
   status: normalizeString(body.status),
   assigner: normalizeString(body.assigner),
@@ -101,15 +101,6 @@ export const validateProgramUpgradePayload = async (payload) => {
   if (!payload.upgradeItem) {
     return { status: 400, message: "upgradeItem là bắt buộc" };
   }
-  if (payload.durationValue === null || payload.durationValue <= 0) {
-    return { status: 400, message: "durationValue phải lớn hơn 0" };
-  }
-  if (!PROGRAM_UPGRADE_DURATION_UNITS.includes(payload.durationUnit)) {
-    return {
-      status: 400,
-      message: `durationUnit không hợp lệ. Giá trị cho phép: ${PROGRAM_UPGRADE_DURATION_UNITS.join(", ")}`,
-    };
-  }
   if (!payload.assigner) {
     return { status: 400, message: "assigner là bắt buộc" };
   }
@@ -135,12 +126,10 @@ export const validateProgramUpgradePayload = async (payload) => {
     return { status: 400, message: "visible phải là kiểu boolean" };
   }
 
-  const convertSettings = await getProgramUpgradeConvertSettings();
-
   return {
     program,
-    time: `${formatNumber(payload.durationValue, convertSettings.roundingDigits)} ${payload.durationUnit}`,
-    convert: calculateProgramUpgradeConvertByDuration(payload.durationValue, payload.durationUnit, convertSettings),
+    time: "",
+    convert: "0",
   };
 };
 

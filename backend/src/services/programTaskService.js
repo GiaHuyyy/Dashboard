@@ -72,14 +72,10 @@ export const toProgramObjectIdString = (value) => {
 
 export const normalizeProgramPayload = (body = {}, convertSettings = {}) => {
   const module = normalizeString(body.module);
-  const durationValue = normalizeNumber(body.durationValue);
-  const durationUnit = normalizeString(body.durationUnit);
-  const time =
-    durationValue !== null
-      ? `${formatProgramNumber(durationValue, convertSettings.roundingDigits)} ${durationUnit}`
-      : "";
-  const convert =
-    durationValue !== null ? calculateProgramConvertByDuration(durationValue, durationUnit, convertSettings) : "";
+  const durationValue = 0;
+  const durationUnit = "ngày";
+  const time = "";
+  const convert = "0";
   const bonusPoint = normalizeNumber(body.bonusPoint);
 
   return {
@@ -114,9 +110,6 @@ export const validateProgramPayload = async (
   const {
     module,
     priority,
-    durationValue,
-    durationUnit,
-    convert,
     bonusPoint,
     assigner,
     assignee,
@@ -141,8 +134,8 @@ export const validateProgramPayload = async (
     return { status: 400, message: "Danh mục ưu tiên chưa được cấu hình" };
   }
 
-  if (!module || durationValue === null || !durationUnit || !assigner || !assignee) {
-    return { status: 400, message: "module, durationValue, durationUnit, assigner, assignee là bắt buộc" };
+  if (!module || !assigner || !assignee) {
+    return { status: 400, message: "module, assigner, assignee là bắt buộc" };
   }
   if (!payload.businessContractId) {
     return { status: 400, message: "businessContractId là bắt buộc" };
@@ -167,18 +160,6 @@ export const validateProgramPayload = async (
   }
   if (!priorityOptions.includes(priority)) {
     return { status: 400, message: `priority không hợp lệ. Giá trị cho phép: ${priorityOptions.join(", ")}` };
-  }
-  if (durationValue <= 0) {
-    return { status: 400, message: "Thời gian phải là số lớn hơn 0" };
-  }
-  if (!PROGRAM_TASK_DURATION_UNITS.includes(durationUnit)) {
-    return {
-      status: 400,
-      message: `durationUnit không hợp lệ. Giá trị cho phép: ${PROGRAM_TASK_DURATION_UNITS.join(", ")}`,
-    };
-  }
-  if (!convert) {
-    return { status: 400, message: "Không thể quy đổi thời gian" };
   }
   if (bonusPoint === null || bonusPoint < 0) {
     return { status: 400, message: "bonusPoint không hợp lệ" };
