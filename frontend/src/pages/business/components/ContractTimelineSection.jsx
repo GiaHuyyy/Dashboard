@@ -196,8 +196,8 @@ const TimelineChart = ({ rows = [] }) => {
 
   return (
     <div className="max-h-115 overflow-x-auto overflow-y-auto rounded-xl border border-slate-200">
-      <div className="divide-y divide-slate-100 bg-white" style={{ minWidth: 1280 }}>
-        <div className="grid grid-cols-[260px_1fr] bg-slate-50 text-xs font-semibold text-slate-500">
+      <div className="divide-y divide-slate-100 bg-white" style={{ minWidth: 1800 }}>
+        <div className="grid grid-cols-[320px_1fr] bg-slate-50 text-xs font-semibold text-slate-500">
           <div className="border-r border-slate-200 p-3">Công việc</div>
           <div className="flex items-center justify-between p-3">
             <span>{formatChartShortDate(minTime)}</span>
@@ -207,10 +207,10 @@ const TimelineChart = ({ rows = [] }) => {
         {rows.map((row) => {
           const left = Math.min(((row.startTime - minTime) / range) * 100, 97.5);
           const rawWidth = ((row.endTime - row.startTime) / range) * 100;
-          const width = row.isMilestone ? 1.2 : Math.min(Math.max(rawWidth, 2.5), 100 - left);
+          const width = row.isMilestone ? 1.2 : Math.min(Math.max(rawWidth, 8), 100 - left);
 
           return (
-            <div key={row.id} className="grid grid-cols-[260px_1fr] text-sm">
+            <div key={row.id} className="grid grid-cols-[320px_1fr] text-sm">
               <div className="border-r border-slate-200 p-3">
                 <p className="line-clamp-2 font-semibold text-slate-700">{row.label}</p>
                 {row.description ? <p className="mt-1 line-clamp-1 text-xs text-slate-500">{row.description}</p> : null}
@@ -218,11 +218,11 @@ const TimelineChart = ({ rows = [] }) => {
               <div className="relative min-h-16 p-3">
                 <div className="absolute inset-x-3 top-1/2 h-px bg-slate-100" />
                 <div
-                  className={`absolute top-1/2 h-6 -translate-y-1/2 rounded-full px-3 text-xs font-semibold leading-6 text-white shadow-sm ${getTimelineColorClass(row.type)}`}
-                  style={{ left: `${left}%`, width: `${width}%`, minWidth: row.isMilestone ? 28 : undefined }}
+                  className={`absolute top-1/2 h-7 -translate-y-1/2 overflow-visible whitespace-nowrap rounded-full px-3 text-xs font-semibold leading-7 text-white shadow-sm ${getTimelineColorClass(row.type)}`}
+                  style={{ left: `${left}%`, width: `${width}%`, minWidth: row.isMilestone ? 28 : 280 }}
                   title={`${row.label}: ${row.startLabel || "--"}${row.isMilestone ? "" : ` - ${row.endLabel || "--"}`}`}
                 >
-                  <span className="block truncate">{row.isMilestone ? row.startLabel || "--" : `${row.startLabel || "--"} → ${row.endLabel || "--"}`}</span>
+                  <span className="block">{row.isMilestone ? row.startLabel || "--" : `${row.startLabel || "--"} → ${row.endLabel || "--"}`}</span>
                 </div>
               </div>
             </div>

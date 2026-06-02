@@ -273,6 +273,7 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
       type,
       timestamp: time.getTime(),
       pinned,
+      pinnedBottom: title.startsWith("Bàn giao hợp đồng"),
     });
   };
 
@@ -385,9 +386,11 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
     .sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
+      if (a.pinnedBottom && !b.pinnedBottom) return 1;
+      if (!a.pinnedBottom && b.pinnedBottom) return -1;
       return a.timestamp - b.timestamp;
     })
-    .map(({ timestamp, pinned, ...item }) => item);
+    .map(({ timestamp, pinned, pinnedBottom, ...item }) => item);
 };
 
 
