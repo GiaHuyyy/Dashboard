@@ -94,9 +94,7 @@ function ProgramPointManagement() {
         item.description,
         item.status,
         item.assignee,
-        item.convertPoint,
         item.bonusPoint,
-        item.point,
         item.createdAtLabel,
       ]
         .map(normalizeSearchValue)
@@ -135,7 +133,6 @@ function ProgramPointManagement() {
       "Trạng thái",
       "Lập trình",
       "Điểm cộng",
-      "Tổng điểm",
       "Ngày",
     ];
     const rows = filteredDetailRows.map((item) => [
@@ -146,7 +143,6 @@ function ProgramPointManagement() {
       item.status,
       item.assignee,
       item.bonusPoint ?? "",
-      item.point,
       item.createdAtLabel,
     ]);
     const csv = [toCsvRow(header), ...rows.map(toCsvRow)].join("\n");
@@ -313,23 +309,20 @@ function ProgramPointManagement() {
                 Điểm cộng
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Tổng điểm
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày
+                Ngày hoàn thành
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={10} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : filteredDetailRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={9} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -353,8 +346,7 @@ function ProgramPointManagement() {
                   <TableCell className="border border-slate-200 p-4">{row.status}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.bonusPoint ?? 0}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">{row.point}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.createdAtLabel}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.createdAtLabel || "-"}</TableCell>
                 </TableRow>
               ))
             )}

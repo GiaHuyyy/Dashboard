@@ -12,8 +12,6 @@ import { designPointApi } from "@/lib/api-client";
 
 const MONTH_OPTIONS = ["Tất cả", ...Array.from({ length: 12 }, (_, index) => `Tháng ${index + 1}`)];
 const YEAR_OPTIONS = ["Tất cả", "2026", "2025", "2024"];
-const STATUS_OPTIONS = ["Tất cả", "Đã nhận", "Đang xử lý", "Hoàn thành"];
-
 const normalizeSearchValue = (value) => String(value ?? "").toLowerCase();
 
 const toCsvRow = (values) =>
@@ -30,7 +28,6 @@ const toCsvRow = (values) =>
 function DesignPointManagement() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState({
-    totalConvertPoint: 0,
     totalBonusPoint: 0,
     totalPoint: 0,
   });
@@ -41,7 +38,6 @@ function DesignPointManagement() {
   const [selectedAssignee, setSelectedAssignee] = useState("Tất cả");
   const [selectedMonth, setSelectedMonth] = useState("Tất cả");
   const [selectedYear, setSelectedYear] = useState("Tất cả");
-  const [selectedStatus, setSelectedStatus] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
   const debouncedSearchText = useDebouncedValue(searchText, 300);
   const [page, setPage] = useState(1);
@@ -54,7 +50,6 @@ function DesignPointManagement() {
         assignee: selectedAssignee === "Tất cả" ? "all" : selectedAssignee,
         month: selectedMonth === "Tất cả" ? "all" : Number(selectedMonth.split(" ")[1]),
         year: selectedYear === "Tất cả" ? "all" : Number(selectedYear),
-        status: selectedStatus === "Tất cả" ? "all" : selectedStatus,
       });
       setSummary(response?.summary || {});
       setOwnerRows(Array.isArray(response?.owners) ? response.owners : []);
@@ -65,7 +60,7 @@ function DesignPointManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedAssignee, selectedMonth, selectedYear, selectedStatus]);
+  }, [selectedAssignee, selectedMonth, selectedYear]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -74,7 +69,7 @@ function DesignPointManagement() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearchText, selectedAssignee, selectedMonth, selectedYear, selectedStatus]);
+  }, [debouncedSearchText, selectedAssignee, selectedMonth, selectedYear]);
 
   const fullAssigneeOptions = useMemo(() => ["Tất cả", ...assigneeOptions], [assigneeOptions]);
 
@@ -90,9 +85,7 @@ function DesignPointManagement() {
         item.status,
         item.assigner,
         item.assignee,
-        item.convertPoint,
         item.bonusPoint,
-        item.totalPoint,
         item.createdAtLabel,
       ]
         .map(normalizeSearchValue)
@@ -130,8 +123,7 @@ function DesignPointManagement() {
       "Trạng thái",
       "Người giao (Quản lý)",
       "Người nhận",
-      "Điểm thêm",
-      "Tổng điểm",
+      "Điểm cộng",
       "Ngày",
     ];
     const rows = filteredDetailRows.map((item) => [
@@ -141,9 +133,7 @@ function DesignPointManagement() {
       item.status,
       item.assigner,
       item.assignee,
-      item.convertPoint,
       item.bonusPoint,
-      item.totalPoint,
       item.createdAtLabel,
     ]);
     const csv = [toCsvRow(header), ...rows.map(toCsvRow)].join("\n");
@@ -208,24 +198,9 @@ function DesignPointManagement() {
           ))}
         </select>
 
-        <select
-          className="w-48 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-          value={selectedStatus}
-          onChange={(event) => setSelectedStatus(event.target.value)}
-        >
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <div className="rounded-xl border border-t-3 border-t-sky-500 border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-500">Điểm cộng</p>
-          <p className="text-2xl font-semibold text-slate-800">{summary.totalBonusPoint ?? 0}</p>
-        </div>
         <div className="rounded-xl border border-t-3 border-t-sky-500 border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Tổng điểm</p>
           <p className="text-2xl font-semibold text-sky-700">{summary.totalPoint ?? 0}</p>
@@ -243,9 +218,6 @@ function DesignPointManagement() {
                 Nhân sự
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm thêm
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Tổng điểm
               </TableHead>
             </TableRow>
@@ -253,13 +225,13 @@ function DesignPointManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={2} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : ownerRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={2} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -267,8 +239,6 @@ function DesignPointManagement() {
               ownerRows.map((row) => (
                 <TableRow key={row.assignee} className="text-slate-700">
                   <TableCell className="border border-slate-200 p-4 text-left">{row.assignee}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.convertPoint}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
                     {row.totalPoint}
                   </TableCell>
@@ -309,13 +279,10 @@ function DesignPointManagement() {
                 Người nhận
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm thêm
+                Điểm cộng
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Tổng điểm
-              </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Ngày
+                Ngày hoàn thành
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -351,12 +318,8 @@ function DesignPointManagement() {
                   <TableCell className="border border-slate-200 p-4">{row.status}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assigner}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.assignee}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.convertPoint}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.bonusPoint}</TableCell>
-                  <TableCell className="border border-slate-200 p-4 font-semibold text-sky-700">
-                    {row.totalPoint}
-                  </TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.createdAtLabel}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">{row.createdAtLabel || "-"}</TableCell>
                 </TableRow>
               ))
             )}
