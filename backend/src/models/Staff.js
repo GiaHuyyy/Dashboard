@@ -19,6 +19,14 @@ const staffSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    departments: {
+      type: [String],
+      default: ["Lập trình"],
+    },
+    roles: {
+      type: [String],
+      default: ["Lập trình viên"],
+    },
     department: {
       type: String,
       trim: true,

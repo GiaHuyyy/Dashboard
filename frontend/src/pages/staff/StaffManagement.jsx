@@ -7,11 +7,23 @@ import { ManagementTableCard } from "@/components/management/ManagementTableCard
 import { ManagementPagination } from "@/components/management/ManagementPagination";
 import { useManagementList } from "@/hooks/useManagementList";
 import { staffApi } from "@/lib/api-client";
+import { getStaffDepartments, getStaffRoles } from "@/lib/staff-roles";
 import { Button } from "@/components/ui/button-v2";
 import Modal from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermission } from "@/lib/permissions";
 import { PERMISSIONS } from "@/constants/permissions";
+
+const joinValues = (values = []) => values.filter(Boolean).join(", ");
+
+const TruncatedValue = ({ values = [] }) => {
+  const text = joinValues(values);
+  return (
+    <div className="mx-auto max-w-[220px] truncate" title={text || "-"}>
+      {text || "-"}
+    </div>
+  );
+};
 
 function StaffManagement() {
   const navigate = useNavigate();
@@ -123,8 +135,12 @@ function StaffManagement() {
                   </TableCell>
                   <TableCell className="border border-slate-200 p-4 text-left">{row.email}</TableCell>
                   <TableCell className="border border-slate-200 p-4">{row.phone || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.department || "-"}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.role || "-"}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">
+                    <TruncatedValue values={getStaffDepartments(row)} />
+                  </TableCell>
+                  <TableCell className="border border-slate-200 p-4">
+                    <TruncatedValue values={getStaffRoles(row)} />
+                  </TableCell>
                   <TableCell className="border border-slate-200 p-4">
                     {row.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}
                   </TableCell>

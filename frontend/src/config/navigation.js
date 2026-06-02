@@ -153,7 +153,7 @@ export const navItems = [
     ],
   },
   {
-    label: "Quản lý kinh doanh",
+    label: "Quản lý hợp đồng",
     path: "/kinh-doanh",
     icon: FileText,
     children: [

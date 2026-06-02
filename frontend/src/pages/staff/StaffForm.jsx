@@ -10,15 +10,21 @@ import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { staffApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
-import { STAFF_DEPARTMENT_OPTIONS, STAFF_ROLE_OPTIONS, getDepartmentByRole } from "@/lib/staff-roles";
+import {
+  STAFF_DEPARTMENT_OPTIONS,
+  STAFF_ROLE_OPTIONS,
+  getDepartmentByRole,
+  getStaffDepartments,
+  getStaffRoles,
+} from "@/lib/staff-roles";
 import { PERMISSIONS } from "@/constants/permissions";
 
 const schema = z.object({
   fullName: z.string().trim().min(2, "Vui lòng nhập họ tên"),
   email: z.string().trim().email("Email không đúng định dạng"),
   phone: z.string().optional(),
-  department: z.string().trim().min(1, "Vui lòng nhập phòng ban"),
-  role: z.string().trim().min(1, "Vui lòng nhập vai trò"),
+  departments: z.array(z.string()).min(1, "Vui lòng chọn ít nhất 1 phòng ban"),
+  roles: z.array(z.string()).min(1, "Vui lòng chọn ít nhất 1 vai trò"),
   isActive: z.boolean(),
 });
 
@@ -26,10 +32,34 @@ const defaultValues = {
   fullName: "",
   email: "",
   phone: "",
-  department: "Lập trình",
-  role: "Lập trình viên",
+  departments: ["Lập trình"],
+  roles: ["Lập trình viên"],
   isActive: true,
 };
+
+const CheckboxGroup = ({ label, options = [], fieldName, register, error, disabled = false }) => (
+  <div className="text-sm font-semibold text-slate-600">
+    <div>{label}</div>
+    <div className="mt-2 grid gap-2 rounded-md border border-slate-200 bg-white p-3 sm:grid-cols-2">
+      {options.map((option) => (
+        <label
+          key={option}
+          className="flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-slate-600 hover:bg-slate-50"
+        >
+          <input
+            type="checkbox"
+            value={option}
+            disabled={disabled}
+            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+            {...register(fieldName)}
+          />
+          {option}
+        </label>
+      ))}
+    </div>
+    {error ? <p className="mt-1 text-xs font-semibold text-rose-600">{error}</p> : null}
+  </div>
+);
 
 function StaffForm() {
   const navigate = useNavigate();
@@ -48,7 +78,6 @@ function StaffForm() {
     defaultValues,
   });
 
-
   useEffect(() => {
     if (!isEditMode) return;
     const fetchDetail = async () => {
@@ -60,12 +89,14 @@ function StaffForm() {
           navigate("/nhan-su/danh-sach");
           return;
         }
+        const roles = getStaffRoles(staff);
+        const departments = getStaffDepartments(staff);
         reset({
           fullName: staff.fullName || "",
           email: staff.email || "",
           phone: staff.phone || "",
-          department: staff.department || getDepartmentByRole(staff.role || "Lập trình viên"),
-          role: staff.role || "Lập trình viên",
+          departments: departments.length > 0 ? departments : [getDepartmentByRole(staff.role || "Lập trình viên")],
+          roles: roles.length > 0 ? roles : [staff.role || "Lập trình viên"],
           isActive: Boolean(staff.isActive),
         });
       } catch (error) {
@@ -83,11 +114,17 @@ function StaffForm() {
       toast.error("Bạn không có quyền lưu dữ liệu này");
       return;
     }
+    const payload = {
+      ...values,
+      department: values.departments?.[0] || "",
+      role: values.roles?.[0] || "",
+    };
+
     try {
       if (isEditMode) {
-        await staffApi.update(id, values);
+        await staffApi.update(id, payload);
       } else {
-        const created = await staffApi.create(values);
+        const created = await staffApi.create(payload);
         if (mode === "save-stay" && created?.staff?.id) {
           toast.success("Đã tạo nhân sự tại trang");
           navigate(`/nhan-su/chinh-sua/${created.staff.id}`, { replace: true });
@@ -134,24 +171,26 @@ function StaffForm() {
           inputProps={{ ...register("phone") }}
           error={errors.phone?.message}
         />
-        <FormField
-          label="Phòng ban"
-          type="select"
-          options={STAFF_DEPARTMENT_OPTIONS.map((item) => ({ label: item, value: item }))}
-          selectProps={{ ...register("department") }}
-          error={errors.department?.message}
-        />
-        <FormField
-          label="Vai trò"
-          type="select"
-          options={STAFF_ROLE_OPTIONS.map((item) => ({ label: item, value: item }))}
-          selectProps={{ ...register("role") }}
-          error={errors.role?.message}
-        />
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-          <input type="checkbox" {...register("isActive")} />
+          <input type="checkbox" disabled={isReadOnlyMode} {...register("isActive")} />
           Đang hoạt động
         </label>
+        <CheckboxGroup
+          label="Phòng ban"
+          options={STAFF_DEPARTMENT_OPTIONS}
+          fieldName="departments"
+          register={register}
+          error={errors.departments?.message}
+          disabled={isReadOnlyMode}
+        />
+        <CheckboxGroup
+          label="Vai trò"
+          options={STAFF_ROLE_OPTIONS}
+          fieldName="roles"
+          register={register}
+          error={errors.roles?.message}
+          disabled={isReadOnlyMode}
+        />
       </FormSection>
     </FormPageLayout>
   );

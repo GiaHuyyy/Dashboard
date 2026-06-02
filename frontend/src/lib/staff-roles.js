@@ -11,9 +11,25 @@ export const STAFF_DEPARTMENT_BY_ROLE = {
 
 export const getDepartmentByRole = (role) => STAFF_DEPARTMENT_BY_ROLE[role] || "Khác";
 
+export const getStaffRoles = (staff = {}) => {
+  const roles = Array.isArray(staff.roles) ? staff.roles.filter(Boolean) : [];
+  return roles.length > 0 ? roles : staff.role ? [staff.role] : [];
+};
+
+export const getStaffDepartments = (staff = {}) => {
+  const departments = Array.isArray(staff.departments) ? staff.departments.filter(Boolean) : [];
+  return departments.length > 0 ? departments : staff.department ? [staff.department] : [];
+};
+
 export const getStaffNamesByRole = (staffs = [], role) =>
   staffs
-    .filter((item) => item?.role === role)
+    .filter((item) => getStaffRoles(item).includes(role))
+    .map((item) => item?.fullName)
+    .filter(Boolean);
+
+export const getStaffNamesByDepartment = (staffs = [], department) =>
+  staffs
+    .filter((item) => getStaffDepartments(item).includes(department))
     .map((item) => item?.fullName)
     .filter(Boolean);
 
