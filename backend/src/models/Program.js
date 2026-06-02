@@ -132,8 +132,9 @@ const programSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Đã nhận", "Đang xử lý", "Hoàn thành"],
       required: true,
+      trim: true,
+      default: "Chưa nhận",
     },
     mailStatus: {
       type: String,
@@ -147,14 +148,14 @@ const programSchema = new mongoose.Schema(
     },
     salesReceiverName: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     salesReceiverEmail: {
       type: String,
-      required: true,
       trim: true,
       lowercase: true,
+      default: "",
     },
     ccEmails: {
       type: [String],

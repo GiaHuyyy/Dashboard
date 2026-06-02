@@ -187,8 +187,8 @@ export const validateProgramPayload = async (
     status: businessContract.status || "Đã nhận",
     mailStatus: businessContract.mailStatus || "Mail nhận",
     selectedSalesStaff: businessContract.selectedSalesStaff || "",
-    salesReceiverName: businessContract.salesReceiverName || "",
-    salesReceiverEmail: businessContract.salesReceiverEmail || "",
+    salesReceiverName: businessContract.salesReceiverName || businessContract.customerName || "",
+    salesReceiverEmail: businessContract.salesReceiverEmail || businessContract.customerEmail || "",
     ccEmails: parseProgramCcEmails(businessContract.ccEmails),
   };
 
