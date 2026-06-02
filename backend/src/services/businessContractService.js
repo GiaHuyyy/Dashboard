@@ -124,6 +124,7 @@ export const normalizeBusinessContractPayload = (body = {}) => {
     salesReceiverEmail: normalizeString(body.salesReceiverEmail).toLowerCase() || customerEmail,
     ccEmails: parseBusinessContractCcEmails(body.ccEmails),
     contractImages: normalizeContractImages(body.contractImages),
+    receivedAt: normalizeDate(body.receivedAt),
     expectedHandoverAt: normalizeDate(body.expectedHandoverAt),
     handoverStatus: normalizeString(body.handoverStatus) || BUSINESS_CONTRACT_HANDOVER_STATUS_OPTIONS[0],
     handoverAt: normalizeDate(body.handoverAt),
@@ -138,6 +139,7 @@ export const validateBusinessContractPayload = async (payload, { excludeId = "" 
   if (payload.contractValue === null || payload.contractValue < 0)
     return { status: 400, message: "contractValue không hợp lệ" };
   if (!payload.selectedSalesStaff) return { status: 400, message: "selectedSalesStaff là bắt buộc" };
+  if (!payload.receivedAt) return { status: 400, message: "receivedAt là bắt buộc" };
   if (!payload.expectedHandoverAt) return { status: 400, message: "expectedHandoverAt là bắt buộc" };
 
   const [allowedTypeOptions, allowedStatusOptions] = await Promise.all([
@@ -219,6 +221,8 @@ export const toBusinessContractResponseItem = (doc) => ({
   salesReceiverEmail: doc.salesReceiverEmail || "",
   ccEmails: Array.isArray(doc.ccEmails) ? doc.ccEmails : [],
   contractImages: normalizeContractImages(doc.contractImages),
+  receivedAt: toIsoString(doc.receivedAt),
+  receivedAtLabel: formatBusinessContractDateTime(doc.receivedAt),
   expectedHandoverAt: toIsoString(doc.expectedHandoverAt),
   expectedHandoverAtLabel: formatBusinessContractDateTime(doc.expectedHandoverAt),
   handoverStatus: doc.handoverStatus || BUSINESS_CONTRACT_HANDOVER_STATUS_OPTIONS[0],
@@ -245,6 +249,8 @@ export const toBusinessContractReferenceItem = (item) => ({
   salesReceiverEmail: item.salesReceiverEmail || "",
   ccEmails: Array.isArray(item.ccEmails) ? item.ccEmails : [],
   contractImages: normalizeContractImages(item.contractImages),
+  receivedAt: toIsoString(item.receivedAt),
+  receivedAtLabel: formatBusinessContractDateTime(item.receivedAt),
   expectedHandoverAt: toIsoString(item.expectedHandoverAt),
   expectedHandoverAtLabel: formatBusinessContractDateTime(item.expectedHandoverAt),
   handoverStatus: item.handoverStatus || BUSINESS_CONTRACT_HANDOVER_STATUS_OPTIONS[0],

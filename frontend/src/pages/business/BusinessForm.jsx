@@ -51,6 +51,7 @@ const schema = z.object({
         .filter(Boolean)
         .every((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
     }, "Danh sách email cc không hợp lệ"),
+  receivedAt: z.string().trim().min(1, "Vui lòng chọn ngày nhận"),
   expectedHandoverAt: z.string().trim().min(1, "Vui lòng chọn ngày dự kiến bàn giao"),
   handoverStatus: z.enum(HANDOVER_STATUS_OPTIONS, { message: "Vui lòng chọn trạng thái bàn giao hợp lệ" }),
   handoverAt: z.string().optional(),
@@ -78,6 +79,7 @@ const defaultValues = {
   selectedSalesStaff: "",
   selectedManager: "",
   ccEmails: "",
+  receivedAt: "",
   expectedHandoverAt: "",
   handoverStatus: HANDOVER_STATUS_OPTIONS[0],
   handoverAt: "",
@@ -106,6 +108,7 @@ const mapDetailToForm = (contract) => ({
   selectedSalesStaff: contract.selectedSalesStaff || "",
   selectedManager: contract.selectedManager || "",
   ccEmails: Array.isArray(contract.ccEmails) ? contract.ccEmails.join(", ") : "",
+  receivedAt: toDateTimeLocal(contract.receivedAt || contract.createdAt),
   expectedHandoverAt: toDateTimeLocal(contract.expectedHandoverAt),
   handoverStatus: contract.handoverStatus || HANDOVER_STATUS_OPTIONS[0],
   handoverAt: toDateTimeLocal(contract.handoverAt),
@@ -541,6 +544,12 @@ function BusinessForm() {
             error={errors.ccEmails?.message}
           />
           */}
+          <FormField
+            label="Ngày nhận"
+            type="datetime-local"
+            inputProps={{ ...register("receivedAt"), disabled: isFormReadOnly }}
+            error={errors.receivedAt?.message}
+          />
           <FormField
             label="Ngày dự kiến bàn giao"
             type="datetime-local"

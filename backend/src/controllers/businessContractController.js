@@ -167,7 +167,7 @@ export const listBusinessContractReferences = async (req, res) => {
   const items = await BusinessContract.find({ isDeleted: false, visible: true })
     .sort({ createdAt: 1 })
     .select(
-      "contractCode contractName contractValue customerName status mailStatus selectedSalesStaff selectedManager salesReceiverName salesReceiverEmail ccEmails contractImages expectedHandoverAt handoverStatus",
+      "contractCode contractName contractValue customerName status mailStatus selectedSalesStaff selectedManager salesReceiverName salesReceiverEmail ccEmails contractImages receivedAt expectedHandoverAt handoverStatus",
     )
     .lean();
 
@@ -230,6 +230,7 @@ export const updateBusinessContract = async (req, res) => {
     salesReceiverEmail: hasCustomerEmail ? input.customerEmail : existing.salesReceiverEmail || existing.customerEmail,
     ccEmails: req.body.ccEmails !== undefined ? input.ccEmails : existing.ccEmails,
     contractImages: Array.isArray(req.body.contractImages) ? input.contractImages : existing.contractImages,
+    receivedAt: req.body.receivedAt === null ? null : input.receivedAt || existing.receivedAt,
     expectedHandoverAt: req.body.expectedHandoverAt === null ? null : input.expectedHandoverAt || existing.expectedHandoverAt,
     handoverStatus: hasHandoverStatus ? input.handoverStatus : existing.handoverStatus,
     handoverAt: req.body.handoverAt === null ? null : input.handoverAt || existing.handoverAt,
@@ -265,6 +266,7 @@ export const updateBusinessContract = async (req, res) => {
   existing.salesReceiverEmail = mergedPayload.salesReceiverEmail;
   existing.ccEmails = mergedPayload.ccEmails;
   existing.contractImages = mergedPayload.contractImages;
+  existing.receivedAt = mergedPayload.receivedAt;
   existing.expectedHandoverAt = mergedPayload.expectedHandoverAt;
   existing.handoverStatus = mergedPayload.handoverStatus;
   existing.handoverAt = mergedPayload.handoverAt;

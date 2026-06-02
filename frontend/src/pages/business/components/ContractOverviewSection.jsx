@@ -29,6 +29,7 @@ export function ContractOverviewSection({ contract }) {
       { label: "Giá trị hợp đồng gốc", value: formatCurrency(contract.contractValue || 0) },
       { label: "Nhân viên kinh doanh", value: contract.selectedSalesStaff },
       { label: "Trạng thái", value: contract.status },
+      { label: "Ngày nhận", value: contract.receivedAtLabel },
       { label: "Ngày dự kiến bàn giao", value: contract.expectedHandoverAtLabel },
       { label: "Trạng thái bàn giao", value: contract.handoverStatus },
       { label: "Ngày bàn giao", value: contract.handoverAtLabel },

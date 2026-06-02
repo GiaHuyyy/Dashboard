@@ -260,7 +260,7 @@ const formatProfileSourceItem = (doc) => {
 const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sources }) => {
   const events = [];
 
-  const pushEvent = ({ date, title, description = "", type = "info" }) => {
+  const pushEvent = ({ date, title, description = "", type = "info", pinned = false }) => {
     if (!date) return;
     const time = new Date(date);
     if (Number.isNaN(time.getTime())) return;
@@ -272,32 +272,38 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
       description,
       type,
       timestamp: time.getTime(),
+      pinned,
+    });
+  };
+
+  const pushPlannedAwareEvent = ({ actualDate, plannedDate, title, description = "", type = "info" }) => {
+    const isPlanned = !actualDate && Boolean(plannedDate);
+    pushEvent({
+      date: actualDate || plannedDate,
+      title: isPlanned ? `${title} (Dự kiến)` : title,
+      description,
+      type,
     });
   };
 
   pushEvent({
-    date: contract.createdAt,
+    date: contract.receivedAt || contract.createdAt,
     title: "Tạo hợp đồng",
     description: `${contract.contractCode || ""} - ${contract.contractName || ""}`.trim(),
     type: "contract",
-  });
-
-  pushEvent({
-    date: contract.handoverAt,
-    title: "Bàn giao hợp đồng",
-    description: contract.handoverStatus || "",
-    type: "contract",
+    pinned: true,
   });
 
   designs.forEach((item) => {
     pushEvent({
-      date: item.createdAt,
+      date: item.handoverDate || item.receiveDate || item.createdAt,
       title: "Tạo phiếu design",
       description: `${item.title || ""} - ${item.assignee || ""}`.trim(),
       type: "design",
     });
-    pushEvent({
-      date: item.completedDate,
+    pushPlannedAwareEvent({
+      actualDate: item.completedDate,
+      plannedDate: item.expectedDate || item.deadline,
       title: "Hoàn thành design",
       description: item.title || "",
       type: "design",
@@ -306,13 +312,14 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
 
   programs.forEach((item) => {
     pushEvent({
-      date: item.assignedAt,
+      date: item.assignedAt || item.receivedAt || item.createdAt,
       title: "Tạo phiếu lập trình",
       description: `${item.contractCode || ""} - ${item.module || ""} - ${item.assignee || ""}`.trim(),
       type: "program",
     });
-    pushEvent({
-      date: item.completedAt,
+    pushPlannedAwareEvent({
+      actualDate: item.completedAt,
+      plannedDate: item.dueAt,
       title: "Hoàn thành lập trình",
       description: `${item.contractCode || ""} - ${item.module || ""}`.trim(),
       type: "program",
@@ -321,13 +328,14 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
 
   corrections.forEach((item) => {
     pushEvent({
-      date: item.assignedAt,
+      date: item.assignedAt || item.receivedAt || item.createdAt,
       title: "Tạo yêu cầu chỉnh sửa",
       description: `${item.contractCode || ""} - ${item.issueContent || ""}`.trim(),
       type: "correction",
     });
-    pushEvent({
-      date: item.completedAt,
+    pushPlannedAwareEvent({
+      actualDate: item.completedAt,
+      plannedDate: item.dueAt,
       title: "Hoàn thành chỉnh sửa",
       description: item.issueContent || "",
       type: "correction",
@@ -336,13 +344,14 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
 
   upgrades.forEach((item) => {
     pushEvent({
-      date: item.assignedAt || item.createdAt,
+      date: item.assignedAt || item.receivedAt || item.createdAt,
       title: "Tạo yêu cầu nâng cấp",
       description: `${item.contractCode || ""} - ${item.upgradeItem || ""}`.trim(),
       type: "upgrade",
     });
-    pushEvent({
-      date: item.completedAt,
+    pushPlannedAwareEvent({
+      actualDate: item.completedAt,
+      plannedDate: item.dueAt,
       title: "Hoàn thành nâng cấp",
       description: item.upgradeItem || "",
       type: "upgrade",
@@ -361,10 +370,26 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
       title: "Gửi source",
       description: item.domain || "",
       type: "source",
-    });  });
+    });
+  });
 
-  return events.sort((a, b) => a.timestamp - b.timestamp).map(({ timestamp, ...item }) => item);
+  pushPlannedAwareEvent({
+    actualDate: contract.handoverAt,
+    plannedDate: contract.expectedHandoverAt,
+    title: "Bàn giao hợp đồng",
+    description: contract.handoverStatus || "",
+    type: "contract",
+  });
+
+  return events
+    .sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return a.timestamp - b.timestamp;
+    })
+    .map(({ timestamp, pinned, ...item }) => item);
 };
+
 
 const buildStaffPointSummary = ({ designs, programs, corrections, upgrades, workingHoursPerDay = 8 }) => {
   const staffMap = new Map();

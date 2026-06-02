@@ -105,6 +105,11 @@ const businessContractSchema = new mongoose.Schema(
       default: "Chưa bàn giao",
       index: true,
     },
+    receivedAt: {
+      type: Date,
+      required: true,
+      index: true,
+    },
     expectedHandoverAt: {
       type: Date,
       required: true,
