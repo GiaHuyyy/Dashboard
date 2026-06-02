@@ -21,7 +21,7 @@ import { UPLOAD_FOLDERS } from "@/constants/upload-folders";
 import { MAIL_STATUS_OPTIONS } from "@/constants/program";
 import { businessContractApi, staffApi, systemCategoryApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
-import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
+import { ensureSelectOption, getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { uploadApi } from "@/lib/upload";
 import { PERMISSIONS } from "@/constants/permissions";
 
@@ -159,8 +159,16 @@ function BusinessForm() {
   const isHandedOverLocked =
     isEditMode && initialSnapshot.values?.handoverStatus === "Đã bàn giao" && !canOverrideHandover;
   const isFormReadOnly = !canSave || isHandedOverLocked;
-  const salesOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh"));
-  const managerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
+  const salesOptions = useMemo(
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Nhân viên kinh doanh")), selectedSalesStaff),
+    [selectedSalesStaff, staffReferences],
+  );
+  const managerOptions = useMemo(
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý")), selectedManager),
+    [selectedManager, staffReferences],
+  );
+  const selectedSalesStaff = useWatch({ control, name: "selectedSalesStaff" });
+  const selectedManager = useWatch({ control, name: "selectedManager" });
   const customerEmail = useWatch({ control, name: "customerEmail" });
   const selectedStatus = useWatch({ control, name: "status" });
   const selectedContractType = useWatch({ control, name: "contractType" });

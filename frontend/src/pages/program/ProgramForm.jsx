@@ -10,7 +10,7 @@ import { FormActions, FormPageLayout, FormSection } from "@/components/forms";
 import { COMPLETED_STATUS, DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { businessContractApi, designApi, programApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
-import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
+import { ensureSelectOption, getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -264,6 +264,8 @@ function ProgramForm() {
   const selectedDesignTaskId = useWatch({ control, name: "designTaskId" });
   const selectedBusinessContractId = useWatch({ control, name: "businessContractId" });
   const selectedProcessingStatus = useWatch({ control, name: "processingStatus" });
+  const selectedAssigner = useWatch({ control, name: "assigner" });
+  const selectedAssignee = useWatch({ control, name: "assignee" });
   const isCompletedReadOnlyMode =
     isEditMode && initialSnapshot.processingStatus === COMPLETED_STATUS && !canOverrideCompleted;
   const isReadOnlyMode = !canSave || isCompletedReadOnlyMode;
@@ -327,8 +329,14 @@ function ProgramForm() {
     };
   }, [isEditMode, setValue]);
 
-  const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
-  const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
+  const assignerOptions = useMemo(
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý")), selectedAssigner),
+    [selectedAssigner, staffReferences],
+  );
+  const assigneeOptions = useMemo(
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên")), selectedAssignee),
+    [selectedAssignee, staffReferences],
+  );
   const designTaskOptions = designReferences.map((item) => ({
     label: item?.label || item?.title || "Design",
     value: item?.id,

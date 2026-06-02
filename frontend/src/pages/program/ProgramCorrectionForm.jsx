@@ -11,7 +11,7 @@ import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { CORRECTION_COMPLETED_STATUS } from "@/constants/program-correction";
 import { businessContractApi, correctionApi, programApi, staffApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
-import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
+import { ensureSelectOption, getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -155,6 +155,8 @@ function ProgramCorrectionForm() {
   const selectedDurationValue = useWatch({ control, name: "durationValue" });
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
   const selectedStatus = useWatch({ control, name: "status" });
+  const selectedAssigner = useWatch({ control, name: "assigner" });
+  const selectedAssignee = useWatch({ control, name: "assignee" });
   const selectedProgram = useMemo(
     () => getProgramByBusinessContractId(programReferences, selectedBusinessContractId),
     [programReferences, selectedBusinessContractId],
@@ -176,8 +178,14 @@ function ProgramCorrectionForm() {
   const statusOptions = useMemo(() => statusValues.map((item) => ({ label: item, value: item })), [statusValues]);
   const businessContractRegister = register("businessContractId");
 
-  const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
-  const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
+  const assignerOptions = useMemo(
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý")), selectedAssigner),
+    [selectedAssigner, staffReferences],
+  );
+  const assigneeOptions = useMemo(
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên")), selectedAssignee),
+    [selectedAssignee, staffReferences],
+  );
 
   useEffect(() => {
     if (isEditMode) return;

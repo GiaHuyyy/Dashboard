@@ -11,7 +11,7 @@ import { DURATION_UNIT_OPTIONS } from "@/constants/program";
 import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";
 import { businessContractApi, programApi, staffApi, upgradeApi } from "@/lib/api-client";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
-import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
+import { ensureSelectOption, getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { hasPermission } from "@/lib/permissions";
 import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
@@ -157,6 +157,8 @@ function ProgramUpgradeForm() {
   const selectedDurationValue = useWatch({ control, name: "durationValue" });
   const selectedDurationUnit = useWatch({ control, name: "durationUnit" });
   const selectedStatus = useWatch({ control, name: "status" });
+  const selectedAssigner = useWatch({ control, name: "assigner" });
+  const selectedAssignee = useWatch({ control, name: "assignee" });
   const selectedProgram = useMemo(
     () => getProgramByBusinessContractId(programReferences, selectedBusinessContractId),
     [programReferences, selectedBusinessContractId],
@@ -200,8 +202,14 @@ function ProgramUpgradeForm() {
     setValue("completedAt", "", { shouldValidate: true });
   }, [selectedStatus, setValue]);
 
-  const assignerOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý"));
-  const assigneeOptions = toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên"));
+  const assignerOptions = useMemo(
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý")), selectedAssigner),
+    [selectedAssigner, staffReferences],
+  );
+  const assigneeOptions = useMemo(
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Lập trình viên")), selectedAssignee),
+    [selectedAssignee, staffReferences],
+  );
 
   useEffect(() => {
     const fetchSources = async () => {

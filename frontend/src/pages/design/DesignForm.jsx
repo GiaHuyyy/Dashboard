@@ -12,6 +12,7 @@ import Modal from "@/components/ui/modal";
 import { designApi, staffApi } from "@/lib/api-client";
 import { hasPermission } from "@/lib/permissions";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
+import { ensureSelectOption, getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { PERMISSIONS } from "@/constants/permissions";
 
 const DESIGN_TYPES = ["Logo", "Banner", "Landing page", "UI/UX", "Social post"];
@@ -130,6 +131,8 @@ function DesignForm() {
   const durationValue = useWatch({ control, name: "durationValue" });
   const durationUnit = useWatch({ control, name: "durationUnit" });
   const selectedStatus = useWatch({ control, name: "status" });
+  const selectedAssigner = useWatch({ control, name: "assigner" });
+  const selectedAssignee = useWatch({ control, name: "assignee" });
   const priorityCategories = useSystemCategoryOptions("priority");
   const statusCategories = useSystemCategoryOptions("status");
   const formStatusValues = useMemo(() => {
@@ -188,13 +191,12 @@ function DesignForm() {
         setStaffReferences(staffs);
 
         if (!isEditMode) {
-          const manager = staffs.find((item) => item.role === "Quản lý");
-          const designer =
-            staffs.find((item) => item.role === "Thiết kế") || staffs.find((item) => item.role === "Thiết kế viên");
+          const managerNames = getStaffNamesByRole(staffs, "Quản lý");
+          const designerNames = getStaffNamesByRole(staffs, ["Thiết kế", "Thiết kế viên"]);
           const nextDefault = {
             ...defaultValues,
-            assigner: manager?.fullName || "",
-            assignee: designer?.fullName || "",
+            assigner: managerNames[0] || "",
+            assignee: designerNames[0] || "",
           };
           reset(nextDefault);
           setInitialSnapshot(nextDefault);
@@ -251,18 +253,12 @@ function DesignForm() {
   }, [id, isEditMode, navigate, reset]);
 
   const managerOptions = useMemo(
-    () =>
-      staffReferences
-        .filter((item) => item.role === "Quản lý")
-        .map((item) => ({ label: item.fullName, value: item.fullName })),
-    [staffReferences],
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý")), selectedAssigner),
+    [selectedAssigner, staffReferences],
   );
   const designerOptions = useMemo(
-    () =>
-      staffReferences
-        .filter((item) => item.role === "Thiết kế" || item.role === "Thiết kế viên")
-        .map((item) => ({ label: item.fullName, value: item.fullName })),
-    [staffReferences],
+    () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, ["Thiết kế", "Thiết kế viên"])), selectedAssignee),
+    [selectedAssignee, staffReferences],
   );
 
   const persist = async (values, mode) => {
