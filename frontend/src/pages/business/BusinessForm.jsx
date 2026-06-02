@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -156,6 +156,12 @@ function BusinessForm() {
   });
 
   const handoverStatus = useWatch({ control, name: "handoverStatus" });
+  const isHandedOverStatus = handoverStatus === "Đã bàn giao";
+  const selectedSalesStaff = useWatch({ control, name: "selectedSalesStaff" });
+  const selectedManager = useWatch({ control, name: "selectedManager" });
+  const customerEmail = useWatch({ control, name: "customerEmail" });
+  const selectedStatus = useWatch({ control, name: "status" });
+  const selectedContractType = useWatch({ control, name: "contractType" });
   const isHandedOverLocked =
     isEditMode && initialSnapshot.values?.handoverStatus === "Đã bàn giao" && !canOverrideHandover;
   const isFormReadOnly = !canSave || isHandedOverLocked;
@@ -167,11 +173,6 @@ function BusinessForm() {
     () => ensureSelectOption(toSelectOptions(getStaffNamesByRole(staffReferences, "Quản lý")), selectedManager),
     [selectedManager, staffReferences],
   );
-  const selectedSalesStaff = useWatch({ control, name: "selectedSalesStaff" });
-  const selectedManager = useWatch({ control, name: "selectedManager" });
-  const customerEmail = useWatch({ control, name: "customerEmail" });
-  const selectedStatus = useWatch({ control, name: "status" });
-  const selectedContractType = useWatch({ control, name: "contractType" });
   const hasCustomerEmail = Boolean(customerEmail?.trim());
   const visibleProjectStatusOptions = selectedStatus && !projectStatusOptions.includes(selectedStatus)
     ? [selectedStatus, ...projectStatusOptions]
@@ -256,9 +257,9 @@ function BusinessForm() {
 
 
   useEffect(() => {
-    if (handoverStatus === "Đã bàn giao") return;
+    if (isHandedOverStatus) return;
     setValue("handoverAt", "", { shouldValidate: true });
-  }, [handoverStatus, setValue]);
+  }, [isHandedOverStatus, setValue]);
 
   useEffect(() => {
     if (!isEditMode) {
@@ -553,12 +554,14 @@ function BusinessForm() {
             selectProps={{ ...register("handoverStatus"), disabled: isFormReadOnly }}
             error={errors.handoverStatus?.message}
           />
-          <FormField
-            label="Ngày bàn giao"
-            type="datetime-local"
-            inputProps={{ ...register("handoverAt"), disabled: isFormReadOnly || handoverStatus !== "Đã bàn giao" }}
-            error={errors.handoverAt?.message}
-          />
+          {isHandedOverStatus ? (
+            <FormField
+              label="Ngày bàn giao"
+              type="datetime-local"
+              inputProps={{ ...register("handoverAt"), disabled: isFormReadOnly }}
+              error={errors.handoverAt?.message}
+            />
+          ) : null}
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <input type="checkbox" {...register("visible")} disabled={isFormReadOnly} />
             Hiển thị

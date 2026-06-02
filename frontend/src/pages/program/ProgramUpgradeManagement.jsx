@@ -12,6 +12,7 @@ import { UPGRADE_COMPLETED_STATUS } from "@/constants/program-upgrade";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { staffApi, upgradeApi } from "@/lib/api-client";
+import { getWorkDurationLabel } from "@/lib/work-duration";
 import { useSystemCategoryOptions } from "@/lib/system-categories";
 import { getStaffNamesByRole, toSelectOptions } from "@/lib/staff-roles";
 import { Button } from "@/components/ui/button-v2";
@@ -339,14 +340,11 @@ function ProgramUpgradeManagement() {
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Thời gian
               </TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Quy đổi
-              </TableHead>
               <TableHead className="border border-slate-200 p-4 px-6 text-center font-semibold text-slate-500">
                 Trạng thái
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
-                Điểm cộng thêm
+                Điểm cộng
               </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
                 Người giao (Quản lý)
@@ -377,13 +375,13 @@ function ProgramUpgradeManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={17} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Đang tải dữ liệu...
                 </TableCell>
               </TableRow>
             ) : displayedRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={18} className="border border-slate-200 p-4 py-8 text-slate-500">
+                <TableCell colSpan={17} className="border border-slate-200 p-4 py-8 text-slate-500">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
@@ -418,8 +416,14 @@ function ProgramUpgradeManagement() {
                       onChange={(nextValue) => handlePriorityChange(row, nextValue)}
                     />
                   </TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.time}</TableCell>
-                  <TableCell className="border border-slate-200 p-4">{row.convert}</TableCell>
+                  <TableCell className="border border-slate-200 p-4">
+                    {getWorkDurationLabel({
+                      receivedAt: row.receivedAt,
+                      assignedAt: row.assignedAt,
+                      completedAt: row.completedAt,
+                      dueAt: row.dueAt,
+                    })}
+                  </TableCell>
                   <TableCell className="border border-slate-200 p-4" onClick={(event) => event.stopPropagation()}>
                     <InlineStatusSelect
                       value={row.status}

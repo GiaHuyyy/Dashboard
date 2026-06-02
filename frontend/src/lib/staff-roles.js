@@ -1,3 +1,23 @@
+export const STAFF_DEPARTMENT_OPTIONS = ["Lập trình", "Design", "Kinh doanh", "Quản lý"];
+
+export const STAFF_ROLE_OPTIONS = [
+  "Quản lý",
+  "Lập trình viên",
+  "Thiết kế",
+  "Thiết kế viên",
+  "Nhân viên kinh doanh",
+];
+
+export const STAFF_ROLE_DEPARTMENT_MAP = {
+  "Quản lý": "Quản lý",
+  "Lập trình viên": "Lập trình",
+  "Thiết kế": "Design",
+  "Thiết kế viên": "Design",
+  "Nhân viên kinh doanh": "Kinh doanh",
+};
+
+export const getDepartmentByRole = (role) => STAFF_ROLE_DEPARTMENT_MAP[String(role || "").trim()] || "Lập trình";
+
 const ROLE_ALIASES = {
   "Thiết kế": ["Thiết kế", "Thiết kế viên"],
   "Thiết kế viên": ["Thiết kế", "Thiết kế viên"],

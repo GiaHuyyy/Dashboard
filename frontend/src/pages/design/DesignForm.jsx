@@ -109,7 +109,9 @@ function DesignForm() {
     resolver: zodResolver(schema),
     defaultValues,
   });
+  const selectedPriority = useWatch({ control, name: "priority" });
   const selectedStatus = useWatch({ control, name: "status" });
+  const isCompletedStatus = selectedStatus === COMPLETED_STATUS;
   const selectedAssigner = useWatch({ control, name: "assigner" });
   const selectedAssignee = useWatch({ control, name: "assignee" });
   const priorityCategories = useSystemCategoryOptions("priority");
@@ -122,6 +124,14 @@ function DesignForm() {
   const formStatusOptions = useMemo(
     () => formStatusValues.map((item) => ({ label: item, value: item })),
     [formStatusValues],
+  );
+  const priorityOptions = useMemo(
+    () => ensureSelectOption(priorityCategories.options || [], selectedPriority),
+    [priorityCategories.options, selectedPriority],
+  );
+  const statusOptions = useMemo(
+    () => ensureSelectOption(formStatusOptions, selectedStatus),
+    [formStatusOptions, selectedStatus],
   );
   const isCompletedLocked = isEditMode && initialSnapshot.status === COMPLETED_STATUS && !canOverrideCompleted;
   const isFormReadOnly = !canSave || isCompletedLocked;
@@ -152,9 +162,10 @@ function DesignForm() {
   }, [formStatusValues, getValues, isEditMode, isLoadingDetail, isLoadingReference, priorityCategories.options, setValue]);
 
   useEffect(() => {
-    if (selectedStatus === COMPLETED_STATUS) return;
+    if (isLoadingDetail || isCompletedStatus) return;
+    setValue("bonusPoint", 0, { shouldValidate: true });
     setValue("completedDate", "", { shouldValidate: true });
-  }, [selectedStatus, setValue]);
+  }, [isCompletedStatus, isLoadingDetail, setValue]);
 
   useEffect(() => {
     const fetchStaffReferences = async () => {
@@ -251,7 +262,7 @@ function DesignForm() {
       convert: 0,
       durationValue: 0,
       durationUnit: "ngày",
-      bonusPoint: values.status === COMPLETED_STATUS ? Number(values.bonusPoint) : 0,
+      bonusPoint: values.status === COMPLETED_STATUS ? Number(values.bonusPoint || 0) : 0,
       handoverDate: values.handoverDate || null,
       receiveDate: values.receiveDate || null,
       expectedDate: values.expectedDate || null,
@@ -343,24 +354,19 @@ function DesignForm() {
             <FormField
               label="Mức độ ưu tiên"
               type="select"
-              options={
-                priorityCategories.options.length > 0
-                  ? priorityCategories.options
-                  : [{ label: "Chưa có danh mục", value: "" }]
-              }
-              selectProps={{ ...register("priority"), disabled: isFormReadOnly || priorityCategories.options.length === 0 }}
+              options={priorityOptions.length > 0 ? priorityOptions : [{ label: "Chưa có danh mục", value: "" }]}
+              selectProps={{ ...register("priority"), disabled: isFormReadOnly || priorityOptions.length === 0 }}
               error={errors.priority?.message}
             />
-            {selectedStatus === COMPLETED_STATUS ? (
-
+            {isCompletedStatus ? (
+              <FormField
+                label="Điểm cộng"
+                type="number"
+                inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001", disabled: isFormReadOnly }}
+                error={errors.bonusPoint?.message}
+              />
+            ) : null}
             <FormField
-              label="Điểm cộng"
-              type="number"
-              inputProps={{ ...register("bonusPoint"), min: "0", step: "0.001", disabled: isFormReadOnly }}
-              error={errors.bonusPoint?.message}
-            />
-                        ) : null}
-<FormField
               label="Ghi chú"
               type="textarea"
               inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)", disabled: isFormReadOnly }}
@@ -388,8 +394,8 @@ function DesignForm() {
             <FormField
               label="Trạng thái"
               type="select"
-              options={formStatusOptions.length > 0 ? formStatusOptions : [{ label: "Chưa có danh mục", value: "" }]}
-              selectProps={{ ...register("status"), disabled: isFormReadOnly || formStatusOptions.length === 0 }}
+              options={statusOptions.length > 0 ? statusOptions : [{ label: "Chưa có danh mục", value: "" }]}
+              selectProps={{ ...register("status"), disabled: isFormReadOnly || statusOptions.length === 0 }}
               error={errors.status?.message}
             />
             <FormField
@@ -410,16 +416,15 @@ function DesignForm() {
               inputProps={{ ...register("expectedDate"), disabled: isFormReadOnly }}
               error={errors.expectedDate?.message}
             />
-            {selectedStatus === COMPLETED_STATUS ? (
-
-            <FormField
-              label="Ngày hoàn thành"
-              type="datetime-local"
-              inputProps={{ ...register("completedDate"), disabled: isFormReadOnly || selectedStatus !== COMPLETED_STATUS }}
-              error={errors.completedDate?.message}
-            />
-                        ) : null}
-<label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+            {isCompletedStatus ? (
+              <FormField
+                label="Ngày hoàn thành"
+                type="datetime-local"
+                inputProps={{ ...register("completedDate"), disabled: isFormReadOnly }}
+                error={errors.completedDate?.message}
+              />
+            ) : null}
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
               <input type="checkbox" {...register("visible")} disabled={isFormReadOnly} />
               Hiển thị
             </label>
