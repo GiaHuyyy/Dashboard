@@ -62,6 +62,38 @@ const formatConvertDuration = (convertValue, workingHoursPerDay = 8) => {
 };
 
 
+
+const getDateTime = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+};
+
+const formatElapsedDuration = (totalMs) => {
+  if (!Number.isFinite(totalMs) || totalMs <= 0) return "";
+
+  const totalMinutes = Math.max(1, Math.round(totalMs / (60 * 1000)));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes - days * 24 * 60) / 60);
+  const minutes = totalMinutes - days * 24 * 60 - hours * 60;
+
+  const parts = [];
+  if (days > 0) parts.push(`${days} ngày`);
+  if (hours > 0) parts.push(`${hours} giờ`);
+  if (days === 0 && minutes > 0) parts.push(`${minutes} phút`);
+
+  return parts.join(" ") || "0 phút";
+};
+
+const sumElapsedDuration = (items = [], getStart, getEnd) =>
+  items.reduce((total, item) => {
+    const startTime = getDateTime(getStart(item));
+    const endTime = getDateTime(getEnd(item));
+    if (!startTime || !endTime || endTime < startTime) return total;
+    return total + (endTime - startTime);
+  }, 0);
+
+
 const joinParts = (parts = []) => parts.filter(Boolean).join(" - ");
 
 const createPriceReference = ({ type, label, amount = 0, amountLabel = "", description = "" }) => ({
@@ -251,13 +283,6 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
   });
 
   pushEvent({
-    date: contract.expectedHandoverAt,
-    title: "Dự kiến bàn giao",
-    description: contract.handoverStatus || "",
-    type: "deadline",
-  });
-
-  pushEvent({
     date: contract.handoverAt,
     title: "Bàn giao hợp đồng",
     description: contract.handoverStatus || "",
@@ -336,14 +361,7 @@ const buildTimeline = ({ contract, designs, programs, corrections, upgrades, sou
       title: "Gửi source",
       description: item.domain || "",
       type: "source",
-    });
-    pushEvent({
-      date: item.expiresAt,
-      title: "Hết hạn link source",
-      description: item.domain || "",
-      type: "deadline",
-    });
-  });
+    });  });
 
   return events.sort((a, b) => a.timestamp - b.timestamp).map(({ timestamp, ...item }) => item);
 };
@@ -526,6 +544,31 @@ export const buildBusinessContractProfile = async (contract) => {
     correctionPoint: roundPoint(corrections.reduce((total, item) => total + toNumber(item.bonusPoint), 0)),
     upgradePoint: roundPoint(upgrades.reduce((total, item) => total + toNumber(item.bonusPoint), 0)),
   };
+
+  summary.mainWorkDurationLabel = formatElapsedDuration(
+    sumElapsedDuration(
+      designs,
+      (item) => item.receiveDate || item.handoverDate || item.createdAt,
+      (item) => item.completedDate || item.expectedDate || item.deadline || item.receiveDate || item.handoverDate || item.createdAt,
+    ) +
+      sumElapsedDuration(
+        programs,
+        (item) => item.receivedAt || item.assignedAt || item.createdAt,
+        (item) => item.completedAt || item.dueAt || item.receivedAt || item.assignedAt || item.createdAt,
+      ),
+  );
+  summary.extraWorkDurationLabel = formatElapsedDuration(
+    sumElapsedDuration(
+      corrections,
+      (item) => item.receivedAt || item.assignedAt || item.createdAt,
+      (item) => item.completedAt || item.dueAt || item.receivedAt || item.assignedAt || item.createdAt,
+    ) +
+      sumElapsedDuration(
+        upgrades,
+        (item) => item.receivedAt || item.assignedAt || item.createdAt,
+        (item) => item.completedAt || item.dueAt || item.receivedAt || item.assignedAt || item.createdAt,
+      ),
+  );
 
   summary.totalPoint = roundPoint(
     summary.designPoint + summary.programPoint + summary.correctionPoint + summary.upgradePoint,
