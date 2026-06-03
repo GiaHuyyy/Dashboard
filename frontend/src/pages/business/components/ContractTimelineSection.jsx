@@ -43,6 +43,8 @@ const getTimelineColorClass = (type) => {
   }
 };
 
+const CHART_HEADER_END_EXTENSION_PX = 30;
+
 const TIMELINE_LEGEND_ITEMS = [
   { label: "Hợp đồng", type: "contract" },
   { label: "Design", type: "design" },
@@ -74,7 +76,7 @@ const HighlightPlannedText = ({ text, className = "" }) => {
 
 const TimelineLegend = () => (
   <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-    <span className="font-semibold text-slate-600">Màu:</span>
+    <span className="font-semibold text-slate-600">Ghi chú:</span>
     {TIMELINE_LEGEND_ITEMS.map((item) => (
       <span key={item.type} className="inline-flex items-center gap-1.5">
         <span className={`h-2.5 w-2.5 rounded-full ${getTimelineColorClass(item.type)}`} />
@@ -90,9 +92,27 @@ const buildChartDescription = (values = [], { isPlanned = false } = {}) => {
   return parts.join(" - ");
 };
 
-const buildTimelineChartRows = ({ contract, designs = [], programs = [], corrections = [], upgrades = [], sources = [] }) => {
+const buildTimelineChartRows = ({
+  contract,
+  designs = [],
+  programs = [],
+  corrections = [],
+  upgrades = [],
+  sources = [],
+}) => {
   const rows = [];
-  const pushRow = ({ id, label, description = "", type = "info", start, end, startLabel, endLabel, isMilestone = false, order = 0 }) => {
+  const pushRow = ({
+    id,
+    label,
+    description = "",
+    type = "info",
+    start,
+    end,
+    startLabel,
+    endLabel,
+    isMilestone = false,
+    order = 0,
+  }) => {
     const startTime = parseTime(start);
     const fallbackEnd = end || start;
     const endTime = parseTime(fallbackEnd) || startTime;
@@ -134,12 +154,18 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     pushRow({
       id: `design-${item.id}`,
       label: `Design: ${item.title || item.designType || "Không có tiêu đề"}`,
-      description: buildChartDescription([item.assignee, item.status], { isPlanned: !item.completedDate && Boolean(deadline) }),
+      description: buildChartDescription([item.assignee, item.status], {
+        isPlanned: !item.completedDate && Boolean(deadline),
+      }),
       type: "design",
       start,
       end: item.completedDate || deadline || start,
       startLabel: item.receiveDateLabel || item.handoverDateLabel || item.createdAtLabel,
-      endLabel: item.completedDateLabel || item.expectedDateLabel || item.deadlineLabel || (deadline ? "" : "Chưa có ngày dự kiến"),
+      endLabel:
+        item.completedDateLabel ||
+        item.expectedDateLabel ||
+        item.deadlineLabel ||
+        (deadline ? "" : "Chưa có ngày dự kiến"),
     });
   });
 
@@ -147,7 +173,9 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     pushRow({
       id: `program-${item.id}`,
       label: `Lập trình: ${item.module || "Không có module"}`,
-      description: buildChartDescription([item.assignee, item.processingStatus], { isPlanned: !item.completedAt && Boolean(item.dueAt) }),
+      description: buildChartDescription([item.assignee, item.processingStatus], {
+        isPlanned: !item.completedAt && Boolean(item.dueAt),
+      }),
       type: "program",
       start: item.assignedAt || item.receivedAt || item.createdAt,
       end: item.completedAt || item.dueAt || item.assignedAt || item.receivedAt || item.createdAt,
@@ -160,7 +188,9 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     pushRow({
       id: `correction-${item.id}`,
       label: `Chỉnh sửa: ${item.issueContent || item.module || "Không có nội dung"}`,
-      description: buildChartDescription([item.assignee, item.status], { isPlanned: !item.completedAt && Boolean(item.dueAt) }),
+      description: buildChartDescription([item.assignee, item.status], {
+        isPlanned: !item.completedAt && Boolean(item.dueAt),
+      }),
       type: "correction",
       start: item.assignedAt || item.receivedAt || item.createdAt,
       end: item.completedAt || item.dueAt || item.assignedAt || item.receivedAt || item.createdAt,
@@ -173,7 +203,9 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     pushRow({
       id: `upgrade-${item.id}`,
       label: `Nâng cấp: ${item.upgradeItem || item.module || "Không có nội dung"}`,
-      description: buildChartDescription([item.assignee, item.status], { isPlanned: !item.completedAt && Boolean(item.dueAt) }),
+      description: buildChartDescription([item.assignee, item.status], {
+        isPlanned: !item.completedAt && Boolean(item.dueAt),
+      }),
       type: "upgrade",
       start: item.assignedAt || item.receivedAt || item.createdAt,
       end: item.completedAt || item.dueAt || item.assignedAt || item.receivedAt || item.createdAt,
@@ -247,11 +279,16 @@ const TimelineChart = ({ rows = [] }) => {
   return (
     <div className="max-h-115 overflow-x-auto overflow-y-auto rounded-xl border border-slate-200">
       <div className="divide-y divide-slate-100 bg-white" style={{ minWidth: 1800 }}>
-        <div className="grid grid-cols-[320px_1fr] bg-slate-50 text-xs font-semibold text-slate-500">
-          <div className="border-r border-slate-200 p-3">Công việc</div>
-          <div className="flex items-center justify-between p-3">
-            <span>{formatChartShortDate(minTime)}</span>
-            <span>{formatChartShortDate(maxTime)}</span>
+        <div className="grid grid-cols-[320px_1fr] text-xs font-semibold text-slate-500">
+          <div className="border-r border-slate-200 bg-slate-50 p-3">Công việc</div>
+          <div className="overflow-visible p-3">
+            <div
+              className="flex items-center justify-between"
+              style={{ width: `calc(100% + ${CHART_HEADER_END_EXTENSION_PX}px)` }}
+            >
+              <span>{formatChartShortDate(minTime)}</span>
+              <span>{formatChartShortDate(maxTime)}</span>
+            </div>
           </div>
         </div>
         {rows.map((row) => {

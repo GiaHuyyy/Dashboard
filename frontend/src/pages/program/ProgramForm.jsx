@@ -16,7 +16,6 @@ import FormField from "@/components/ui/form-field";
 import Modal from "@/components/ui/modal";
 import { PERMISSIONS } from "@/constants/permissions";
 
-
 const getContractOptionLabel = (item) =>
   item ? item.label || `${item.contractCode || "N/A"} - ${item.contractName || "N/A"}`.trim() : "";
 
@@ -90,17 +89,15 @@ function ProgramInfo({
         selectProps={{ ...register("priority"), disabled: priorityOptions.length === 0 }}
         error={errors.priority?.message}
       />
-            {selectedProcessingStatus === COMPLETED_STATUS ? (
-
-      <FormField
-        label="Điểm cộng"
-        type="number"
-        inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125", placeholder: "Nhập điểm cộng" }}
-        error={errors.bonusPoint?.message}
-      />
-
-                  ) : null}
-<div className="grid grid-cols-2 gap-4">
+      {selectedProcessingStatus === COMPLETED_STATUS ? (
+        <FormField
+          label="Điểm cộng"
+          type="number"
+          inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125", placeholder: "Nhập điểm cộng" }}
+          error={errors.bonusPoint?.message}
+        />
+      ) : null}
+      <div className="grid grid-cols-2 gap-4">
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
           <input type="checkbox" {...register("design")} />
           Design
@@ -122,7 +119,7 @@ function ProgramInfo({
         type="textarea"
         inputProps={{
           ...register("note"),
-          placeholder: "Nhập ghi chú nếu có",
+          placeholder: "Ghi chú thêm (nếu có)",
           rows: 3,
         }}
         error={errors.note?.message}
@@ -604,20 +601,17 @@ function ProgramForm() {
               error={errors.dueAt?.message}
             />
             {selectedProcessingStatus === COMPLETED_STATUS ? (
-
-
-            <FormField
-              label="Ngày hoàn thành"
-              type="datetime-local"
-              inputProps={{
-                ...register("completedAt"),
-                disabled: selectedProcessingStatus !== COMPLETED_STATUS,
-              }}
-              error={errors.completedAt?.message}
-            />
-
-                        ) : null}
-<label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <FormField
+                label="Ngày hoàn thành"
+                type="datetime-local"
+                inputProps={{
+                  ...register("completedAt"),
+                  disabled: selectedProcessingStatus !== COMPLETED_STATUS,
+                }}
+                error={errors.completedAt?.message}
+              />
+            ) : null}
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
               <input type="checkbox" {...register("visible")} />
               Hiển thị
             </label>
