@@ -96,12 +96,15 @@ const mapCorrectionToForm = (row) => ({
   note: row.note || "",
 });
 
-
 const getProgramByBusinessContractId = (programs, businessContractId) =>
   programs.find((item) => item.businessContractId === businessContractId) || null;
 
 const getBusinessContractOptionLabel = (item) =>
   item ? `${item.contractCode || "N/A"} - ${item.contractName || "N/A"} - ${item.customerName || "N/A"}`.trim() : "";
+
+const isContractHandedOver = (item) => item?.handoverStatus === "Đã bàn giao";
+
+const getSelectableContracts = (contracts = []) => contracts.filter((item) => !isContractHandedOver(item));
 
 function ProgramCorrectionForm() {
   const navigate = useNavigate();
@@ -146,6 +149,28 @@ function ProgramCorrectionForm() {
     () => businessContractReferences.find((item) => String(item.id) === String(selectedBusinessContractId)) || null,
     [businessContractReferences, selectedBusinessContractId],
   );
+  const selectableBusinessContracts = useMemo(
+    () => getSelectableContracts(businessContractReferences),
+    [businessContractReferences],
+  );
+  const businessContractOptions = useMemo(() => {
+    if (businessContractReferences.length === 0) {
+      return [{ label: "Không có dữ liệu", value: "", disabled: true }];
+    }
+
+    if (selectableBusinessContracts.length === 0) {
+      return [{ label: "Không có hợp đồng chưa bàn giao", value: "", disabled: true }];
+    }
+
+    return businessContractReferences.map((item) => {
+      const handedOver = isContractHandedOver(item);
+      return {
+        label: `${getBusinessContractOptionLabel(item)}${handedOver ? " (Đã bàn giao)" : ""}`,
+        value: item.id,
+        disabled: handedOver,
+      };
+    });
+  }, [businessContractReferences, selectableBusinessContracts.length]);
   const isCompletedReadOnlyMode =
     isEditMode && initialSnapshot.status === CORRECTION_COMPLETED_STATUS && !canOverrideCompleted;
   const isReadOnlyMode = !canSave || isCompletedReadOnlyMode;
@@ -220,7 +245,7 @@ function ProgramCorrectionForm() {
           return;
         }
 
-        const selected = contracts[0];
+        const selected = getSelectableContracts(contracts)[0] || null;
         const linkedProgram = getProgramByBusinessContractId(programs, selected?.id);
         const managerOptions = getStaffNamesByRole(staffList, "Quản lý");
         const programmerOptions = getStaffNamesByRole(staffList, "Lập trình viên");
@@ -375,18 +400,19 @@ function ProgramCorrectionForm() {
               <FormField
                 label="Phiếu gốc / Số HĐ"
                 type="select"
-                options={
-                  businessContractReferences.length === 0
-                    ? [{ label: "Không có dữ liệu", value: "" }]
-                    : businessContractReferences.map((item) => ({
-                        label: getBusinessContractOptionLabel(item),
-                        value: item.id,
-                      }))
-                }
+                options={businessContractOptions}
                 selectProps={{
                   ...businessContractRegister,
-                  disabled: businessContractReferences.length === 0,
+                  disabled: selectableBusinessContracts.length === 0,
                   onChange: (event) => {
+                    const contract = businessContractReferences.find(
+                      (item) => String(item.id) === String(event.target.value),
+                    );
+                    if (isContractHandedOver(contract)) {
+                      event.preventDefault();
+                      return;
+                    }
+
                     const selected = getProgramByBusinessContractId(programReferences, event.target.value);
                     businessContractRegister.onChange(event);
                     if (!selected) {
@@ -431,16 +457,14 @@ function ProgramCorrectionForm() {
               error={errors.priority?.message}
             />
             {selectedStatus === CORRECTION_COMPLETED_STATUS ? (
-
+              <FormField
+                label="Điểm cộng"
+                type="number"
+                inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125" }}
+                error={errors.bonusPoint?.message}
+              />
+            ) : null}
             <FormField
-              label="Điểm cộng"
-              type="number"
-              inputProps={{ ...register("bonusPoint"), min: "0", step: "0.125" }}
-              error={errors.bonusPoint?.message}
-            />
-
-                        ) : null}
-<FormField
               label="Ghi chú"
               type="textarea"
               inputProps={{ ...register("note"), rows: 3, placeholder: "Ghi chú thêm (nếu có)" }}
@@ -496,17 +520,14 @@ function ProgramCorrectionForm() {
               error={errors.dueAt?.message}
             />
             {selectedStatus === CORRECTION_COMPLETED_STATUS ? (
-
-
-            <FormField
-              label="Ngày hoàn thành"
-              type="datetime-local"
-              inputProps={{ ...register("completedAt"), disabled: selectedStatus !== CORRECTION_COMPLETED_STATUS }}
-              error={errors.completedAt?.message}
-            />
-
-                        ) : null}
-<label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <FormField
+                label="Ngày hoàn thành"
+                type="datetime-local"
+                inputProps={{ ...register("completedAt"), disabled: selectedStatus !== CORRECTION_COMPLETED_STATUS }}
+                error={errors.completedAt?.message}
+              />
+            ) : null}
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
               <input type="checkbox" {...register("visible")} />
               Hiển thị
             </label>
