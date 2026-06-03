@@ -25,7 +25,10 @@ export function RelatedWorkSections({ profile, navigate }) {
             { key: "status", label: "Trạng thái" },
             { key: "assigner", label: "Người giao" },
             { key: "assignee", label: "Người nhận" },
-            { key: "completedDateLabel", label: "Hoàn thành" },
+            { key: "handoverDateLabel", label: "Ngày giao" },
+            { key: "receiveDateLabel", label: "Ngày nhận" },
+            { key: "expectedDateLabel", label: "Ngày dự kiến" },
+            { key: "completedDateLabel", label: "Ngày hoàn thành" },
           ]}
         />
       </Section>
@@ -42,8 +45,10 @@ export function RelatedWorkSections({ profile, navigate }) {
             { key: "processingStatus", label: "Trạng thái" },
             { key: "assigner", label: "Người giao" },
             { key: "assignee", label: "Lập trình viên" },
-            { key: "dueAtLabel", label: "Hạn xử lý" },
-            { key: "note", label: "Ghi chú", className: "text-left" },
+            { key: "assignedAtLabel", label: "Ngày giao" },
+            { key: "receivedAtLabel", label: "Ngày nhận" },
+            { key: "dueAtLabel", label: "Ngày dự kiến" },
+            { key: "completedAtLabel", label: "Ngày hoàn thành" },
           ]}
         />
       </Section>
@@ -61,6 +66,10 @@ export function RelatedWorkSections({ profile, navigate }) {
             { key: "status", label: "Trạng thái" },
             { key: "assigner", label: "Người giao" },
             { key: "assignee", label: "Người nhận" },
+            { key: "assignedAtLabel", label: "Ngày giao" },
+            { key: "receivedAtLabel", label: "Ngày nhận" },
+            { key: "dueAtLabel", label: "Ngày dự kiến" },
+            { key: "completedAtLabel", label: "Ngày hoàn thành" },
           ]}
         />
       </Section>
@@ -78,6 +87,10 @@ export function RelatedWorkSections({ profile, navigate }) {
             { key: "status", label: "Trạng thái" },
             { key: "assigner", label: "Người giao" },
             { key: "assignee", label: "Người nhận" },
+            { key: "assignedAtLabel", label: "Ngày giao" },
+            { key: "receivedAtLabel", label: "Ngày nhận" },
+            { key: "dueAtLabel", label: "Ngày dự kiến" },
+            { key: "completedAtLabel", label: "Ngày hoàn thành" },
           ]}
         />
       </Section>

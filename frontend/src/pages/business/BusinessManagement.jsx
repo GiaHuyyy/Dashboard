@@ -389,7 +389,7 @@ function BusinessManagement() {
                         navigate(`/kinh-doanh/hop-dong/${row.id}/ho-so`);
                       }}
                       variant="primary-outline"
-                      className=" hover:bg-sky-100"
+                      className="hover:bg-sky-100 text-sky-700"
                       title="Xem hồ sơ hợp đồng tổng hợp"
                     />
                   </TableCell>
