@@ -52,6 +52,26 @@ const TIMELINE_LEGEND_ITEMS = [
   { label: "Source", type: "source" },
 ];
 
+const HighlightPlannedText = ({ text, className = "" }) => {
+  const value = String(text || "");
+  if (!value) return null;
+
+  const parts = value.split(/(Dự kiến)/g);
+  return (
+    <span className={className}>
+      {parts.map((part, index) =>
+        part === "Dự kiến" ? (
+          <span key={`${part}-${index}`} className="font-semibold text-sky-700">
+            {part}
+          </span>
+        ) : (
+          <span key={`${part}-${index}`}>{part}</span>
+        ),
+      )}
+    </span>
+  );
+};
+
 const TimelineLegend = () => (
   <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
     <span className="font-semibold text-slate-600">Màu:</span>
@@ -64,9 +84,15 @@ const TimelineLegend = () => (
   </div>
 );
 
+const buildChartDescription = (values = [], { isPlanned = false } = {}) => {
+  const parts = values.filter(Boolean);
+  if (isPlanned) parts.push("Dự kiến");
+  return parts.join(" - ");
+};
+
 const buildTimelineChartRows = ({ contract, designs = [], programs = [], corrections = [], upgrades = [], sources = [] }) => {
   const rows = [];
-  const pushRow = ({ id, label, description = "", type = "info", start, end, startLabel, endLabel }) => {
+  const pushRow = ({ id, label, description = "", type = "info", start, end, startLabel, endLabel, isMilestone = false, order = 0 }) => {
     const startTime = parseTime(start);
     const fallbackEnd = end || start;
     const endTime = parseTime(fallbackEnd) || startTime;
@@ -83,18 +109,22 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
       endTime: endTime < startTime ? startTime : endTime,
       startLabel: startLabel || formatChartDate(start),
       endLabel: endLabel || (end ? formatChartDate(end) : formatChartDate(start)),
+      isMilestone,
+      order,
     });
   };
 
   pushRow({
-    id: `contract-${contract?.id || "current"}`,
-    label: "Hợp đồng",
+    id: `contract-created-${contract?.id || "current"}`,
+    label: "Tạo hợp đồng",
     description: contract?.contractCode || contract?.contractName || "",
     type: "contract",
-    start: contract?.createdAt,
-    end: contract?.handoverAt || contract?.expectedHandoverAt || contract?.createdAt,
-    startLabel: contract?.createdAtLabel,
-    endLabel: contract?.handoverAtLabel || contract?.expectedHandoverAtLabel,
+    start: contract?.receivedAt || contract?.createdAt,
+    end: contract?.receivedAt || contract?.createdAt,
+    startLabel: contract?.receivedAtLabel || contract?.createdAtLabel,
+    endLabel: contract?.receivedAtLabel || contract?.createdAtLabel,
+    isMilestone: true,
+    order: -1,
   });
 
   designs.forEach((item) => {
@@ -104,7 +134,7 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     pushRow({
       id: `design-${item.id}`,
       label: `Design: ${item.title || item.designType || "Không có tiêu đề"}`,
-      description: [item.assignee, item.status].filter(Boolean).join(" - "),
+      description: buildChartDescription([item.assignee, item.status], { isPlanned: !item.completedDate && Boolean(deadline) }),
       type: "design",
       start,
       end: item.completedDate || deadline || start,
@@ -117,11 +147,11 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     pushRow({
       id: `program-${item.id}`,
       label: `Lập trình: ${item.module || "Không có module"}`,
-      description: [item.assignee, item.processingStatus].filter(Boolean).join(" - "),
+      description: buildChartDescription([item.assignee, item.processingStatus], { isPlanned: !item.completedAt && Boolean(item.dueAt) }),
       type: "program",
-      start: item.assignedAt || item.createdAt,
-      end: item.completedAt || item.dueAt || item.assignedAt || item.createdAt,
-      startLabel: item.assignedAtLabel || item.createdAtLabel,
+      start: item.assignedAt || item.receivedAt || item.createdAt,
+      end: item.completedAt || item.dueAt || item.assignedAt || item.receivedAt || item.createdAt,
+      startLabel: item.assignedAtLabel || item.receivedAtLabel || item.createdAtLabel,
       endLabel: item.completedAtLabel || item.dueAtLabel || (item.dueAt ? "" : "Chưa có ngày dự kiến"),
     });
   });
@@ -130,11 +160,11 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     pushRow({
       id: `correction-${item.id}`,
       label: `Chỉnh sửa: ${item.issueContent || item.module || "Không có nội dung"}`,
-      description: [item.assignee, item.status].filter(Boolean).join(" - "),
+      description: buildChartDescription([item.assignee, item.status], { isPlanned: !item.completedAt && Boolean(item.dueAt) }),
       type: "correction",
-      start: item.assignedAt || item.createdAt,
-      end: item.completedAt || item.dueAt || item.assignedAt || item.createdAt,
-      startLabel: item.assignedAtLabel || item.createdAtLabel,
+      start: item.assignedAt || item.receivedAt || item.createdAt,
+      end: item.completedAt || item.dueAt || item.assignedAt || item.receivedAt || item.createdAt,
+      startLabel: item.assignedAtLabel || item.receivedAtLabel || item.createdAtLabel,
       endLabel: item.completedAtLabel || item.dueAtLabel || (item.dueAt ? "" : "Chưa có ngày dự kiến"),
     });
   });
@@ -143,11 +173,11 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     pushRow({
       id: `upgrade-${item.id}`,
       label: `Nâng cấp: ${item.upgradeItem || item.module || "Không có nội dung"}`,
-      description: [item.assignee, item.status].filter(Boolean).join(" - "),
+      description: buildChartDescription([item.assignee, item.status], { isPlanned: !item.completedAt && Boolean(item.dueAt) }),
       type: "upgrade",
-      start: item.assignedAt || item.createdAt,
-      end: item.completedAt || item.dueAt || item.assignedAt || item.createdAt,
-      startLabel: item.assignedAtLabel || item.createdAtLabel,
+      start: item.assignedAt || item.receivedAt || item.createdAt,
+      end: item.completedAt || item.dueAt || item.assignedAt || item.receivedAt || item.createdAt,
+      startLabel: item.assignedAtLabel || item.receivedAtLabel || item.createdAtLabel,
       endLabel: item.completedAtLabel || item.dueAtLabel || (item.dueAt ? "" : "Chưa có ngày dự kiến"),
     });
   });
@@ -165,7 +195,21 @@ const buildTimelineChartRows = ({ contract, designs = [], programs = [], correct
     });
   });
 
-  return rows.sort((a, b) => a.startTime - b.startTime);
+  const isPlannedHandover = !contract?.handoverAt && Boolean(contract?.expectedHandoverAt);
+  pushRow({
+    id: `contract-handover-${contract?.id || "current"}`,
+    label: isPlannedHandover ? "Bàn giao hợp đồng (Dự kiến)" : "Bàn giao hợp đồng",
+    description: contract?.handoverStatus || "",
+    type: "contract",
+    start: contract?.handoverAt || contract?.expectedHandoverAt,
+    end: contract?.handoverAt || contract?.expectedHandoverAt,
+    startLabel: contract?.handoverAtLabel || contract?.expectedHandoverAtLabel,
+    endLabel: contract?.handoverAtLabel || contract?.expectedHandoverAtLabel,
+    isMilestone: true,
+    order: 1,
+  });
+
+  return rows.sort((a, b) => a.order - b.order || a.startTime - b.startTime);
 };
 
 const TimelineList = ({ items = [] }) => {
@@ -177,9 +221,15 @@ const TimelineList = ({ items = [] }) => {
         <div key={`${item.date}-${index}`} className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
           <div className={`mt-1 h-3 w-3 shrink-0 rounded-full ${getTimelineColorClass(item.type)}`} />
           <div>
-            <p className="text-sm font-semibold text-slate-700">{item.title}</p>
+            <p className="text-sm font-semibold text-slate-700">
+              <HighlightPlannedText text={item.title} />
+            </p>
             <p className="text-xs text-slate-500">{item.dateLabel}</p>
-            {item.description ? <p className="mt-1 text-sm text-slate-600">{item.description}</p> : null}
+            {item.description ? (
+              <p className="mt-1 text-sm text-slate-600">
+                <HighlightPlannedText text={item.description} />
+              </p>
+            ) : null}
           </div>
         </div>
       ))}
@@ -207,22 +257,38 @@ const TimelineChart = ({ rows = [] }) => {
         {rows.map((row) => {
           const left = Math.min(((row.startTime - minTime) / range) * 100, 97.5);
           const rawWidth = ((row.endTime - row.startTime) / range) * 100;
-          const width = row.isMilestone ? 1.2 : Math.min(Math.max(rawWidth, 8), 100 - left);
+          const width = row.isMilestone ? Math.min(18, 100 - left) : Math.min(Math.max(rawWidth, 8), 100 - left);
 
           return (
             <div key={row.id} className="grid grid-cols-[320px_1fr] text-sm">
               <div className="border-r border-slate-200 p-3">
-                <p className="line-clamp-2 font-semibold text-slate-700">{row.label}</p>
-                {row.description ? <p className="mt-1 line-clamp-1 text-xs text-slate-500">{row.description}</p> : null}
+                <p className="line-clamp-2 font-semibold text-slate-700">
+                  <HighlightPlannedText text={row.label} />
+                </p>
+                {row.description ? (
+                  <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+                    <HighlightPlannedText text={row.description} />
+                  </p>
+                ) : null}
               </div>
               <div className="relative min-h-16 p-3">
                 <div className="absolute inset-x-3 top-1/2 h-px bg-slate-100" />
                 <div
                   className={`absolute top-1/2 h-7 -translate-y-1/2 overflow-visible whitespace-nowrap rounded-full px-3 text-xs font-semibold leading-7 text-white shadow-sm ${getTimelineColorClass(row.type)}`}
-                  style={{ left: `${left}%`, width: `${width}%`, minWidth: row.isMilestone ? 28 : 280 }}
+                  style={{
+                    left: row.isMilestone && row.order > 0 ? undefined : `${left}%`,
+                    right: row.isMilestone && row.order > 0 ? 12 : undefined,
+                    width: `${width}%`,
+                    minWidth: 280,
+                    maxWidth: row.isMilestone ? 420 : undefined,
+                  }}
                   title={`${row.label}: ${row.startLabel || "--"}${row.isMilestone ? "" : ` - ${row.endLabel || "--"}`}`}
                 >
-                  <span className="block">{row.isMilestone ? row.startLabel || "--" : `${row.startLabel || "--"} → ${row.endLabel || "--"}`}</span>
+                  <span className="block">
+                    {row.isMilestone
+                      ? `${row.label}: ${row.startLabel || "--"}`
+                      : `${row.startLabel || "--"} → ${row.endLabel || "--"}`}
+                  </span>
                 </div>
               </div>
             </div>
