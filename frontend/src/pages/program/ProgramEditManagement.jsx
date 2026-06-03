@@ -318,6 +318,7 @@ function ProgramEditManagement() {
       </div>
 
       <ManagementTableCard
+        title="Danh sách Yêu cầu chỉnh sửa"
         searchText={searchText}
         onSearchChange={handleSearchTextChange}
         searchPlaceholder="Tìm số HĐ, module, mô tả"

@@ -152,12 +152,7 @@ function DesignPointManagement() {
     <>
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <Button icon={Lock} label="Chốt kỳ" variant="primary" onClick={() => toast.success("Đã chốt kỳ")} />
-        <Button
-          icon={LockOpen}
-          label="Mở khóa kỳ"
-          variant="secondary"
-          onClick={() => toast.success("Đã mở khóa kỳ")}
-        />
+        <Button icon={LockOpen} label="Mở khóa kỳ" variant="secondary" onClick={() => toast.success("Đã mở khóa kỳ")} />
         <Button icon={Download} label="Xuất file" variant="success" onClick={exportCsv} />
       </div>
 
@@ -197,7 +192,6 @@ function DesignPointManagement() {
             </option>
           ))}
         </select>
-
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -250,6 +244,7 @@ function DesignPointManagement() {
       </div>
 
       <ManagementTableCard
+        title="Danh sách chi tiết điểm Design"
         searchText={searchText}
         onSearchChange={setSearchText}
         searchPlaceholder="Tìm hạng mục, loại design"

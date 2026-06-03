@@ -168,7 +168,7 @@ function SystemSettingManagement() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-base font-semibold text-slate-700">Cấu hình SLA / tham số</p>
+            <p className="text-base font-semibold text-sky-700">Cấu hình SLA / tham số</p>
             <p className="mt-1 text-sm text-slate-500">
               Thiết lập hạn tải source, quy đổi điểm/ngày công, upload và các mốc cảnh báo mặc định.
             </p>
@@ -213,7 +213,7 @@ function SystemSettingManagement() {
         <fieldset disabled={!canUpdate} className="space-y-5">
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-            <h2 className="text-base font-semibold text-gray-500">Cấu hình source</h2>
+            <h2 className="text-base font-semibold text-sky-700">Cấu hình source</h2>
             <button
               type="button"
               onClick={() => setShowSourceHint((prev) => !prev)}
@@ -268,7 +268,7 @@ function SystemSettingManagement() {
 
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-            <h2 className="text-base font-semibold text-gray-500">Quy đổi điểm/ngày công</h2>
+            <h2 className="text-base font-semibold text-sky-700">Quy đổi điểm/ngày công</h2>
             <button
               type="button"
               onClick={() => setShowConvertHint((prev) => !prev)}
@@ -303,7 +303,7 @@ function SystemSettingManagement() {
 
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
           <div className="rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-            <h2 className="text-base font-semibold text-gray-500">Cấu hình upload</h2>
+            <h2 className="text-base font-semibold text-sky-700">Cấu hình upload</h2>
           </div>
           <div className="grid gap-4 border-x border-b border-slate-200 p-4 md:grid-cols-2">
             <FormField
@@ -329,7 +329,7 @@ function SystemSettingManagement() {
 
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
           <div className="rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-            <h2 className="text-base font-semibold text-gray-500">Cảnh báo / SLA</h2>
+            <h2 className="text-base font-semibold text-sky-700">Cảnh báo / SLA</h2>
           </div>
           <div className="grid gap-4 border-x border-b border-slate-200 p-4 md:grid-cols-2">
             <FormField

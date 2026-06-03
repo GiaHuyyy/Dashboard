@@ -10,7 +10,7 @@ export function ManagementTableCard({
   return (
     <div className="mt-6 rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-        <h2 className="text-base font-semibold text-gray-500">{title}</h2>
+        <h2 className="text-base font-semibold text-sky-700">{title}</h2>
         <div className="flex items-center">
           <input
             type="text"

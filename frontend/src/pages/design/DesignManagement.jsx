@@ -252,6 +252,7 @@ function DesignManagement() {
       </div>
 
       <ManagementTableCard
+        title="Danh sách Design"
         searchText={searchText}
         onSearchChange={handleSearchTextChange}
         searchPlaceholder="Tìm công việc design"

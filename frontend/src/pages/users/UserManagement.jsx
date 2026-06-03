@@ -113,7 +113,7 @@ function UserManagement() {
       </div>
 
       <ManagementTableCard
-        title="Danh sách tài khoản"
+        title="Danh sách Tài khoản"
         searchText={searchText}
         onSearchChange={setSearchText}
         searchPlaceholder="Tìm tên, tài khoản"

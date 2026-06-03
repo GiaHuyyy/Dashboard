@@ -235,6 +235,7 @@ function ListProgram() {
       </div>
 
       <ManagementTableCard
+        title="Danh sách Lập trình"
         searchText={searchText}
         onSearchChange={handleSearchTextChange}
         searchPlaceholder="Tìm số HĐ, module, người giao/nhận"

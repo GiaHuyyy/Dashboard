@@ -84,7 +84,12 @@ function SslPriceManagement() {
         deleteLabel={deleteManyLabel}
       />
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm tên gói SSL">
+      <ManagementTableCard
+        title="Danh sách Bảng giá SSL"
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm tên gói SSL"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>

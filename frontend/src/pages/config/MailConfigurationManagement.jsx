@@ -136,7 +136,7 @@ function MailConfigurationManagement() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-base font-semibold text-slate-700">Cấu hình mail</p>
+            <p className="text-base font-semibold text-sky-700">Cấu hình mail</p>
             <p className="mt-1 text-sm text-slate-500">
               Thiết lập SMTP, email người gửi và chế độ bật/tắt gửi mail thật cho các phiếu lập trình, source và hợp đồng.
             </p>
@@ -175,7 +175,7 @@ function MailConfigurationManagement() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
         <div className="rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-          <h2 className="text-base font-semibold text-gray-500">Thông tin SMTP</h2>
+          <h2 className="text-base font-semibold text-sky-700">Thông tin SMTP</h2>
         </div>
 
         <fieldset disabled={!canUpdate} className="grid gap-4 border-x border-b border-slate-200 p-4 md:grid-cols-2">

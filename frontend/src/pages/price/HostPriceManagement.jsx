@@ -85,7 +85,12 @@ function HostPriceManagement() {
         deleteLabel={deleteManyLabel}
       />
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm tên hosting">
+      <ManagementTableCard
+        title="Danh sách Bảng giá hosting"
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm tên hosting"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>

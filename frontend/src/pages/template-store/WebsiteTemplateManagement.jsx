@@ -216,7 +216,7 @@ function WebsiteTemplateManagement() {
       </div>
 
       <ManagementTableCard
-        title="Danh sách website mẫu"
+        title="Danh sách Website mẫu"
         searchText={searchText}
         onSearchChange={setSearchText}
         searchPlaceholder="Tìm tên, link, tag, ghi chú"

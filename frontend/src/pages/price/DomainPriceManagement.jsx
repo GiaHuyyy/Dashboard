@@ -84,7 +84,12 @@ function DomainPriceManagement() {
         deleteLabel={deleteManyLabel}
       />
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm đuôi tên miền">
+      <ManagementTableCard
+        title="Danh sách Bảng giá tên miền"
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm đuôi tên miền"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>

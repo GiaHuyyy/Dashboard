@@ -74,6 +74,7 @@ function StaffManagement() {
       />
 
       <ManagementTableCard
+        title="Danh sách Nhân sự"
         searchText={searchText}
         onSearchChange={setSearchText}
         searchPlaceholder="Tìm tên, email, SĐT"

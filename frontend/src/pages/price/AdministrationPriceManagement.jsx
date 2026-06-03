@@ -85,6 +85,7 @@ function AdministrationPriceManagement() {
       />
 
       <ManagementTableCard
+        title="Danh sách Bảng giá quản trị"
         searchText={searchText}
         onSearchChange={setSearchText}
         searchPlaceholder="Tìm dịch vụ quản trị"

@@ -125,7 +125,7 @@ function RolePermissionManagement() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-base font-semibold text-slate-700">Vai trò & quyền</p>
+            <p className="text-base font-semibold text-sky-700">Vai trò & quyền</p>
             <p className="mt-1 text-sm text-slate-500">
               Thiết lập quyền theo vai trò. Người dùng có nhiều vai trò sẽ được cộng gộp quyền từ tất cả vai trò.
             </p>
@@ -139,7 +139,7 @@ function RolePermissionManagement() {
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
           <div className="rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
-            <h2 className="text-base font-semibold text-gray-500">Danh sách vai trò</h2>
+            <h2 className="text-base font-semibold text-sky-700">Danh sách Vai trò & quyền</h2>
           </div>
           <div className="border-x border-b border-slate-200 p-3">
             <div className="space-y-2">
@@ -172,7 +172,7 @@ function RolePermissionManagement() {
         <div className="rounded-tl-2xl rounded-tr-2xl bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-t-3 border-slate-200 border-t-sky-500 px-4 py-3">
             <div>
-              <h2 className="text-base font-semibold text-gray-500">Quyền của {selectedRoleLabel}</h2>
+              <h2 className="text-base font-semibold text-sky-700">Quyền của {selectedRoleLabel}</h2>
               <p className="mt-1 text-xs text-slate-500">
                 {isSuperAdminSelected
                   ? "Super Admin luôn có toàn quyền và không thể chỉnh sửa tại đây."

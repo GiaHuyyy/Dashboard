@@ -277,6 +277,7 @@ function ProgramPointManagement() {
       </div>
 
       <ManagementTableCard
+        title="Danh sách điểm chi tiết Lập trình/Nâng cấp/Chỉnh sửa"
         searchText={searchText}
         onSearchChange={setSearchText}
         searchPlaceholder="Tìm phiếu gốc, mô tả"

@@ -1,4 +1,4 @@
-import { RefreshCw} from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -89,18 +89,28 @@ function ServerManagement() {
   return (
     <>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button icon={RefreshCw} label="Đồng bộ server" variant="info" className="bg-cyan-500" onClick={() => toast.success("Đã đồng bộ dữ liệu mẫu")} disabled={!canUpdate} title={!canUpdate ? "Bạn không có quyền đồng bộ server" : undefined} />
+        <Button
+          icon={RefreshCw}
+          label="Đồng bộ server"
+          variant="info"
+          className="bg-cyan-500"
+          onClick={() => toast.success("Đã đồng bộ dữ liệu mẫu")}
+          disabled={!canUpdate}
+          title={!canUpdate ? "Bạn không có quyền đồng bộ server" : undefined}
+        />
         <select
           className="w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={filterIp}
           onChange={(event) => setFilterIp(event.target.value)}
         >
           <option value="all">Lọc theo địa chỉ IP</option>
-          {ipOptions.filter((item) => item !== "all").map((ip) => (
-            <option key={ip} value={ip}>
-              {ip}
-            </option>
-          ))}
+          {ipOptions
+            .filter((item) => item !== "all")
+            .map((ip) => (
+              <option key={ip} value={ip}>
+                {ip}
+              </option>
+            ))}
         </select>
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
@@ -122,15 +132,30 @@ function ServerManagement() {
         </select>
       </div>
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm domain">
+      <ManagementTableCard
+        title="Danh sách server"
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm domain"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Domain (3)</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Băng thông</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Dung lượng (GB)</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">On/Off</TableHead>
-              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">Ngày on/off</TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Domain (3)
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Băng thông
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Dung lượng (GB)
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                On/Off
+              </TableHead>
+              <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">
+                Ngày on/off
+              </TableHead>
               <TableHead className="border border-slate-200 p-4 text-center font-semibold text-slate-500">IP</TableHead>
             </TableRow>
           </TableHeader>
@@ -145,12 +170,16 @@ function ServerManagement() {
               filteredRows.map((row) => {
                 const bandwidthLimit = row.bandwidthLimit ?? 0;
                 const storageLimit = row.storageLimit ?? 0;
-                const bandwidthPercent = bandwidthLimit ? Math.min((row.bandwidthUsed / bandwidthLimit) * 100, 100) : 100;
+                const bandwidthPercent = bandwidthLimit
+                  ? Math.min((row.bandwidthUsed / bandwidthLimit) * 100, 100)
+                  : 100;
                 const storagePercent = storageLimit ? Math.min((row.storageUsed / storageLimit) * 100, 100) : 100;
 
                 return (
                   <TableRow key={row.id} className="text-slate-700 hover:bg-slate-50">
-                    <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">{row.domain}</TableCell>
+                    <TableCell className="border border-slate-200 p-4 text-left font-semibold text-sky-700">
+                      {row.domain}
+                    </TableCell>
                     <TableCell className="border border-slate-200 p-4">
                       <div className="mx-auto w-48 bg-slate-100">
                         <div
@@ -176,7 +205,9 @@ function ServerManagement() {
                     <TableCell className="border border-slate-200 p-4">
                       <span className="rounded bg-emerald-500 px-3 py-1 text-white">{row.onOff}</span>
                     </TableCell>
-                    <TableCell className="border border-slate-200 p-4 text-slate-500 font-medium">{row.onOffDate || "N/A"}</TableCell>
+                    <TableCell className="border border-slate-200 p-4 text-slate-500 font-medium">
+                      {row.onOffDate || "N/A"}
+                    </TableCell>
                     <TableCell className="border border-slate-200 p-4">{row.ip}</TableCell>
                   </TableRow>
                 );

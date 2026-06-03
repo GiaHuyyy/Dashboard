@@ -84,7 +84,12 @@ function AdvertisingPriceManagement() {
         deleteLabel={deleteManyLabel}
       />
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm gói quảng cáo">
+      <ManagementTableCard
+        title="Danh sách Bảng giá quảng cáo"
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm gói quảng cáo"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>

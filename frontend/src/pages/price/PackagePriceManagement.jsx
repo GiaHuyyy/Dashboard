@@ -84,7 +84,12 @@ function PackagePriceManagement() {
         deleteLabel={deleteManyLabel}
       />
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm gói trọn gói">
+      <ManagementTableCard
+        title="Danh sách Bảng giá trọn gói"
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        searchPlaceholder="Tìm gói trọn gói"
+      >
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>

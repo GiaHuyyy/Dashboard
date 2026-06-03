@@ -113,7 +113,10 @@ function SourceManagement() {
         <select
           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
           value={selectedStatus}
-          onChange={(event) => { setSelectedStatus(event.target.value); setPage(1); }}
+          onChange={(event) => {
+            setSelectedStatus(event.target.value);
+            setPage(1);
+          }}
         >
           <option value="all">Trạng thái gửi</option>
           {SOURCE_SEND_STATUS_OPTIONS.map((option) => (
@@ -125,6 +128,7 @@ function SourceManagement() {
       </div>
 
       <ManagementTableCard
+        title="Danh sách source hợp đồng"
         searchText={searchText}
         onSearchChange={setSearchText}
         searchPlaceholder="Tìm số HĐ, module, link source"

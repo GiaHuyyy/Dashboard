@@ -321,7 +321,7 @@ function BusinessManagement() {
         </select>
       </div>
 
-      <ManagementTableCard searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm số HĐ, tên HĐ, khách hàng">
+      <ManagementTableCard title="Danh sách Hợp đồng" searchText={searchText} onSearchChange={setSearchText} searchPlaceholder="Tìm số HĐ, tên HĐ, khách hàng">
         <Table className="min-w-full text-center text-sm">
           <TableHeader className="bg-slate-50 text-slate-500">
             <TableRow>

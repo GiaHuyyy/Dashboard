@@ -306,6 +306,7 @@ function ProgramUpgradeManagement() {
       </div>
 
       <ManagementTableCard
+        title="Danh sách Yêu cầu nâng cấp"
         searchText={searchText}
         onSearchChange={handleSearchTextChange}
         searchPlaceholder="Tìm số HĐ, module, hạng mục"
